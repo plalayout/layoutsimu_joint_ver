@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>プラレールレイアウトシミュレータ</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+        .context-menu {
+            position: absolute;
+            background-color: white;
+            border: 1px solid black;
+            display: none;
+            z-index: 1000;
+        }
+        .context-menu div {
+            padding: 8px;
+            cursor: pointer;
+        }
+        .context-menu div:hover {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600"></canvas><br>
+
+<button id="addStraight">直線追加</button>
+<button id="addRightCurve">右曲線追加</button>
+<button id="addLeftCurve">左曲線追加</button><br>
+<button id="addRightOutCurve">右外曲線追加</button>
+<button id="addLeftOutCurve">左外曲線追加</button><br>
+
+<button id="addTurnoutLeft">左ターンアウト追加</button>
+<button id="addTurnoutRight">右ターンアウト追加</button>
+<button id="addFigure8Point">8の字ポイント追加</button><br>
+
+<button id="addSlide">S字レール追加</button><button id="addRSlide">S字レール追加(R)</button><br>
+
+<input type="text" id="railInput" placeholder="S, R, Lを入力">
+<button id="addRails">レール追加</button><br>
+<button id="canvasreset">縮尺リセット</button>
+<button id="allclear">クリア</button>
+
+    <div id="contextMenu" class="context-menu">
+        <div id="rotateRight">右回転</div>
+        <div id="rotateLeft">左回転</div>
+        <div id="duplicate">複製</div>
+        <div id="delete">消去</div>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+	const canvH = canvas.height;
+	const canvW = canvas.width;
+	const rails =[];
+  //      const rects = [];
+  //      const curves = [];
+//	const figure8Points = [];
+//	const turnouts = [];
+        let dragging = null;
+        let offsetX, offsetY;
+        let selectedShape = null;
+	let LastselectedShape = null;
+
+let scale = 1;
+const scaleFactor = 1.1;
+
+    let canvasOffsetX = canvW/2;
+    let canvasOffsetY = canvH/2;
+    let isPanning = false;
+    let startX, startY;
+
+
+const DIRECTION_LEFT = 'left';
+const DIRECTION_RIGHT = 'right';
+const RAIL_LENGTH = 80;
+const RAIL_WIDTH  =14;
+const D_TRACK_WIDTH = 22; 
+
+
+        class Rect {
+            constructor(x, y, id) {
+                this.x = x;
+                this.y = y;
+                this.width = RAIL_WIDTH;
+                this.height = RAIL_LENGTH;
+                this.id = id;
+                this.angle = 0;
+		this.color = 'deepskyblue';
+         	this.endpointIdCounter = 0;
+           }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * Math.PI / 180);
+                ctx.fillStyle = this.color;
+
+
+
+
+                ctx.fillRect(-this.width / 2, 0, this.width, this.height);
+               // ctx.fillStyle = 'white';
+               // ctx.fillText(this.id, -this.width , this.height / 2 );
+                ctx.restore();
+            }
+
+            contains(mx, my) {
+ 
+
+        const scaledX = (mx ) ;
+        const scaledY = (my ) ;
+
+               const angleRad = -this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const localX = cos * (scaledX - this.x) - sin * (scaledY - this.y) + this.x;
+                const localY = sin * (scaledX - this.x) + cos * (scaledY - this.y) + this.y;
+                return (localX >= this.x - this.width / 2 && localX <= this.x + this.width / 2 &&
+                        localY >= this.y  && localY <= this.y + this.height);
+            }
+
+            getEndpoints() {
+                const angleRad = this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const x1 = this.x;
+                const y1 = this.y;
+                const x2 = this.x - (this.height) * sin;
+                const y2 = this.y + (this.height) * cos;
+                return [
+            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
+            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` }
+		];
+            }
+        }
+
+
+        class Slide {
+            constructor(x, y, id, slide) {
+                this.x = x;
+                this.y = y;
+                this.width = RAIL_WIDTH;
+                this.length = 80;
+                this.id = id;
+                this.angle = 0;
+		this.color = 'pink';
+                this.slide = slide;
+           }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * Math.PI / 180);
+                ctx.fillStyle = 'deepskyblue';
+      		ctx.strokeStyle =this.color;
+
+	        ctx.lineWidth = this.width;
+
+
+		ctx.beginPath();
+		ctx.moveTo(0, 0);
+		ctx.bezierCurveTo(0, this.length * 0.5   , this.slide ,this.length * 0.5, this.slide, this.length);
+		ctx.stroke();
+
+
+                ctx.fillStyle = 'white';
+                ctx.fillText(this.id, -this.width / 4, this.length / 2 );
+                ctx.restore();
+            }
+
+            contains(mx, my) {
+                const angleRad = -this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const localY = sin * (mx - this.x) + cos * (my - this.y) + this.y;
+                const localX = cos * (mx - this.x) - sin * (my - this.y) + this.x - (localY- this.y)/this.length * this.slide ;
+
+
+
+                return (localX >= this.x - this.width / 2 && localX <= this.x + this.width / 2 &&
+                        localY >= this.y  && localY <= this.y + this.length);
+            }
+
+            getEndpoints() {
+                const angleRad = this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const x1 = this.x;
+                const y1 = this.y;
+                const x2 = this.x - (this.length) * sin + this.slide * cos ;
+                const y2 = this.y + (this.length) * cos + this.slide * sin ; 
+                return [
+            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
+            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` }
+		];
+            }
+        }
+
+
+
+// 角度を -π から π の範囲に正規化する関数
+function normalizeAngle(angle) {
+    while (angle > Math.PI) angle -= 2 * Math.PI;
+    while (angle < -Math.PI) angle += 2 * Math.PI;
+    return angle;
+}
+
+
+class Curve {
+    constructor(x, y, id, direction = DIRECTION_LEFT) {
+        this.x = x;
+        this.y = y;
+        this.width = RAIL_WIDTH;
+        this.radius = RAIL_LENGTH;
+        this.id = id;
+        this.angle = 0;
+	this.color =  'pink';
+        this.direction = direction; // 'left' or 'right'
+    }
+
+     draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle * Math.PI / 180);
+
+        ctx.strokeStyle = this.color;
+
+        ctx.lineWidth = this.width;
+        ctx.beginPath();
+        if (this.direction === DIRECTION_LEFT) {
+            ctx.arc(-this.radius, 0, this.radius, 0, Math.PI / 4);
+        } else if (this.direction === DIRECTION_RIGHT) {
+            ctx.arc(this.radius, 0, this.radius, Math.PI * 3 / 4, Math.PI);
+        } else {
+            throw new Error(`Invalid direction: ${this.direction}`);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    contains(mx, my) {
+        const angleRad = this.angle * Math.PI / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+
+//        const x1 = this.x - this.radius * cos;
+//        const y1 = this.y - this.radius * sin;
+        const x1 = this.direction === DIRECTION_LEFT ? this.x - this.radius * cos: this.x + this.radius * cos;
+        const y1 = this.direction === DIRECTION_LEFT ? this.y - this.radius * sin :this.y + this.radius * sin;
+
+        const dx = mx - x1;
+        const dy = my - y1;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        let angle = Math.atan2(dy, dx) - this.angle * Math.PI / 180;
+        angle = normalizeAngle(angle);
+
+        const withinArc = this.direction === DIRECTION_LEFT ? (angle >= 0 && angle <= Math.PI / 4) : (angle >= Math.PI * (3) / 4 && angle <= Math.PI);
+        return distance >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2 && withinArc;
+    }
+
+
+    getEndpoints() {
+        const angleRad = this.angle * Math.PI / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        const x1 = this.x ;
+        const y1 = this.y ;
+//        const x2 = this.direction === DIRECTION_LEFT ? this.x  - this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 4) : this.x  - this.radius * cos + this.radius * Math.cos(angleRad - Math.PI / 4);
+//        const y2 = this.direction === DIRECTION_LEFT ? this.y  - this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 4) : this.y  - this.radius * sin + this.radius * Math.sin(angleRad - Math.PI / 4);
+        const x2 = this.direction === DIRECTION_LEFT ? this.x  - this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 4) : this.x  + this.radius * cos + this.radius * Math.cos(angleRad +3* Math.PI / 4);
+        const y2 = this.direction === DIRECTION_LEFT ? this.y  - this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 4) : this.y  + this.radius * sin + this.radius * Math.sin(angleRad +3* Math.PI / 4);
+        return [
+ //           { x: x1, y: y1, angle: this.direction === DIRECTION_LEFT ? this.angle : this.angle + 180, id: `${this.id}-1` },
+ //           { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle +135, id: `${this.id}-2` }
+            { x: x1, y: y1, angle:  this.angle  , id: `${this.id}-1` },
+            { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle -45, id: `${this.id}-2` }
+        ];
+    }
+}
+
+
+
+class TurnoutRail {
+    constructor(x, y, id, direction = 'left') {
+        this.x = x;
+        this.y = y;
+        this.width = RAIL_WIDTH;
+        this.length = RAIL_LENGTH;
+        this.id = id;
+        this.angle = 0;
+        this.direction = direction; // 'left' or 'right'
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle * Math.PI / 180);
+        ctx.lineWidth = this.width;
+	ctx.strokeStyle = 'lawngreen';
+ 
+//直線部
+                ctx.fillStyle = 'lawngreen';
+                ctx.fillRect(-this.width / 2, 0, this.width, this.length);
+
+//曲線部
+        ctx.beginPath();
+        if (this.direction === DIRECTION_LEFT) {
+            ctx.arc(-this.length, 0, this.length, 0, Math.PI / 4);
+        } else if (this.direction === DIRECTION_RIGHT) {
+            ctx.arc( this.length, 0, this.length, Math.PI * 3 / 4, Math.PI);
+        } else {
+            throw new Error(`Invalid direction: ${this.direction}`);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    contains(mx, my) {
+                const angleRad = -this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+                const localX = cos * (mx - this.x) - sin * (my - this.y) + this.x;
+                const localY = sin * (mx - this.x) + cos * (my - this.y) + this.y;
+                return (localX >= this.x - this.width / 2 && localX <= this.x + this.width / 2 &&
+                        localY >= this.y  && localY <= this.y + this.length);
+    }
+
+    getEndpoints() {
+        const angleRad = this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+
+                const x1 = this.x;
+                const y1 = this.y;
+                const x2 = this.x - (this.length) * sin;
+                const y2 = this.y + (this.length) * cos;
+
+
+//曲線部
+        	const x3 = this.direction === DIRECTION_LEFT ? this.x  - this.length * cos + this.length * Math.cos(angleRad + Math.PI / 4) : this.x  + this.length * cos + this.length * Math.cos(angleRad + 3* Math.PI / 4);
+        	const y3 = this.direction === DIRECTION_LEFT ? this.y  - this.length * sin + this.length * Math.sin(angleRad + Math.PI / 4) : this.y  + this.length * sin + this.length * Math.sin(angleRad + 3* Math.PI / 4);
+
+
+                return [
+            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
+            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` },
+           	   { x: x3, y: y3, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle -45, id: `${this.id}-4` }
+ 		];
+    }
+}
+
+class Figure8PointRail {
+    constructor(x, y, id, direction = 'left') {
+        this.x = x;
+        this.y = y;
+        this.width = RAIL_WIDTH;
+        this.radius = RAIL_LENGTH;
+        this.id = id;
+        this.angle = 0;
+        this.direction = direction; // 'left' or 'right'
+    }
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle * Math.PI / 180);
+
+        ctx.strokeStyle = 'plum';
+
+        ctx.lineWidth = this.width;
+        ctx.beginPath();
+            ctx.arc(-this.radius, 0, this.radius, 0, Math.PI / 4);
+       	ctx.stroke();
+ 
+      	ctx.beginPath();
+           ctx.arc( this.radius, 0, this.radius, Math.PI * 3 / 4, Math.PI);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    contains(mx, my) {
+
+        const angleRad = this.angle * Math.PI / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+
+        const x1 = this.x - this.radius * cos;
+        const y1 = this.y - this.radius * sin;
+
+        const x2 = this.x + this.radius * cos;
+        const y2 = this.y + this.radius * sin;
+
+
+        const dx = mx - x1;
+        const dy = my - y1;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        const dx2 = mx - x2;
+        const dy2 = my - y2;
+        const distance2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+
+
+        let angle = Math.atan2(dy, dx) - this.angle * Math.PI / 180;
+        angle = normalizeAngle(angle);
+
+        let angle2 = Math.atan2(dy2, dx2) - this.angle * Math.PI / 180;
+        angle2 = normalizeAngle(angle2);
+
+
+
+//        const withinArc = this.direction === DIRECTION_LEFT ? (angle >= 0 && angle <= Math.PI / 4) : (angle >= Math.PI * (-1) / 4 && angle <= 0);
+//        return distance >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2 && withinArc;
+
+
+        const withinArc  =  (angle >= 0 && angle <= Math.PI / 4);
+	const withinArc2 =  (angle2 >= Math.PI * 3 / 4 && angle2 <= Math.PI);
+
+	const withinDistance  = distance  >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2;
+	const withinDistance2 = distance2 >= this.radius - this.width / 2 && distance2 <= this.radius + this.width / 2;
+
+//        return distance >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2 && withinArc;
+//        return withinDistance && withinArc;
+        return (withinDistance && withinArc) || (withinDistance2 && withinArc2);
+
+
+
+    }
+
+    getEndpoints() {
+        const angleRad = this.angle * Math.PI / 180;
+                const cos = Math.cos(angleRad);
+                const sin = Math.sin(angleRad);
+
+                const x1 = this.x;
+                const y1 = this.y;
+
+                const x2 = this.x  + this.radius * cos + this.radius * Math.cos(angleRad + 3* Math.PI / 4);
+                const y2 = this.y  + this.radius * sin + this.radius * Math.sin(angleRad + 3* Math.PI / 4);
+
+
+	        const x3 = this.x  - this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 4)  ;
+	        const y3 = this.y  - this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 4)  ;
+
+
+
+
+                return [
+            	   { x: x1, y: y1, angle: this.angle,      id: `${this.id}-1` },
+            	   
+           	   { x: x3, y: y3, angle: this.angle + 45, id: `${this.id}-2` },
+		   { x: x2, y: y2, angle: this.angle +135, id: `${this.id}-3` }
+ 		];
+    }
+}
+
+
+
+
+    function drawAll() {
+
+	ctx.restore();ctx.save();
+	ctx.setTransform(1,0,0,1,0,0);
+//        ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
+	ctx.translate(0,canvas.height);
+	ctx.translate(canvasOffsetX,- canvasOffsetY);
+	//ctx.scale(1,-1);
+
+	ctx.scale(scale,-scale);
+      	
+        ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
+
+
+       // ctx.save(); ctx.setTransform(scale, 0, 0, scale, canvasOffsetX, canvasOffsetY);
+        
+	//    
+
+	rails.forEach(rect =>rect.draw());
+
+
+        drawEndpoints();
+        ctx.restore();
+    }
+
+        function drawEndpoints() {
+		
+		
+            const rootPoints = [];
+
+ //起点（プラレールで言うと凹の側を描画）
+  	    ctx.fillStyle ='darkgreen';
+            rails.forEach(shape => {
+                shape.getEndpoints().forEach(endpoint => {
+		    if(endpoint.id.slice(-1)=='2'||endpoint.id.slice(-1)=='4'){
+			const pointAngleRad = endpoint.angle * Math.PI / 180;
+                        ctx.beginPath();
+                        ctx.arc(endpoint.x, endpoint.y, 4,  pointAngleRad, pointAngleRad + Math.PI);
+                        ctx.fill();		
+
+		    }else{
+			rootPoints.push(endpoint);
+		    }
+               });
+            });
+
+//残りの接続点（凸側）を描画、こちらが上に描かれる）
+	    ctx.fillStyle = 'red';  
+	    rootPoints.forEach(rpoint => {
+		 const pointAngleRad = rpoint.angle * Math.PI / 180;
+                 ctx.beginPath();
+                 ctx.arc(rpoint.x, rpoint.y, 4,  pointAngleRad + Math.PI,  pointAngleRad + 2 * Math.PI);
+                 ctx.fill();		
+	    });	   
+
+        }
+
+function snapToClosestEndpoint(shape) {
+    const endpoints = shape.getEndpoints();
+    let closestEndpoint = null;
+    let closestDistance = Infinity;
+
+    rails.forEach(otherShape => {
+        if (otherShape !== shape) {
+            otherShape.getEndpoints().forEach(endpoint => {
+                endpoints.forEach(shapeEndpoint => {
+                    const dx = shapeEndpoint.x - endpoint.x;
+                    const dy = shapeEndpoint.y - endpoint.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestEndpoint = { shape: otherShape, endpoint, shapeEndpoint };
+                    }
+                });
+            });
+        }
+    });
+
+    if (closestDistance < 20) { // スナップ距離の閾値
+        const angleDiff = closestEndpoint.endpoint.angle - closestEndpoint.shapeEndpoint.angle;
+        shape.angle += angleDiff;
+
+        // 再度端点を計算
+        const newEndpoints = shape.getEndpoints();
+        const newEndpoint = newEndpoints.find(ep => ep.id === closestEndpoint.shapeEndpoint.id);
+
+        const dx = closestEndpoint.endpoint.x - newEndpoint.x;
+        const dy = closestEndpoint.endpoint.y - newEndpoint.y;
+        shape.x += dx;
+        shape.y += dy;
+    }
+}
+    canvas.addEventListener('mousedown', (e) => {console.log('x='+ e.offsetX +',y='+ e.offsetY);
+        const mouseX = (e.offsetX - canvasOffsetX)/scale;
+        const mouseY = ((canvH - e.offsetY) - canvasOffsetY)/scale;
+        dragging = null;
+        selectedShape = null;
+
+        rails.forEach(rect => {
+            if (rect.contains(mouseX, mouseY)) {
+                dragging = rect;
+
+
+
+
+                selectedShape = rect;
+                offsetX = mouseX - rect.x;
+                offsetY = mouseY - rect.y;
+            }
+        });
+
+
+        if (!dragging) {
+            isPanning = true;
+            startX = e.offsetX;
+            startY = e.offsetY;
+        }
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (dragging) {
+            dragging.x = e.offsetX/scale - offsetX - canvasOffsetX/scale;
+            dragging.y = (canvH - e.offsetY)/scale - offsetY - canvasOffsetY/scale;
+            drawAll();
+        } else if (isPanning) {
+            const dx = e.offsetX - startX;
+            const dy = e.offsetY - startY;
+            canvasOffsetX += dx;
+            canvasOffsetY -= dy;
+            startX = e.offsetX;
+            startY = e.offsetY;
+            drawAll();
+        }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        if (dragging) {
+            snapToClosestEndpoint(dragging);
+	    LastselectedShape = dragging;
+            dragging = null;
+        }
+        isPanning = false;
+        drawAll();
+    });
+
+        canvas.addEventListener('dblclick', (e) => {
+        const mouseX = (e.offsetX - canvasOffsetX)/scale;
+        const mouseY = (e.offsetY - canvasOffsetY)/scale;
+
+            rails.forEach((rect, index) => {
+                if (rect.contains(mouseX, mouseY)) {
+                    rails.splice(index, 1);
+                    drawAll();
+                }
+            });
+
+
+        });
+
+ canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const mouseX = e.offsetX;
+    const mouseY = e.offsetY;
+
+    if (e.deltaY < 0) {
+        // ズームイン
+        scale *= scaleFactor;
+    } else {
+        // ズームアウト
+        scale /= scaleFactor;
+    }
+
+    // スケールに合わせてキャンバスを再描画
+ //   ctx.setTransform(-scale, 0, 0, -scale, mouseX - scale * mouseX, mouseY - scale * mouseY);
+    drawAll();
+});
+
+
+
+
+       canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        const mouseX = (e.offsetX - canvasOffsetX)/scale;
+        const mouseY = ((canvH - e.offsetY) - canvasOffsetY)/scale;
+
+            selectedShape = null;
+            rails.forEach(rect => {
+                if (rect.contains(mouseX, mouseY)) {
+                    selectedShape = rect;
+                }
+            });
+
+            if (selectedShape) {
+                const menu = document.getElementById('contextMenu');
+                menu.style.left = `${e.pageX}px`;
+                menu.style.top = `${e.pageY}px`;
+                menu.style.display = 'block';
+            }
+        });
+
+        document.getElementById('rotateRight').addEventListener('click', () => {
+            if (selectedShape) {
+                selectedShape.angle -= 45;
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        document.getElementById('rotateLeft').addEventListener('click', () => {
+            if (selectedShape) {
+                selectedShape.angle += 45;
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        document.getElementById('duplicate').addEventListener('click', () => {
+            if (selectedShape) {console.log(selectedShape);
+                if (selectedShape instanceof Rect) {
+                    const newRect = new Rect(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
+                    newRect.angle = selectedShape.angle;
+		    rails.push(newRect);console.log(newRect);
+                }else if (selectedShape instanceof Curve) {
+                    const newRect = new Curve(selectedShape.x + 100, selectedShape.y + 100, `L${rails.length + 1}`);
+                    newRect.angle = selectedShape.angle;
+		    rails.push(newRect);console.log(newRect);
+                }
+
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        document.getElementById('delete').addEventListener('click', () => {
+            if (selectedShape) {
+                if (selectedShape) {
+                    const index = rails.indexOf(selectedShape);
+                    if (index > -1) {
+                        rails.splice(index, 1);
+                    }
+                }
+                console.log(rails);
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        document.addEventListener('click', () => {
+            document.getElementById('contextMenu').style.display = 'none';
+        });
+
+
+// 最後に置いたレールの端点を取得する関数
+function getLastEndpoint() {
+    if (rails.length === 0 ) return {x: 0, y:0, angle:0};
+    let endpoints;
+    if (LastselectedShape == null){
+    	const lastShape = rails.slice(-1)[0];console.log(lastShape);
+   	endpoints = lastShape.getEndpoints();
+	}
+	else {
+   	endpoints = LastselectedShape.getEndpoints();
+}
+
+    return endpoints[1]; // 2つ目の端点を返す
+}
+
+// 直線を追加するボタンのイベントリスナー
+document.getElementById('addStraight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R${rails.length + 1}`;
+        const rect = new Rect(lastEndpoint.x, lastEndpoint.y, id);
+        rect.angle = lastEndpoint.angle;
+        // 端点から半分の長さを引いた位置に補正
+//        rect.x -= (rect.height / 2) * Math.sin(rect.angle * Math.PI / 180);
+//        rect.y += (rect.height / 2) * Math.cos(rect.angle * Math.PI / 180);
+        rails.push(rect);
+       drawAll();
+
+        LastselectedShape = rect;
+
+    }
+});
+
+// スライド直線を追加するボタンのイベントリスナー
+document.getElementById('addSlide').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `Sl${rails.length + 1}`;
+        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
+        rect.angle = lastEndpoint.angle;
+	rect.slide = D_TRACK_WIDTH;
+
+        rails.push(rect);
+       drawAll();
+
+        LastselectedShape = rect;
+
+    }
+});
+
+
+// スライド直線を追加するボタンのイベントリスナー
+document.getElementById('addRSlide').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `Sl${rails.length + 1}`;
+        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
+        rect.angle = lastEndpoint.angle;
+	rect.slide = -D_TRACK_WIDTH;
+
+        rails.push(rect);
+       drawAll();
+
+        LastselectedShape = rect;
+
+    }
+});
+
+
+// 右に曲がるレールを追加するボタンのイベントリスナー
+document.getElementById('addRightCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        curve.angle = (lastEndpoint.angle+360)%360;
+        rails.push(curve);
+        drawAll();
+	    LastselectedShape = curve;
+
+
+    }
+});
+
+// 左に曲がるレールを追加するボタンのイベントリスナー
+document.getElementById('addLeftCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `L${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
+        curve.angle = lastEndpoint.angle;
+        // 端点から回転中心までの距離を計算して補正
+//        curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
+//        curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
+        rails.push(curve);
+        drawAll();
+
+	    LastselectedShape = curve;
+
+
+    }
+});
+
+
+// 右に曲がる外レールを追加するボタンのイベントリスナー
+document.getElementById('addRightOutCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        curve.angle = (lastEndpoint.angle+360)%360;
+	curve.radius = RAIL_LENGTH + D_TRACK_WIDTH;
+	curve.color = "purple";
+        rails.push(curve);
+        drawAll();
+	    LastselectedShape = curve;
+
+
+    }
+});
+
+
+
+
+
+
+// ターンアウトレールを追加するボタンのイベントリスナー
+document.getElementById('addTurnoutLeft').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `T${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
+        turnout.angle = lastEndpoint.angle;
+        rails.push(turnout);
+        LastselectedShape = turnout;
+        drawAll();
+    }
+}
+);
+
+document.getElementById('addTurnoutRight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `T${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        turnout.angle = lastEndpoint.angle;
+        rails.push(turnout);
+        LastselectedShape = turnout;
+        drawAll();
+    }
+});
+
+// 8の字ポイントレールを追加するボタンのイベントリスナー
+document.getElementById('addFigure8Point').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `F${rails.length + 1}`;
+        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id);
+        figure8Point.angle = lastEndpoint.angle;
+        rails.push(figure8Point);
+        LastselectedShape = figure8Point;
+        drawAll();
+    }
+});
+
+
+
+
+
+
+
+// レールを追加する関数
+function addRail(type) {
+    const lastEndpoint = getLastEndpoint();
+    if (!lastEndpoint) return;
+
+    if (type === 'S' || type ==='s') {
+        const id = `S${rails.length + 1}`;
+        const rect = new Rect(lastEndpoint.x, lastEndpoint.y, id);
+        rect.angle = lastEndpoint.angle;
+        // 端点から半分の長さを引いた位置に補正
+        LastselectedShape = rect;
+        rails.push(rect);
+
+
+
+    } else if (type === 'R'|| type ==='r') {
+        const id = `R${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        curve.angle = (lastEndpoint.angle+360)%360;
+        // 端点から回転中心までの距離を計算して補正
+  //      curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
+  //      curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
+        LastselectedShape = curve;
+        rails.push(curve);
+
+
+    } else if (type === 'L'|| type ==='l') {
+        const id = `L${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
+        curve.angle = lastEndpoint.angle;
+        // 端点から回転中心までの距離を計算して補正
+    //    curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
+    //    curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
+        LastselectedShape = curve;
+	rails.push(curve);
+
+
+    }
+    drawAll();
+}
+
+// 縮尺リセット　イベントリスナー
+document.getElementById('canvasreset').addEventListener('click', () => {
+ scale = 1;
+
+     canvasOffsetX = canvW/2;
+     canvasOffsetY = canvH/2;
+
+drawAll();
+
+
+});
+
+// リセット　イベントリスナー
+document.getElementById('allclear').addEventListener('click', () => {
+ scale = 1;
+
+     canvasOffsetX = 0;
+     canvasOffsetY = 0;
+     rails.length = 0;
+
+
+drawAll();
+
+
+});
+
+
+
+// テキストボックスの入力を処理するイベントリスナー
+document.getElementById('addRails').addEventListener('click', () => {
+    const input = document.getElementById('railInput').value.toUpperCase();
+    for (const char of input) {
+        if (['S', 'R', 'L'].includes(char)) {
+            addRail(char);
+        }
+    }
+    document.getElementById('railInput').value = ''; // 入力をクリア
+});
+
+        // 初期の長方形を追加
+        for (let i = 0; i < 1; i++) {
+            const id = `S${i + 1}`;
+            const rect = new Rect(0 , 0, id);
+	    rect.angle = 0;
+            rails.push(rect);
+
+
+        }
+
+        drawAll();
+    </script>
+</body>
+</html>
