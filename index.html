@@ -43,6 +43,11 @@
 <button id="canvasreset">縮尺リセット</button>
 <button id="allclear">クリア</button>
 
+	<textarea id="layoutData" rows="5" cols="50" placeholder="レイアウトデータ"></textarea>
+    <button id="saveLayout">レイアウト保存</button>
+    <button id="loadLayout">レイアウト読み込み</button>
+
+
     <div id="contextMenu" class="context-menu">
         <div id="rotateRight">右回転</div>
         <div id="rotateLeft">左回転</div>
@@ -835,6 +840,22 @@ document.getElementById('addRightOutCurve').addEventListener('click', () => {
     }
 });
 
+// 左に曲がる外レールを追加するボタンのイベントリスナー
+document.getElementById('addLeftOutCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `L${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
+        curve.angle = (lastEndpoint.angle+360)%360;
+	curve.radius = RAIL_LENGTH + D_TRACK_WIDTH;
+	curve.color = "purple";
+        rails.push(curve);
+        drawAll();
+	    LastselectedShape = curve;
+
+
+    }
+});
 
 
 
@@ -964,6 +985,54 @@ document.getElementById('addRails').addEventListener('click', () => {
     }
     document.getElementById('railInput').value = ''; // 入力をクリア
 });
+
+
+function saveLayout() {
+    let layoutData = '';
+    rails.forEach(rail => {
+        const type = rail.constructor.name;  // Rect, Curve, Slideなど
+        const direction = rail.direction || '';  // Curve, TurnoutRailなどに必要
+        const slide = rail.slide !== undefined ? rail.slide : '';  // Slideに必要
+
+        layoutData += `${type},${rail.x},${rail.y},${rail.angle},${direction},${slide};`;
+    });
+    document.getElementById('layoutData').value = layoutData;
+}
+
+function loadLayout() {
+    const layoutData = document.getElementById('layoutData').value;
+    const items = layoutData.split(';');
+    rails.length = 0;
+    for (const item of items) {
+        if (!item) continue;
+        const [type, x, y, angle, direction, slide] = item.split(',');
+        const id = `${type[0]}${rails.length + 1}`;
+        let rail = null;
+
+        if (type === 'Rect') {
+            rail = new Rect(+x, +y, id);
+        } else if (type === 'Curve') {
+            rail = new Curve(+x, +y, id, direction);
+        } else if (type === 'TurnoutRail') {
+            rail = new TurnoutRail(+x, +y, id, direction);
+        } else if (type === 'Figure8PointRail') {
+            rail = new Figure8PointRail(+x, +y, id);
+        } else if (type === 'Slide') {
+            rail = new Slide(+x, +y, id, +slide);
+        }
+
+        if (rail) {
+            rail.angle = +angle;
+            rails.push(rail);
+        }
+    }
+    drawAll();
+}
+
+        document.getElementById('saveLayout').addEventListener('click', saveLayout);
+        document.getElementById('loadLayout').addEventListener('click', loadLayout); 
+
+
 
         // 初期の長方形を追加
         for (let i = 0; i < 1; i++) {
