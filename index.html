@@ -2,68 +2,309 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>プラレールレイアウトシミュレータ</title>
     <style>
-        canvas {
-            border: 1px solid black;
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
+        
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: sans-serif;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 10px;
+            border: 2px solid #333;
+            background: #f0f0f0;
+            touch-action: none;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            touch-action: none;
+        }
+        
+        .controls {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            padding: 12px 16px;
+            font-size: 14px;
+            border: 1px solid #666;
+            background: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            flex: 1;
+            min-width: 80px;
+            touch-action: manipulation;
+        }
+        
+        button:active {
+            background: #ddd;
+        }
+        
+        .rail-buttons button {
+            min-width: 100px;
+        }
+        
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #666;
+            border-radius: 5px;
+            margin-bottom: 5px;
+        }
+        
+        textarea {
+            min-height: 80px;
+            font-family: monospace;
+        }
+        
         .context-menu {
-            position: absolute;
+            position: fixed;
             background-color: white;
-            border: 1px solid black;
+            border: 2px solid black;
+            border-radius: 5px;
             display: none;
             z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
+        
         .context-menu div {
-            padding: 8px;
+            padding: 15px 20px;
             cursor: pointer;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
         }
-        .context-menu div:hover {
+        
+        .context-menu div:last-child {
+            border-bottom: none;
+        }
+        
+        .context-menu div:active {
             background-color: #ddd;
+        }
+        
+        .section-title {
+            font-weight: bold;
+            margin: 10px 0 5px 0;
+            color: #333;
+        }
+        
+        .color-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        
+        .color-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+        }
+        
+        .color-box {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #333;
+            border-radius: 3px;
+        }
+        
+        @media (max-width: 600px) {
+            button {
+                font-size: 12px;
+                padding: 10px 12px;
+            }
+            
+            .color-legend {
+                font-size: 11px;
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="800" height="600"></canvas><br>
+    <div id="canvas-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
 
-<button id="addStraight">直線追加</button>
-<button id="addRightCurve">右曲線追加</button>
-<button id="addLeftCurve">左曲線追加</button><br>
-<button id="addRightOutCurve">右外曲線追加</button>
-<button id="addLeftOutCurve">左外曲線追加</button><br>
+    <div class="color-legend">
+        <div class="color-item">
+            <div class="color-box" style="background: deepskyblue;"></div>
+            <span>直線</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: pink;"></div>
+            <span>カーブ</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: purple;"></div>
+            <span>外カーブ</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: cyan;"></div>
+            <span>複線</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: lightcyan;"></div>
+            <span>複曲線</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: lawngreen;"></div>
+            <span>ターンアウト</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: orange;"></div>
+            <span>R-13</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: plum;"></div>
+            <span>8の字</span>
+        </div>
+    </div>
 
-<button id="addTurnoutLeft">左ターンアウト追加</button>
-<button id="addTurnoutRight">右ターンアウト追加</button>
-<button id="addFigure8Point">8の字ポイント追加</button><br>
+    <div class="controls">
+        <div class="section-title">基本レール</div>
+        <div class="button-group rail-buttons">
+            <button id="addStraight">直線</button>
+            <button id="addRightCurve">右カーブ</button>
+            <button id="addLeftCurve">左カーブ</button>
+        </div>
 
-<button id="addSlide">S字レール追加</button><button id="addRSlide">S字レール追加(R)</button><br>
+        <div class="section-title">ポイント</div>
+        <div class="button-group">
+            <button id="addTurnoutLeft">左ターンアウト(R)</button>
+            <button id="addTurnoutRight">右ターンアウト(R)</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addTurnoutLeftL">左ターンアウト(L)</button>
+            <button id="addTurnoutRightL">右ターンアウト(L)</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addFigure8Point">8の字(R)</button>
+            <button id="addFigure8PointRRev">8の字(R反転)</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addFigure8PointL">8の字(L)</button>
+            <button id="addFigure8PointLRev">8の字(L反転)</button>
+        </div>
 
-<input type="text" id="railInput" placeholder="S, R, Lを入力">
-<button id="addRails">レール追加</button><br>
-<button id="canvasreset">縮尺リセット</button>
-<button id="allclear">クリア</button>
+        <div class="section-title">特殊直線レール</div>
+        <div class="button-group rail-buttons">
+            <button id="addHalfStraight">1/2直線</button>
+            <button id="addDoubleStraight">2倍直線</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addQuarterStraight">1/4 (凹凸)</button>
+            <button id="addQuarterCC">1/4 (凹凹)</button>
+            <button id="addQuarterVV">1/4 (凸凸)</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addJointCC">ジョイント (凹凹)</button>
+            <button id="addJointVV">ジョイント (凸凸)</button>
+        </div>
 
-<textarea id="layoutData" rows="5" cols="50" placeholder="レイアウトデータ"></textarea>
-<button id="saveLayout">レイアウト保存</button>
-<button id="loadLayout">レイアウト読み込み</button>
+        <div class="section-title">複線レール</div>
+        <div class="button-group">
+            <button id="addDoubleTrack">複線直線</button>
+        </div>
+        
+        <div class="section-title">複曲線レール</div>
+        <div class="button-group">
+            <button id="addDoubleCurveLeft">複曲線(左)</button>
+            <button id="addDoubleCurveRight">複曲線(右)</button>
+        </div>
 
+        <div class="section-title">外側カーブ</div>
+        <div class="button-group">
+            <button id="addRightOuterCurve">右外側</button>
+            <button id="addLeftOuterCurve">左外側</button>
+            <button id="addRightOutCurve">右外(旧)</button>
+            <button id="addLeftOutCurve">左外(旧)</button>
+        </div>
+
+        <div class="section-title">R-13単線・複線ポイント</div>
+        <div class="button-group">
+            <button id="addR13PointBRight">R-13(B)右</button>
+            <button id="addR13PointBLeft">R-13(B)左</button>
+        </div>
+        
+        <div class="button-group">
+            <button id="addR13PointARight">R-13(A)右</button>
+            <button id="addR13PointALeft">R-13(A)左</button>
+        </div>
+        
+        <div class="section-title">S字レール</div>
+        <div class="button-group">
+            <button id="addSlide">S字</button>
+            <button id="addRSlide">S字(R)</button>
+        </div>
+
+        <div class="section-title">一括追加 (S/R/L)</div>
+        <div class="button-group">
+            <input type="text" id="railInput" placeholder="例: SSRLLS">
+            <button id="addRails">追加</button>
+        </div>
+
+        <div class="section-title">表示操作</div>
+        <div class="button-group">
+            <button id="canvasreset">表示リセット</button>
+            <button id="allclear">全クリア</button>
+        </div>
+
+        <div class="section-title">レイアウト保存/読込</div>
+        <textarea id="layoutData" placeholder="レイアウトデータ"></textarea>
+        <div class="button-group">
+            <button id="saveLayout">保存</button>
+            <button id="loadLayout">読込</button>
+        </div>
+    </div>
 
     <div id="contextMenu" class="context-menu">
-        <div id="rotateRight">右回転</div>
-        <div id="rotateLeft">左回転</div>
+        <div id="rotateRight">右回転 (45°)</div>
+        <div id="rotateLeft">左回転 (45°)</div>
+        <div id="toggleType">タイプ切替 (R/L, A/B)</div>
+        <div id="toggleDirection">方向反転 (裏/表)</div>
+        <div id="toggleEndpoints">端点切替</div>
         <div id="duplicate">複製</div>
-        <div id="delete">消去</div>
+        <div id="delete">削除</div>
     </div>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-	const canvH = canvas.height;
-	const canvW = canvas.width;
+	let canvH = canvas.height;
+	let canvW = canvas.width;
 	const rails =[];
-  //      const rects = [];
-  //      const curves = [];
-//	const figure8Points = [];
-//	const turnouts = [];
         let dragging = null;
         let offsetX, offsetY;
         let selectedShape = null;
@@ -77,24 +318,97 @@ const scaleFactor = 1.1;
     let isPanning = false;
     let startX, startY;
 
+        // ========================================
+        // レスポンシブキャンバスサイズ調整
+        // ========================================
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const containerWidth = container.clientWidth;
+            
+            // アスペクト比を維持 (4:3)
+            const newWidth = Math.min(containerWidth, 800);
+            const newHeight = newWidth * 0.75;
+            
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            canvH = canvas.height;
+            canvW = canvas.width;
+            
+            // オフセットを更新
+            canvasOffsetX = canvW / 2;
+            canvasOffsetY = canvH / 2;
+            
+            drawAll();
+        }
+        
+        // 初回とリサイズ時にキャンバスサイズを調整
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('load', resizeCanvas);
 
-const DIRECTION_LEFT = 'left';
-const DIRECTION_RIGHT = 'right';
-const RAIL_LENGTH = 80;
-const RAIL_WIDTH  =14;
-const D_TRACK_WIDTH = 22; 
+
+        const DIRECTION_LEFT = 'left';
+        const DIRECTION_RIGHT = 'right';
+        const RAIL_LENGTH = 80;
+        const RAIL_WIDTH = 14;
+        const D_TRACK_WIDTH = 22;
+
+        // ========================================
+        // レール色の定義
+        // ========================================
+        // 直線レール(StraightRail): 'deepskyblue' (水色)
+        // カーブレール(Curve): 'pink' (ピンク)
+        // 外カーブレール: 'purple' (紫)
+        // S字レール(Slide): 'pink' (ピンク)
+        // ターンアウト(TurnoutRail): 'lawngreen' (黄緑)
+        // R-13ポイント(R13PointRail): 'orange' (オレンジ)
+        // 8の字ポイント(Figure8PointRail): 'plum' (梅色)
+        // ========================================
+
+        // ========================================
+        // 統一座標変換関数
+        // ========================================
+        
+        /**
+         * スクリーン座標（canvas上のピクセル座標）をワールド座標に変換
+         * @param {number} screenX - canvas上のX座標 (e.offsetX)
+         * @param {number} screenY - canvas上のY座標 (e.offsetY)
+         * @returns {{x: number, y: number}} ワールド座標
+         */
+        function screenToWorld(screenX, screenY) {
+            // スクリーン座標系: 左上が原点、Y軸下向き
+            // ワールド座標系: 中央が原点、Y軸上向き
+            const worldX = (screenX - canvasOffsetX) / scale;
+            const worldY = (canvH - screenY - canvasOffsetY) / scale;
+            return { x: worldX, y: worldY };
+        }
+
+        /**
+         * ワールド座標をスクリーン座標に変換（将来の拡張用）
+         * @param {number} worldX - ワールドX座標
+         * @param {number} worldY - ワールドY座標
+         * @returns {{x: number, y: number}} スクリーン座標
+         */
+        function worldToScreen(worldX, worldY) {
+            const screenX = worldX * scale + canvasOffsetX;
+            const screenY = canvH - (worldY * scale + canvasOffsetY);
+            return { x: screenX, y: screenY };
+        } 
 
 
-        class Rect {
-            constructor(x, y, id) {
+        class StraightRail {
+            constructor(x, y, id, length = RAIL_LENGTH, options = {}) {
                 this.x = x;
                 this.y = y;
                 this.width = RAIL_WIDTH;
-                this.height = RAIL_LENGTH;
+                this.height = length;
                 this.id = id;
                 this.angle = 0;
 		this.color = 'deepskyblue';
          	this.endpointIdCounter = 0;
+                
+                // 端点タイプ（デフォルトは凹凸）
+                this.startType = options.startType || 'concave';
+                this.endType = options.endType || 'convex';
            }
 
             draw() {
@@ -135,9 +449,17 @@ const D_TRACK_WIDTH = 22;
                 const y1 = this.y;
                 const x2 = this.x - (this.height) * sin;
                 const y2 = this.y + (this.height) * cos;
+                
+                // 端点の角度調整
+                // 通常（起点:凹、終点:凸）: そのまま
+                // 起点が凸の場合のみ: 起点の角度を180度反転
+                // 終点が凹の場合のみ: 終点の角度を180度反転
+                const angle1 = this.startType === 'convex' ? (this.angle + 180) % 360 : this.angle;
+                const angle2 = this.endType === 'concave' ? (this.angle + 180) % 360 : this.angle;
+                
                 return [
-            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
-            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` }
+            	   { x: x1, y: y1, angle: angle1, id: `${this.id}-1`, type: this.startType },
+            	   { x: x2, y: y2, angle: angle2, id: `${this.id}-2`, type: this.endType }
 		];
             }
         }
@@ -198,8 +520,8 @@ const D_TRACK_WIDTH = 22;
                 const x2 = this.x - (this.length) * sin + this.slide * cos ;
                 const y2 = this.y + (this.length) * cos + this.slide * sin ; 
                 return [
-            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
-            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` }
+            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1`, type: 'concave' },
+            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2`, type: 'convex' }
 		];
             }
         }
@@ -215,11 +537,11 @@ function normalizeAngle(angle) {
 
 
 class Curve {
-    constructor(x, y, id, direction = DIRECTION_LEFT) {
+    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH) {
         this.x = x;
         this.y = y;
         this.width = RAIL_WIDTH;
-        this.radius = RAIL_LENGTH;
+        this.radius = radius;
         this.id = id;
         this.angle = 0;
 	this.color =  'pink';
@@ -281,8 +603,8 @@ class Curve {
         return [
  //           { x: x1, y: y1, angle: this.direction === DIRECTION_LEFT ? this.angle : this.angle + 180, id: `${this.id}-1` },
  //           { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle +135, id: `${this.id}-2` }
-            { x: x1, y: y1, angle:  this.angle  , id: `${this.id}-1` },
-            { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle -45, id: `${this.id}-2` }
+            { x: x1, y: y1, angle:  this.angle  , id: `${this.id}-1`, type: 'concave' },
+            { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle -45, id: `${this.id}-2`, type: 'convex' }
         ];
     }
 }
@@ -290,179 +612,642 @@ class Curve {
 
 
 class TurnoutRail {
+    constructor(x, y, id, turnoutType = 'R', direction = 'left') {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.angle = 0;
+        this.turnoutType = turnoutType;   // 'R' or 'L'
+        this.direction = direction;       // 'left' or 'right'
+        this.components = [];
+        this.color = 'lawngreen';  // ターンアウト専用の色
+        
+        // 端点構造の説明（実在製品に準拠）:
+        // R型: 起点(凹) → 直線終点(凸) + 曲線終点(凸)
+        //      起点から直線と曲線が分岐。両方とも接続元
+        // L型: 起点(凹) → 直線終点(凸) → 曲線終点(凹)
+        //      直線終点から180度反転した曲線。直線は凸、曲線は凹
+    }
+
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+
+        const base = this.angle;
+        const dir = this.direction;
+
+        /* ===== R型：起点共有・直線と曲線が分岐 ===== */
+        if (this.turnoutType === 'R') {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+
+            // 曲線部（起点共有）
+            const curve = new Curve(this.x, this.y, this.id + '-C', dir);
+            curve.angle = base;
+            curve.color = this.color;
+
+            this.components.push(straight, curve);
+        }
+
+        /* ===== L型：直線終点から180度反転した曲線 ===== */
+        else {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+
+            // 曲線部（直線終点から180度反転）
+            const straightEp = straight.getEndpoints()[1];
+            const curve = new Curve(straightEp.x, straightEp.y, this.id + '-C', dir);
+            curve.angle = straightEp.angle + 180;
+            curve.color = this.color;
+
+            this.components.push(straight, curve);
+        }
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        this.components.forEach(c => c.draw());
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+
+    /* =========================
+       endpoint
+    ========================= */
+    getEndpoints() {
+        this._sync();
+        const eps = [];
+
+        // 起点（凹）
+        eps.push({
+            x: this.x,
+            y: this.y,
+            angle: this.angle,
+            id: this.id + '-1',
+            type: 'concave'
+        });
+
+        // R型の場合：起点共有・直線と曲線が分岐
+        if (this.turnoutType === 'R') {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // 曲線終点（凸）
+            eps.push({
+                ...this.components[1].getEndpoints()[1],
+                id: this.id + '-3',
+                type: 'convex'
+            });
+        }
+        // L型の場合：直線終点から180度反転した曲線
+        else {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // 曲線終点（凹）- L型は曲線が凹（接続を受ける側）
+            const curveEp = this.components[1].getEndpoints()[1];
+            eps.push({
+                x: curveEp.x,
+                y: curveEp.y,
+                angle: curveEp.angle + 180,  // 凹なので角度を反転
+                id: this.id + '-3',
+                type: 'concave'
+            });
+        }
+
+        return eps;
+    }
+}
+
+class R13PointRail {
+    constructor(x, y, id, pointType = 'B', direction = 'right') {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.angle = 0;
+        this.pointType = pointType;   // 'B' or 'A'
+        this.direction = direction;   // 'right' or 'left' (スライドの方向)
+        this.components = [];
+        this.color = 'orange';  // R-13ポイント専用の色
+        
+        // 端点構造の説明（R-13単線・複線ポイント）:
+        // Bタイプ: 起点(凹) → 直線終点(凸) + スライド終点(凸)
+        //          起点から直線とスライドが分岐。両方とも接続元
+        // Aタイプ: 起点(凹) → 直線終点(凸) → スライド終点(凹)
+        //          直線終点から180度反転したスライド。直線は凸、スライドは凹
+    }
+
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+
+        const base = this.angle;
+        const slideAmount = this.direction === 'right' ? D_TRACK_WIDTH : -D_TRACK_WIDTH;
+
+        /* ===== Bタイプ：起点共有・直線とスライドが分岐 ===== */
+        if (this.pointType === 'B') {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+
+            // スライド部（起点共有）
+            const slide = new Slide(this.x, this.y, this.id + '-SL', slideAmount);
+            slide.angle = base;
+            slide.color = this.color;
+
+            this.components.push(straight, slide);
+        }
+
+        /* ===== Aタイプ：直線終点から180度反転したスライド ===== */
+        else {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+
+            // スライド部（直線終点から180度反転）
+            const straightEp = straight.getEndpoints()[1];
+            const slide = new Slide(straightEp.x, straightEp.y, this.id + '-SL', slideAmount);
+            slide.angle = straightEp.angle + 180;
+            slide.color = this.color;
+
+            this.components.push(straight, slide);
+        }
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        this.components.forEach(c => c.draw());
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+
+    /* =========================
+       endpoint
+    ========================= */
+    getEndpoints() {
+        this._sync();
+        const eps = [];
+
+        // 起点（凹）
+        eps.push({
+            x: this.x,
+            y: this.y,
+            angle: this.angle,
+            id: this.id + '-1',
+            type: 'concave'
+        });
+
+        // Bタイプの場合：起点共有・直線とスライドが分岐
+        if (this.pointType === 'B') {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // スライド終点（凸）
+            eps.push({
+                ...this.components[1].getEndpoints()[1],
+                id: this.id + '-3',
+                type: 'convex'
+            });
+        }
+        // Aタイプの場合：直線終点から180度反転したスライド
+        else {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // スライド終点（凹）- Aタイプはスライドが凹（接続を受ける側）
+            const slideEp = this.components[1].getEndpoints()[1];
+            eps.push({
+                x: slideEp.x,
+                y: slideEp.y,
+                angle: slideEp.angle + 180,  // 凹なので角度を反転
+                id: this.id + '-3',
+                type: 'concave'
+            });
+        }
+
+        return eps;
+    }
+}
+
+class DoubleTrackRail {
+    constructor(x, y, id) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.angle = 0;
+        this.components = [];
+        this.color = 'cyan';  // 複線レール専用の色
+        
+        // 端点構造の説明:
+        // 起点側: 2本のレール（凹×2）
+        // 終点側: 2本のレール（凸×2）
+    }
+
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+        const base = this.angle;
+        
+        // 角度のラジアン変換
+        const angleRad = base * Math.PI / 180;
+        
+        // 1本目: 基準位置の直線
+        const rail1 = new StraightRail(this.x, this.y, this.id + '-1');
+        rail1.angle = base;
+        rail1.color = this.color;
+        
+        // 2本目: D_TRACK_WIDTH分、進行方向に対して右90度方向にオフセット
+        // 進行方向がangleRadのとき、右90度方向（時計回りに90度）は:
+        // offsetX = D_TRACK_WIDTH * sin(angleRad)
+        // offsetY = -D_TRACK_WIDTH * cos(angleRad)
+        const offsetX = D_TRACK_WIDTH * Math.sin(angleRad);
+        const offsetY = -D_TRACK_WIDTH * Math.cos(angleRad);
+        
+        const rail2 = new StraightRail(this.x + offsetX, this.y + offsetY, this.id + '-2');
+        rail2.angle = base;
+        rail2.color = this.color;
+        
+        this.components.push(rail1, rail2);
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        this.components.forEach(c => c.draw());
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+
+    /* =========================
+       endpoint
+    ========================= */
+    getEndpoints() {
+        this._sync();
+        const eps = [];
+
+        // 1本目の起点（凹）- 次のレールの基準点
+        eps.push({
+            ...this.components[0].getEndpoints()[0],
+            id: this.id + '-1',
+            type: 'concave'
+        });
+        
+        // 1本目の終点（凸）- 次のレールの基準点
+        eps.push({
+            ...this.components[0].getEndpoints()[1],
+            id: this.id + '-2',
+            type: 'convex'
+        });
+
+        // 2本目の起点（凹）
+        eps.push({
+            ...this.components[1].getEndpoints()[0],
+            id: this.id + '-3',
+            type: 'concave'
+        });
+        
+        // 2本目の終点（凸）
+        eps.push({
+            ...this.components[1].getEndpoints()[1],
+            id: this.id + '-4',
+            type: 'convex'
+        });
+
+        return eps;
+    }
+}
+
+class DoubleCurveRail {
     constructor(x, y, id, direction = 'left') {
         this.x = x;
         this.y = y;
-        this.width = RAIL_WIDTH;
-        this.length = RAIL_LENGTH;
         this.id = id;
         this.angle = 0;
-        this.direction = direction; // 'left' or 'right'
+        this.direction = direction;  // 'left' or 'right'
+        this.components = [];
+        this.color = 'lightcyan';  // 複曲線レール専用の色
+        
+        // 端点構造の説明:
+        // 起点側: 2本のカーブ（凹×2）
+        // 終点側: 2本のカーブ（凸×2）
     }
 
-    draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle * Math.PI / 180);
-        ctx.lineWidth = this.width;
-	ctx.strokeStyle = 'lawngreen';
- 
-//直線部
-                ctx.fillStyle = 'lawngreen';
-                ctx.fillRect(-this.width / 2, 0, this.width, this.length);
-
-//曲線部
-        ctx.beginPath();
-        if (this.direction === DIRECTION_LEFT) {
-            ctx.arc(-this.length, 0, this.length, 0, Math.PI / 4);
-        } else if (this.direction === DIRECTION_RIGHT) {
-            ctx.arc( this.length, 0, this.length, Math.PI * 3 / 4, Math.PI);
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+        const base = this.angle;
+        const dir = this.direction;
+        
+        // 1本目: 基準位置から通常の内側カーブ
+        const innerCurve = new Curve(this.x, this.y, this.id + '-I', dir, RAIL_LENGTH);
+        innerCurve.angle = base;
+        innerCurve.color = this.color;
+        
+        // 2本目: 基準位置からオフセットした外側カーブ
+        // 左カーブ: 左方向（X軸負方向）にオフセット
+        // 右カーブ: 右方向（X軸正方向）にオフセット
+        let outerStartX, outerStartY;
+        if (dir === 'left') {
+            outerStartX = this.x - D_TRACK_WIDTH;
+            outerStartY = this.y;
         } else {
-            throw new Error(`Invalid direction: ${this.direction}`);
+            outerStartX = this.x + D_TRACK_WIDTH;
+            outerStartY = this.y;
         }
-        ctx.stroke();
-        ctx.restore();
+        
+        // 外側カーブ（半径 + 複線幅、基準位置からオフセット）
+        const outerCurve = new Curve(outerStartX, outerStartY, this.id + '-O', dir, RAIL_LENGTH + D_TRACK_WIDTH);
+        outerCurve.angle = base;
+        outerCurve.color = this.color;
+        
+        this.components.push(innerCurve, outerCurve);
     }
 
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        this.components.forEach(c => c.draw());
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
     contains(mx, my) {
-                const angleRad = -this.angle * Math.PI / 180;
-                const cos = Math.cos(angleRad);
-                const sin = Math.sin(angleRad);
-                const localX = cos * (mx - this.x) - sin * (my - this.y) + this.x;
-                const localY = sin * (mx - this.x) + cos * (my - this.y) + this.y;
-                return (localX >= this.x - this.width / 2 && localX <= this.x + this.width / 2 &&
-                        localY >= this.y  && localY <= this.y + this.length);
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
     }
 
+    /* =========================
+       endpoint
+    ========================= */
     getEndpoints() {
-        const angleRad = this.angle * Math.PI / 180;
-                const cos = Math.cos(angleRad);
-                const sin = Math.sin(angleRad);
+        this._sync();
+        const eps = [];
 
-                const x1 = this.x;
-                const y1 = this.y;
-                const x2 = this.x - (this.length) * sin;
-                const y2 = this.y + (this.length) * cos;
+        // 内側カーブの起点（凹）- 次のレールの基準点
+        eps.push({
+            ...this.components[0].getEndpoints()[0],
+            id: this.id + '-1',
+            type: 'concave'
+        });
+        
+        // 内側カーブの終点（凸）- 次のレールの基準点
+        eps.push({
+            ...this.components[0].getEndpoints()[1],
+            id: this.id + '-2',
+            type: 'convex'
+        });
 
+        // 外側カーブの起点（凹）
+        eps.push({
+            ...this.components[1].getEndpoints()[0],
+            id: this.id + '-3',
+            type: 'concave'
+        });
+        
+        // 外側カーブの終点（凸）
+        eps.push({
+            ...this.components[1].getEndpoints()[1],
+            id: this.id + '-4',
+            type: 'convex'
+        });
 
-//曲線部
-        	const x3 = this.direction === DIRECTION_LEFT ? this.x  - this.length * cos + this.length * Math.cos(angleRad + Math.PI / 4) : this.x  + this.length * cos + this.length * Math.cos(angleRad + 3* Math.PI / 4);
-        	const y3 = this.direction === DIRECTION_LEFT ? this.y  - this.length * sin + this.length * Math.sin(angleRad + Math.PI / 4) : this.y  + this.length * sin + this.length * Math.sin(angleRad + 3* Math.PI / 4);
-
-
-                return [
-            	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1` },
-            	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2` },
-           	   { x: x3, y: y3, angle: this.direction === DIRECTION_LEFT ? this.angle + 45 : this.angle -45, id: `${this.id}-4` }
- 		];
+        return eps;
     }
 }
 
 class Figure8PointRail {
-    constructor(x, y, id, direction = 'left') {
+    constructor(x, y, id, pointType = 'R', direction = 'left') {
         this.x = x;
         this.y = y;
-        this.width = RAIL_WIDTH;
-        this.radius = RAIL_LENGTH;
         this.id = id;
         this.angle = 0;
-        this.direction = direction; // 'left' or 'right'
+        this.pointType = pointType;   // 'R', 'R_REV', 'L', 'L_REV'
+        this.direction = direction;   // 'left' or 'right'
+        this.curves = [];
+        this.color = 'plum';  // 8の字ポイント専用の色
+        
+        // 端点構造の説明（実在製品に合わせた定義）:
+        // L型: 起点(凹) → 1本目終点(凸) + 2本目終点(凹)
+        //      起点から左右に分岐。1本目は接続元、2本目は接続先
+        // R型: 起点(凹) → 1本目終点(凸) → 2本目終点(凸)
+        //      1本目終点から180度反転して2本目。両方とも接続元
     }
 
+    /* =========================
+       内部構築
+    ========================= */
+    _buildCurves() {
+        this.curves.length = 0;
+
+        const base = this.angle;
+        const dir = this.direction;
+		const oppDir = (dir === 'left') ? 'right' : 'left';
+        const flip = (this.pointType === 'R_REV' || this.pointType === 'L_REV') ? 1 : -1;
+
+        /* ===== L 系：起点共有・左右分岐（実在製品のL型） ===== */
+        if (this.pointType === 'L' || this.pointType === 'L_REV') {
+
+            // 左（または右）カーブ：凸
+            const c1 = new Curve(this.x, this.y, this.id + '-A', dir);
+            c1.angle = base ;
+            c1.color = this.color;  // 8の字ポイントの色を適用
+
+            // 反対側カーブ：凹（direction を反転）
+            
+            const c2 = new Curve(this.x, this.y, this.id + '-B', oppDir);
+            c2.angle = base ;
+            c2.color = this.color;  // 8の字ポイントの色を適用
+
+            this.curves.push(c1, c2);
+        }
+
+        /* ===== R 系：1本目終点から折り返し（実在製品のR型） ===== */
+        else {
+
+            // 1本目：通常カーブ
+            const c1 = new Curve(this.x, this.y, this.id + '-A', dir);
+            c1.angle = base ;
+            c1.color = this.color;  // 8の字ポイントの色を適用
+
+            // 2本目：1本目終点から 180° 反転
+            const ep = c1.getEndpoints()[1];
+
+            const c2 = new Curve(ep.x, ep.y, this.id + '-B', dir);
+            c2.angle = ep.angle + 180 ;
+            c2.color = this.color;  // 8の字ポイントの色を適用
+
+            this.curves.push(c1, c2);
+        }
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildCurves();
+    }
+
+    /* =========================
+       描画
+    ========================= */
     draw() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle * Math.PI / 180);
-
-        ctx.strokeStyle = 'plum';
-
-        ctx.lineWidth = this.width;
-        ctx.beginPath();
-            ctx.arc(-this.radius, 0, this.radius, 0, Math.PI / 4);
-       	ctx.stroke();
- 
-      	ctx.beginPath();
-           ctx.arc( this.radius, 0, this.radius, Math.PI * 3 / 4, Math.PI);
-        ctx.stroke();
-
-        ctx.restore();
+        this._sync();
+        this.curves.forEach(c => c.draw());
     }
 
+    /* =========================
+       当たり判定
+    ========================= */
     contains(mx, my) {
-
-        const angleRad = this.angle * Math.PI / 180;
-        const cos = Math.cos(angleRad);
-        const sin = Math.sin(angleRad);
-
-        const x1 = this.x - this.radius * cos;
-        const y1 = this.y - this.radius * sin;
-
-        const x2 = this.x + this.radius * cos;
-        const y2 = this.y + this.radius * sin;
-
-
-        const dx = mx - x1;
-        const dy = my - y1;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        const dx2 = mx - x2;
-        const dy2 = my - y2;
-        const distance2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
-
-
-
-        let angle = Math.atan2(dy, dx) - this.angle * Math.PI / 180;
-        angle = normalizeAngle(angle);
-
-        let angle2 = Math.atan2(dy2, dx2) - this.angle * Math.PI / 180;
-        angle2 = normalizeAngle(angle2);
-
-
-
-//        const withinArc = this.direction === DIRECTION_LEFT ? (angle >= 0 && angle <= Math.PI / 4) : (angle >= Math.PI * (-1) / 4 && angle <= 0);
-//        return distance >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2 && withinArc;
-
-
-        const withinArc  =  (angle >= 0 && angle <= Math.PI / 4);
-	const withinArc2 =  (angle2 >= Math.PI * 3 / 4 && angle2 <= Math.PI);
-
-	const withinDistance  = distance  >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2;
-	const withinDistance2 = distance2 >= this.radius - this.width / 2 && distance2 <= this.radius + this.width / 2;
-
-//        return distance >= this.radius - this.width / 2 && distance <= this.radius + this.width / 2 && withinArc;
-//        return withinDistance && withinArc;
-        return (withinDistance && withinArc) || (withinDistance2 && withinArc2);
-
-
-
+        this._sync();
+        return this.curves.some(c => c.contains(mx, my));
     }
 
+    /* =========================
+       endpoint
+    ========================= */
     getEndpoints() {
-        const angleRad = this.angle * Math.PI / 180;
-                const cos = Math.cos(angleRad);
-                const sin = Math.sin(angleRad);
+        this._sync();
+        const eps = [];
 
-                const x1 = this.x;
-                const y1 = this.y;
+        // 起点（凹）
+        eps.push({
+            x: this.x,
+            y: this.y,
+            angle: this.angle,
+            id: this.id + '-1',
+            type: 'concave'
+        });
 
-                const x2 = this.x  + this.radius * cos + this.radius * Math.cos(angleRad + 3* Math.PI / 4);
-                const y2 = this.y  + this.radius * sin + this.radius * Math.sin(angleRad + 3* Math.PI / 4);
+        // L型の場合：起点共有・左右分岐（実在製品のL型）
+        if (this.pointType === 'L' || this.pointType === 'L_REV') {
+            // 1本目終点（凸）
+            eps.push({
+                ...this.curves[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
 
+            // 2本目終点（凹）- L型は2本目が凹（接続を受ける側）
+            const ep3 = this.curves[1].getEndpoints()[1];
+            eps.push({
+                x: ep3.x,
+                y: ep3.y,
+                angle: ep3.angle + 180,  // 凹なので角度を反転
+                id: this.id + '-3',
+                type: 'concave'
+            });
+        }
+        // R型の場合：1本目終点から折り返し（実在製品のR型）
+        else {
+            // 1本目終点（凸）
+            eps.push({
+                ...this.curves[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
 
-	        const x3 = this.x  - this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 4)  ;
-	        const y3 = this.y  - this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 4)  ;
+            // 2本目終点（凸）- R型は2本目も凸
+            eps.push({
+                ...this.curves[1].getEndpoints()[1],
+                id: this.id + '-3',
+                type: 'convex'
+            });
+        }
 
-
-
-
-                return [
-            	   { x: x1, y: y1, angle: this.angle,      id: `${this.id}-1` },
-            	   
-           	   { x: x3, y: y3, angle: this.angle + 45, id: `${this.id}-2` },
-		   { x: x2, y: y2, angle: this.angle +135, id: `${this.id}-3` }
- 		];
+        return eps;
     }
 }
+
+
+
 
 
 
@@ -493,34 +1278,37 @@ class Figure8PointRail {
     }
 
         function drawEndpoints() {
-		
-		
             const rootPoints = [];
 
- //起点（プラレールで言うと凹の側を描画）
-  	    ctx.fillStyle ='darkgreen';
+            // 起点(プラレールで言うと凹の側を描画)
+            ctx.fillStyle = 'darkgreen';
             rails.forEach(shape => {
                 shape.getEndpoints().forEach(endpoint => {
-		    if(endpoint.id.slice(-1)=='2'||endpoint.id.slice(-1)=='4'){
-			const pointAngleRad = endpoint.angle * Math.PI / 180;
+                    // typeプロパティがある場合はそれを優先、なければIDで判定
+                    const isConcave = endpoint.type === 'concave' || 
+                                     (!endpoint.type && (endpoint.id.slice(-1) == '1' || endpoint.id.slice(-1) == '3'));
+                    const isConvex = endpoint.type === 'convex' || 
+                                    (!endpoint.type && (endpoint.id.slice(-1) == '2' || endpoint.id.slice(-1) == '4'));
+                    
+                    if (isConvex) {
+                        const pointAngleRad = endpoint.angle * Math.PI / 180;
                         ctx.beginPath();
-                        ctx.arc(endpoint.x, endpoint.y, 4,  pointAngleRad, pointAngleRad + Math.PI);
-                        ctx.fill();		
-
-		    }else{
-			rootPoints.push(endpoint);
-		    }
-               });
+                        ctx.arc(endpoint.x, endpoint.y, 4, pointAngleRad, pointAngleRad + Math.PI);
+                        ctx.fill();
+                    } else if (isConcave) {
+                        rootPoints.push(endpoint);
+                    }
+                });
             });
 
-//残りの接続点（凸側）を描画、こちらが上に描かれる）
-	    ctx.fillStyle = 'red';  
-	    rootPoints.forEach(rpoint => {
-		 const pointAngleRad = rpoint.angle * Math.PI / 180;
-                 ctx.beginPath();
-                 ctx.arc(rpoint.x, rpoint.y, 4,  pointAngleRad + Math.PI,  pointAngleRad + 2 * Math.PI);
-                 ctx.fill();		
-	    });	   
+            // 残りの接続点(凸側)を描画、こちらが上に描かれる)
+            ctx.fillStyle = 'red';
+            rootPoints.forEach(rpoint => {
+                const pointAngleRad = rpoint.angle * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(rpoint.x, rpoint.y, 4, pointAngleRad + Math.PI, pointAngleRad + 2 * Math.PI);
+                ctx.fill();
+            });
 
         }
 
@@ -559,25 +1347,22 @@ function snapToClosestEndpoint(shape) {
         shape.y += dy;
     }
 }
-    canvas.addEventListener('mousedown', (e) => {console.log('x='+ e.offsetX +',y='+ e.offsetY);
-        const mouseX = (e.offsetX - canvasOffsetX)/scale;
-        const mouseY = ((canvH - e.offsetY) - canvasOffsetY)/scale;
+    canvas.addEventListener('mousedown', (e) => {
+        console.log('Screen: x=' + e.offsetX + ', y=' + e.offsetY);
+        const world = screenToWorld(e.offsetX, e.offsetY);
+        console.log('World: x=' + world.x.toFixed(2) + ', y=' + world.y.toFixed(2));
+        
         dragging = null;
         selectedShape = null;
 
         rails.forEach(rect => {
-            if (rect.contains(mouseX, mouseY)) {
+            if (rect.contains(world.x, world.y)) {
                 dragging = rect;
-
-
-
-
                 selectedShape = rect;
-                offsetX = mouseX - rect.x;
-                offsetY = mouseY - rect.y;
+                offsetX = world.x - rect.x;
+                offsetY = world.y - rect.y;
             }
         });
-
 
         if (!dragging) {
             isPanning = true;
@@ -588,8 +1373,9 @@ function snapToClosestEndpoint(shape) {
 
     canvas.addEventListener('mousemove', (e) => {
         if (dragging) {
-            dragging.x = e.offsetX/scale - offsetX - canvasOffsetX/scale;
-            dragging.y = (canvH - e.offsetY)/scale - offsetY - canvasOffsetY/scale;
+            const world = screenToWorld(e.offsetX, e.offsetY);
+            dragging.x = world.x - offsetX;
+            dragging.y = world.y - offsetY;
             drawAll();
         } else if (isPanning) {
             const dx = e.offsetX - startX;
@@ -612,12 +1398,173 @@ function snapToClosestEndpoint(shape) {
         drawAll();
     });
 
+    // ========================================
+    // タッチイベントのサポート
+    // ========================================
+    
+    function getTouchPos(canvas, touchEvent) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: touchEvent.touches[0].clientX - rect.left,
+            y: touchEvent.touches[0].clientY - rect.top
+        };
+    }
+
+    let lastTouchTime = 0;
+    let touchStartPos = null;
+    let lastTouchDistance = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+        // ピンチズーム開始（2本指）
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            isPanning = false;
+            dragging = null;
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            lastTouchDistance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+            return;
+        }
+        
+        // 1本指タッチ
+        if (e.touches.length === 1) {
+            e.preventDefault();
+            const touch = getTouchPos(canvas, e);
+            const world = screenToWorld(touch.x, touch.y);
+            
+            // ダブルタップ検出
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTouchTime;
+            if (tapLength < 300 && tapLength > 0) {
+                // ダブルタップ: 削除
+                rails.forEach((rect, index) => {
+                    if (rect.contains(world.x, world.y)) {
+                        rails.splice(index, 1);
+                        drawAll();
+                    }
+                });
+                lastTouchTime = 0;
+                return;
+            }
+            lastTouchTime = currentTime;
+            
+            // シングルタップ: ドラッグ開始またはパン開始
+            touchStartPos = {x: touch.x, y: touch.y};
+            dragging = null;
+            selectedShape = null;
+
+            rails.forEach(rect => {
+                if (rect.contains(world.x, world.y)) {
+                    dragging = rect;
+                    selectedShape = rect;
+                    offsetX = world.x - rect.x;
+                    offsetY = world.y - rect.y;
+                }
+            });
+
+            if (!dragging) {
+                isPanning = true;
+                startX = touch.x;
+                startY = touch.y;
+            }
+        }
+    }, {passive: false});
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        
+        // ピンチズーム（2本指）
+        if (e.touches.length === 2) {
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const currentDistance = Math.sqrt(
+                Math.pow(touch2.clientX - touch1.clientX, 2) +
+                Math.pow(touch2.clientY - touch1.clientY, 2)
+            );
+            
+            if (lastTouchDistance > 0) {
+                const delta = currentDistance - lastTouchDistance;
+                if (delta > 0) {
+                    scale *= 1.02;
+                } else {
+                    scale /= 1.02;
+                }
+                drawAll();
+            }
+            lastTouchDistance = currentDistance;
+            return;
+        }
+        
+        // 1本指ドラッグ/パン
+        if (e.touches.length === 1) {
+            const touch = getTouchPos(canvas, e);
+            
+            if (dragging) {
+                const world = screenToWorld(touch.x, touch.y);
+                dragging.x = world.x - offsetX;
+                dragging.y = world.y - offsetY;
+                drawAll();
+            } else if (isPanning) {
+                const dx = touch.x - startX;
+                const dy = touch.y - startY;
+                canvasOffsetX += dx;
+                canvasOffsetY -= dy;
+                startX = touch.x;
+                startY = touch.y;
+                drawAll();
+            }
+        }
+    }, {passive: false});
+
+    canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        
+        // ピンチズーム終了
+        if (e.touches.length < 2) {
+            lastTouchDistance = 0;
+        }
+        
+        // タッチ終了時の処理（1本指→0本指）
+        if (e.touches.length === 0) {
+            // 長押し検出（コンテキストメニュー表示）
+            if (touchStartPos && selectedShape) {
+                const touch = e.changedTouches[0];
+                const rect = canvas.getBoundingClientRect();
+                const endX = touch.clientX - rect.left;
+                const endY = touch.clientY - rect.top;
+                const distance = Math.sqrt(
+                    Math.pow(endX - touchStartPos.x, 2) + 
+                    Math.pow(endY - touchStartPos.y, 2)
+                );
+                
+                // ほとんど動いていない場合、コンテキストメニューを表示
+                if (distance < 10) {
+                    const menu = document.getElementById('contextMenu');
+                    menu.style.left = `${touch.clientX}px`;
+                    menu.style.top = `${touch.clientY}px`;
+                    menu.style.display = 'block';
+                }
+            }
+            
+            if (dragging) {
+                snapToClosestEndpoint(dragging);
+                LastselectedShape = dragging;
+                dragging = null;
+            }
+            isPanning = false;
+            touchStartPos = null;
+            drawAll();
+        }
+    }, {passive: false});
+
         canvas.addEventListener('dblclick', (e) => {
-        const mouseX = (e.offsetX - canvasOffsetX)/scale;
-        const mouseY = (e.offsetY - canvasOffsetY)/scale;
+        const world = screenToWorld(e.offsetX, e.offsetY);
 
             rails.forEach((rect, index) => {
-                if (rect.contains(mouseX, mouseY)) {
+                if (rect.contains(world.x, world.y)) {
                     rails.splice(index, 1);
                     drawAll();
                 }
@@ -649,12 +1596,11 @@ function snapToClosestEndpoint(shape) {
 
        canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
-        const mouseX = (e.offsetX - canvasOffsetX)/scale;
-        const mouseY = ((canvH - e.offsetY) - canvasOffsetY)/scale;
+            const world = screenToWorld(e.offsetX, e.offsetY);
 
             selectedShape = null;
             rails.forEach(rect => {
-                if (rect.contains(mouseX, mouseY)) {
+                if (rect.contains(world.x, world.y)) {
                     selectedShape = rect;
                 }
             });
@@ -685,8 +1631,8 @@ function snapToClosestEndpoint(shape) {
 
         document.getElementById('duplicate').addEventListener('click', () => {
             if (selectedShape) {console.log(selectedShape);
-                if (selectedShape instanceof Rect) {
-                    const newRect = new Rect(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
+                if (selectedShape instanceof StraightRail) {
+                    const newRect = new StraightRail(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
                     newRect.angle = selectedShape.angle;
 		    rails.push(newRect);console.log(newRect);
                 }else if (selectedShape instanceof Curve) {
@@ -709,6 +1655,66 @@ function snapToClosestEndpoint(shape) {
                     }
                 }
                 console.log(rails);
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        // タイプ切替 (R/L, A/B)
+        document.getElementById('toggleType').addEventListener('click', () => {
+            if (selectedShape) {
+                // ターンアウトのR/L切替
+                if (selectedShape.turnoutType) {
+                    selectedShape.turnoutType = selectedShape.turnoutType === 'R' ? 'L' : 'R';
+                }
+                // R-13ポイントのA/B切替
+                else if (selectedShape.pointType && selectedShape.constructor.name === 'R13PointRail') {
+                    selectedShape.pointType = selectedShape.pointType === 'A' ? 'B' : 'A';
+                }
+                // 8の字ポイントのR/L切替
+                else if (selectedShape.pointType && selectedShape.constructor.name === 'Figure8PointRail') {
+                    if (selectedShape.pointType === 'R') selectedShape.pointType = 'L';
+                    else if (selectedShape.pointType === 'L') selectedShape.pointType = 'R';
+                    else if (selectedShape.pointType === 'R_REV') selectedShape.pointType = 'L_REV';
+                    else if (selectedShape.pointType === 'L_REV') selectedShape.pointType = 'R_REV';
+                }
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        // 方向反転 (裏/表、左/右)
+        document.getElementById('toggleDirection').addEventListener('click', () => {
+            if (selectedShape) {
+                if (selectedShape.direction) {
+                    selectedShape.direction = selectedShape.direction === 'left' ? 'right' : 'left';
+                }
+                // スライドレールの方向反転
+                if (selectedShape.slide !== undefined) {
+                    selectedShape.slide = -selectedShape.slide;
+                }
+                drawAll();
+                document.getElementById('contextMenu').style.display = 'none';
+            }
+        });
+
+        // 端点切替 (凹凸/凸凸/凹凹)
+        document.getElementById('toggleEndpoints').addEventListener('click', () => {
+            if (selectedShape && selectedShape.constructor.name === 'StraightRail') {
+                // 現在の状態を判定
+                const current = `${selectedShape.startType}-${selectedShape.endType}`;
+                
+                // 凹凸 → 凹凹 → 凸凸 → 凹凸 の順で切り替え
+                if (current === 'concave-convex') {
+                    selectedShape.startType = 'concave';
+                    selectedShape.endType = 'concave';
+                } else if (current === 'concave-concave') {
+                    selectedShape.startType = 'convex';
+                    selectedShape.endType = 'convex';
+                } else {
+                    selectedShape.startType = 'concave';
+                    selectedShape.endType = 'convex';
+                }
                 drawAll();
                 document.getElementById('contextMenu').style.display = 'none';
             }
@@ -739,16 +1745,144 @@ document.getElementById('addStraight').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
         const id = `R${rails.length + 1}`;
-        const rect = new Rect(lastEndpoint.x, lastEndpoint.y, id);
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
         rect.angle = lastEndpoint.angle;
-        // 端点から半分の長さを引いた位置に補正
-//        rect.x -= (rect.height / 2) * Math.sin(rect.angle * Math.PI / 180);
-//        rect.y += (rect.height / 2) * Math.cos(rect.angle * Math.PI / 180);
         rails.push(rect);
        drawAll();
 
         LastselectedShape = rect;
 
+    }
+});
+
+// 1/2直線を追加するボタンのイベントリスナー
+document.getElementById('addHalfStraight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `H${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'lightblue';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// 1/4直線を追加するボタンのイベントリスナー
+// 1/4直線を追加するボタンのイベントリスナー（凹凸）
+document.getElementById('addQuarterStraight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `Q${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'skyblue';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// 1/4直線を追加するボタンのイベントリスナー（凹凹）
+document.getElementById('addQuarterCC').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `QCC${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
+            { startType: 'concave', endType: 'concave' });
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'skyblue';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// 1/4直線を追加するボタンのイベントリスナー（凸凸）
+document.getElementById('addQuarterVV').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `QVV${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
+            { startType: 'convex', endType: 'convex' });
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'skyblue';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// ジョイントレールを追加するボタンのイベントリスナー（凹凹）
+document.getElementById('addJointCC').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `JCC${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
+            { startType: 'concave', endType: 'concave' });
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'lightgray';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// ジョイントレールを追加するボタンのイベントリスナー（凸凸）
+document.getElementById('addJointVV').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `JVV${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
+            { startType: 'convex', endType: 'convex' });
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'lightgray';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// 2倍直線を追加するボタンのイベントリスナー
+document.getElementById('addDoubleStraight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `D${rails.length + 1}`;
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
+        rect.angle = lastEndpoint.angle;
+        rect.color = 'navy';
+        rails.push(rect);
+        drawAll();
+        LastselectedShape = rect;
+    }
+});
+
+// 右外側曲線を追加するボタンのイベントリスナー
+document.getElementById('addRightOuterCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `OR${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
+        curve.angle = (lastEndpoint.angle + 360) % 360;
+        curve.color = "purple";
+        rails.push(curve);
+        drawAll();
+        LastselectedShape = curve;
+    }
+});
+
+// 左外側曲線を追加するボタンのイベントリスナー
+document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `OL${rails.length + 1}`;
+        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
+        curve.angle = (lastEndpoint.angle + 360) % 360;
+        curve.color = "purple";
+        rails.push(curve);
+        drawAll();
+        LastselectedShape = curve;
     }
 });
 
@@ -810,9 +1944,6 @@ document.getElementById('addLeftCurve').addEventListener('click', () => {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
         curve.angle = lastEndpoint.angle;
-        // 端点から回転中心までの距離を計算して補正
-//        curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
-//        curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
         rails.push(curve);
         drawAll();
 
@@ -823,7 +1954,7 @@ document.getElementById('addLeftCurve').addEventListener('click', () => {
 });
 
 
-// 右に曲がる外レールを追加するボタンのイベントリスナー
+// 右に曲がる外レールを追加するボタンのイベントリスナー(旧版)
 document.getElementById('addRightOutCurve').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
@@ -840,7 +1971,7 @@ document.getElementById('addRightOutCurve').addEventListener('click', () => {
     }
 });
 
-// 左に曲がる外レールを追加するボタンのイベントリスナー
+// 左に曲がる外レールを追加するボタンのイベントリスナー(旧版)
 document.getElementById('addLeftOutCurve').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
@@ -865,21 +1996,8 @@ document.getElementById('addLeftOutCurve').addEventListener('click', () => {
 document.getElementById('addTurnoutLeft').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
-        const id = `T${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        turnout.angle = lastEndpoint.angle;
-        rails.push(turnout);
-        LastselectedShape = turnout;
-        drawAll();
-    }
-}
-);
-
-document.getElementById('addTurnoutRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `T${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        const id = `TR${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
         turnout.angle = lastEndpoint.angle;
         rails.push(turnout);
         LastselectedShape = turnout;
@@ -887,15 +2005,178 @@ document.getElementById('addTurnoutRight').addEventListener('click', () => {
     }
 });
 
-// 8の字ポイントレールを追加するボタンのイベントリスナー
+document.getElementById('addTurnoutRight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `TR${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
+        turnout.angle = lastEndpoint.angle;
+        rails.push(turnout);
+        LastselectedShape = turnout;
+        drawAll();
+    }
+});
+
+document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `TL${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
+        turnout.angle = lastEndpoint.angle;
+        rails.push(turnout);
+        LastselectedShape = turnout;
+        drawAll();
+    }
+});
+
+document.getElementById('addTurnoutRightL').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `TL${rails.length + 1}`;
+        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
+        turnout.angle = lastEndpoint.angle;
+        rails.push(turnout);
+        LastselectedShape = turnout;
+        drawAll();
+    }
+});
+
+// 8の字ポイントレールを追加するボタンのイベントリスナー(R)
 document.getElementById('addFigure8Point').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
-        const id = `F${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id);
+        const id = `F8R${rails.length + 1}`;
+        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R','right');
         figure8Point.angle = lastEndpoint.angle;
         rails.push(figure8Point);
         LastselectedShape = figure8Point;
+        drawAll();
+    }
+});
+
+// 8の字ポイントレールを追加するボタンのイベントリスナー(R反転)
+document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `F8RR${rails.length + 1}`;
+        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV','left');
+        figure8Point.angle = lastEndpoint.angle;
+        rails.push(figure8Point);
+        LastselectedShape = figure8Point;
+        drawAll();
+    }
+});
+
+// 8の字ポイントレールを追加するボタンのイベントリスナー(L)
+document.getElementById('addFigure8PointL').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `F8L${rails.length + 1}`;
+        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L','right');
+        figure8Point.angle = lastEndpoint.angle;
+        rails.push(figure8Point);
+        LastselectedShape = figure8Point;
+        drawAll();
+    }
+});
+
+// 8の字ポイントレールを追加するボタンのイベントリスナー(L反転)
+document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `F8LR${rails.length + 1}`;
+        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV','left');
+        figure8Point.angle = lastEndpoint.angle;
+        rails.push(figure8Point);
+        LastselectedShape = figure8Point;
+        drawAll();
+    }
+});
+
+// R-13単線・複線ポイントレールを追加するボタンのイベントリスナー
+document.getElementById('addR13PointBRight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R13BR${rails.length + 1}`;
+        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'right');
+        r13Point.angle = lastEndpoint.angle;
+        rails.push(r13Point);
+        LastselectedShape = r13Point;
+        drawAll();
+    }
+});
+
+document.getElementById('addR13PointBLeft').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R13BL${rails.length + 1}`;
+        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'left');
+        r13Point.angle = lastEndpoint.angle;
+        rails.push(r13Point);
+        LastselectedShape = r13Point;
+        drawAll();
+    }
+});
+
+document.getElementById('addR13PointARight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R13AR${rails.length + 1}`;
+        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'right');
+        r13Point.angle = lastEndpoint.angle;
+        rails.push(r13Point);
+        LastselectedShape = r13Point;
+        drawAll();
+    }
+});
+
+document.getElementById('addR13PointALeft').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R13AL${rails.length + 1}`;
+        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'left');
+        r13Point.angle = lastEndpoint.angle;
+        rails.push(r13Point);
+        LastselectedShape = r13Point;
+        drawAll();
+    }
+});
+
+// 複線直線レールを追加するボタンのイベントリスナー
+document.getElementById('addDoubleTrack').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `DT${rails.length + 1}`;
+        const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
+        doubleTrack.angle = lastEndpoint.angle;
+        rails.push(doubleTrack);
+        LastselectedShape = doubleTrack;
+        drawAll();
+    }
+});
+
+// 複曲線(左)レールを追加するボタンのイベントリスナー
+document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `DCL${rails.length + 1}`;
+        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
+        doubleCurve.angle = lastEndpoint.angle;
+        rails.push(doubleCurve);
+        LastselectedShape = doubleCurve;
+        drawAll();
+    }
+});
+
+// 複曲線(右)レールを追加するボタンのイベントリスナー
+document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `DCR${rails.length + 1}`;
+        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
+        doubleCurve.angle = lastEndpoint.angle;
+        rails.push(doubleCurve);
+        LastselectedShape = doubleCurve;
         drawAll();
     }
 });
@@ -913,9 +2194,8 @@ function addRail(type) {
 
     if (type === 'S' || type ==='s') {
         const id = `S${rails.length + 1}`;
-        const rect = new Rect(lastEndpoint.x, lastEndpoint.y, id);
+        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
         rect.angle = lastEndpoint.angle;
-        // 端点から半分の長さを引いた位置に補正
         LastselectedShape = rect;
         rails.push(rect);
 
@@ -925,9 +2205,6 @@ function addRail(type) {
         const id = `R${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
         curve.angle = (lastEndpoint.angle+360)%360;
-        // 端点から回転中心までの距離を計算して補正
-  //      curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
-  //      curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
         LastselectedShape = curve;
         rails.push(curve);
 
@@ -936,9 +2213,6 @@ function addRail(type) {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
         curve.angle = lastEndpoint.angle;
-        // 端点から回転中心までの距離を計算して補正
-    //    curve.x -= curve.radius * Math.cos(curve.angle * Math.PI / 180);
-    //    curve.y -= curve.radius * Math.sin(curve.angle * Math.PI / 180);
         LastselectedShape = curve;
 	rails.push(curve);
 
@@ -963,8 +2237,8 @@ drawAll();
 document.getElementById('allclear').addEventListener('click', () => {
  scale = 1;
 
-     canvasOffsetX = 0;
-     canvasOffsetY = 0;
+     canvasOffsetX = canvW/2;
+     canvasOffsetY = canvH/2;
      rails.length = 0;
 
 
@@ -990,11 +2264,17 @@ document.getElementById('addRails').addEventListener('click', () => {
 function saveLayout() {
     let layoutData = '';
     rails.forEach(rail => {
-        const type = rail.constructor.name;  // Rect, Curve, Slideなど
-        const direction = rail.direction || '';  // Curve, TurnoutRailなどに必要
-        const slide = rail.slide !== undefined ? rail.slide : '';  // Slideに必要
+        const type = rail.constructor.name;
+        const direction = rail.direction || '';
+        const slide = rail.slide !== undefined ? rail.slide : '';
+        const height = rail.height || '';
+        const radius = rail.radius || '';
+        const pointType = rail.pointType || '';
+        const turnoutType = rail.turnoutType || '';
+        const startType = rail.startType || '';
+        const endType = rail.endType || '';
 
-        layoutData += `${type},${rail.x},${rail.y},${rail.angle},${direction},${slide};`;
+        layoutData += `${type},${rail.x},${rail.y},${rail.angle},${direction},${slide},${height},${radius},${pointType},${turnoutType},${startType},${endType};`;
     });
     document.getElementById('layoutData').value = layoutData;
 }
@@ -1005,18 +2285,27 @@ function loadLayout() {
     rails.length = 0;
     for (const item of items) {
         if (!item) continue;
-        const [type, x, y, angle, direction, slide] = item.split(',');
+        const [type, x, y, angle, direction, slide, height, radius, pointType, turnoutType, startType, endType] = item.split(',');
         const id = `${type[0]}${rails.length + 1}`;
         let rail = null;
 
-        if (type === 'Rect') {
-            rail = new Rect(+x, +y, id);
+        if (type === 'StraightRail' || type === 'Rect') {
+            const options = {};
+            if (startType) options.startType = startType;
+            if (endType) options.endType = endType;
+            rail = new StraightRail(+x, +y, id, height ? +height : RAIL_LENGTH, options);
         } else if (type === 'Curve') {
-            rail = new Curve(+x, +y, id, direction);
+            rail = new Curve(+x, +y, id, direction, radius ? +radius : RAIL_LENGTH);
         } else if (type === 'TurnoutRail') {
-            rail = new TurnoutRail(+x, +y, id, direction);
+            rail = new TurnoutRail(+x, +y, id, turnoutType || 'R', direction);
+        } else if (type === 'R13PointRail') {
+            rail = new R13PointRail(+x, +y, id, pointType || 'B', direction);
         } else if (type === 'Figure8PointRail') {
-            rail = new Figure8PointRail(+x, +y, id);
+            rail = new Figure8PointRail(+x, +y, id, pointType || 'R');
+        } else if (type === 'DoubleTrackRail') {
+            rail = new DoubleTrackRail(+x, +y, id);
+        } else if (type === 'DoubleCurveRail') {
+            rail = new DoubleCurveRail(+x, +y, id, direction);
         } else if (type === 'Slide') {
             rail = new Slide(+x, +y, id, +slide);
         }
@@ -1037,7 +2326,7 @@ function loadLayout() {
         // 初期の長方形を追加
         for (let i = 0; i < 1; i++) {
             const id = `S${i + 1}`;
-            const rect = new Rect(0 , 0, id);
+            const rect = new StraightRail(0 , 0, id);
 	    rect.angle = 0;
             rails.push(rect);
 
