@@ -920,8 +920,8 @@ class DoubleTrackRail {
         // 進行方向がangleRadのとき、右90度方向（時計回りに90度）は:
         // offsetX = D_TRACK_WIDTH * sin(angleRad)
         // offsetY = -D_TRACK_WIDTH * cos(angleRad)
-        const offsetX = D_TRACK_WIDTH * Math.sin(angleRad);
-        const offsetY = -D_TRACK_WIDTH * Math.cos(angleRad);
+        const offsetX =  D_TRACK_WIDTH * Math.sin(angleRad+Math.PI*0.5);
+        const offsetY = -D_TRACK_WIDTH * Math.cos(angleRad+Math.PI*0.5);
         
         const rail2 = new StraightRail(this.x + offsetX, this.y + offsetY, this.id + '-2');
         rail2.angle = base;
@@ -1013,6 +1013,11 @@ class DoubleCurveRail {
     _buildComponents() {
         this.components.length = 0;
         const base = this.angle;
+
+        // 角度のラジアン変換
+        const angleRad = base * Math.PI / 180;
+
+
         const dir = this.direction;
         
         // 1本目: 基準位置から通常の内側カーブ
@@ -1023,13 +1028,19 @@ class DoubleCurveRail {
         // 2本目: 基準位置からオフセットした外側カーブ
         // 左カーブ: 左方向（X軸負方向）にオフセット
         // 右カーブ: 右方向（X軸正方向）にオフセット
+		
+        const offsetX =  D_TRACK_WIDTH * Math.sin(angleRad+Math.PI*0.5);
+        const offsetY = -D_TRACK_WIDTH * Math.cos(angleRad+Math.PI*0.5);
+
+		
+		
         let outerStartX, outerStartY;
         if (dir === 'left') {
-            outerStartX = this.x - D_TRACK_WIDTH;
-            outerStartY = this.y;
+            outerStartX = this.x + offsetX;
+            outerStartY = this.y + offsetY;
         } else {
-            outerStartX = this.x + D_TRACK_WIDTH;
-            outerStartY = this.y;
+            outerStartX = this.x - offsetX;
+            outerStartY = this.y - offsetY;
         }
         
         // 外側カーブ（半径 + 複線幅、基準位置からオフセット）
