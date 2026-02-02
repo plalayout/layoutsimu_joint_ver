@@ -94,6 +94,12 @@
             min-width: 100px;
         }
         
+        .slot-btn {
+            font-size: 12px !important;
+            padding: 8px 5px !important;
+            min-width: 0 !important;
+        }
+        
         input[type="text"], textarea {
             width: 100%;
             padding: 10px;
@@ -357,10 +363,44 @@
         </div>
 
         <div class="section-title">レイアウト保存/読込</div>
-        <textarea id="layoutData" placeholder="レイアウトデータ"></textarea>
-        <div class="button-group">
-            <button id="saveLayout">保存</button>
-            <button id="loadLayout">読込</button>
+        
+        <!-- テキスト保存 -->
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666;">テキスト形式:</label>
+            <textarea id="layoutData" placeholder="レイアウトデータ" style="height: 60px;"></textarea>
+            <div class="button-group">
+                <button id="saveLayout">テキスト生成</button>
+                <button id="loadLayout">テキスト読込</button>
+            </div>
+        </div>
+        
+        <!-- LocalStorage保存 -->
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666;">スロット保存:</label>
+            <div class="button-group" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;">
+                <button id="saveSlot1" class="slot-btn" title="スロット1に保存">保存1</button>
+                <button id="saveSlot2" class="slot-btn" title="スロット2に保存">保存2</button>
+                <button id="saveSlot3" class="slot-btn" title="スロット3に保存">保存3</button>
+                <button id="saveSlot4" class="slot-btn" title="スロット4に保存">保存4</button>
+                <button id="saveSlot5" class="slot-btn" title="スロット5に保存">保存5</button>
+            </div>
+            <div class="button-group" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 5px;">
+                <button id="loadSlot1" class="slot-btn" title="スロット1から読込">読込1</button>
+                <button id="loadSlot2" class="slot-btn" title="スロット2から読込">読込2</button>
+                <button id="loadSlot3" class="slot-btn" title="スロット3から読込">読込3</button>
+                <button id="loadSlot4" class="slot-btn" title="スロット4から読込">読込4</button>
+                <button id="loadSlot5" class="slot-btn" title="スロット5から読込">読込5</button>
+            </div>
+        </div>
+        
+        <!-- URL共有 -->
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666;">URL共有:</label>
+            <div class="button-group">
+                <button id="copyURL">URLコピー</button>
+                <button id="shareTwitter">X(Twitter)で共有</button>
+            </div>
+            <div id="urlStatus" style="font-size: 11px; color: #666; margin-top: 5px; min-height: 16px;"></div>
         </div>
     </div>
 
@@ -1414,7 +1454,7 @@ class CrossPointRail {
         const curve3 = new DoubleLengthCurve(this.x, this.y, this.id + '-C3', 'right', RAIL_LENGTH/2);
         curve3.angle = base;
 		curve3.radius = RAIL_LENGTH/2;
-		curve3.color = this.color;
+		curve3.color = 'Sienna';
 		curve3.structure = 'true';
 		
 		const { x: offset3X, y: offset3Y } = rotatePoint(0, RAIL_LENGTH, angleRad);
@@ -1423,7 +1463,7 @@ class CrossPointRail {
         const curve4 = new DoubleLengthCurve(this.x + offset3X, this.y + offset3Y, this.id + '-C4', 'right');
         curve4.angle = reversedegAngle(base);
 		curve4.radius = RAIL_LENGTH/2;
-        curve4.color = this.color;
+        curve4.color = 'Sienna';
  		curve3.structure = 'true';
        
         this.components.push(straight1, straight2, curve1, curve2,curve3,curve4);
@@ -1441,7 +1481,7 @@ class CrossPointRail {
     ========================= */
     draw() {
         this._sync();
-        this.components.forEach(c => c.draw());
+        this.components.slice().reverse().forEach(c => c.draw());
     }
 
     /* =========================
@@ -3485,29 +3525,59 @@ document.getElementById('addRails').addEventListener('click', () => {
 });
 
 
+// レイアウトをコンパクトな文字列に変換
 function saveLayout() {
-    let layoutData = '';
-    rails.forEach(rail => {
+    const data = rails.map(rail => {
         const type = rail.constructor.name;
-        const direction = rail.direction || '';
-        const slide = rail.slide !== undefined ? rail.slide : '';
-        const height = rail.height || '';
-        const radius = rail.radius || '';
-        const pointType = rail.pointType || '';
-        const turnoutType = rail.turnoutType || '';
-        const startType = rail.startType || '';
-        const endType = rail.endType || '';
-        const isReversed = rail.isReversed || '';
+        const parts = [
+            type,
+            rail.x.toFixed(1),  // 小数点1桁
+            rail.y.toFixed(1),
+            rail.angle.toFixed(0)  // 整数
+        ];
+        
+        // 必要なプロパティのみ追加
+        if (rail.direction) parts.push(rail.direction);
+        else if (rail.slide !== undefined || rail.height || rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.slide !== undefined) parts.push(rail.slide.toFixed(1));
+        else if (rail.height || rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.height) parts.push(rail.height.toFixed(1));
+        else if (rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.radius && rail.radius !== RAIL_LENGTH) parts.push(rail.radius.toFixed(1));
+        else if (rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.pointType) parts.push(rail.pointType);
+        else if (rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.turnoutType) parts.push(rail.turnoutType);
+        else if (rail.startType || rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.startType) parts.push(rail.startType);
+        else if (rail.endType || rail.isReversed) parts.push('');
+        
+        if (rail.endType) parts.push(rail.endType);
 
-        layoutData += `${type},${rail.x},${rail.y},${rail.angle},${direction},${slide},${height},${radius},${pointType},${turnoutType},${startType},${endType},${isReversed};`;
-    });
-    document.getElementById('layoutData').value = layoutData;
+        else if (rail.isReversed) parts.push('');
+        
+        if (rail.isReversed) parts.push('1');
+        
+        return parts.join(',');
+    }).join(';');
+    
+    document.getElementById('layoutData').value = data;
+    return data;
 }
 
 function loadLayout() {
-    const layoutData = document.getElementById('layoutData').value;
+    const layoutData = document.getElementById('layoutData').value.trim();
+    if (!layoutData) return;
+    
     const items = layoutData.split(';');
     rails.length = 0;
+    
     for (const item of items) {
         if (!item) continue;
         const [type, x, y, angle, direction, slide, height, radius, pointType, turnoutType, startType, endType, isReversed] = item.split(',');
@@ -3522,15 +3592,15 @@ function loadLayout() {
         } else if (type === 'Curve') {
             rail = new Curve(+x, +y, id, direction, radius ? +radius : RAIL_LENGTH);
         } else if (type === 'DoubleLengthCurve') {
-            rail = new DoubleLengthCurve(+x, +y, id, direction);
+            rail = new DoubleLengthCurve(+x, +y, id, direction, radius ? +radius : RAIL_LENGTH);
         } else if (type === 'TurnoutRail') {
             rail = new TurnoutRail(+x, +y, id, turnoutType || 'R', direction);
         } else if (type === 'R13PointRail') {
             rail = new R13PointRail(+x, +y, id, pointType || 'B', direction);
         } else if (type === 'R22YPointRail') {
-            rail = new R22YPointRail(+x, +y, id, pointType || 'A', isReversed === 'true');
+            rail = new R22YPointRail(+x, +y, id, pointType || 'A', isReversed === '1');
         } else if (type === 'R15WidePointRail') {
-            rail = new R15WidePointRail(+x, +y, id, pointType || 'A', isReversed === 'true');
+            rail = new R15WidePointRail(+x, +y, id, pointType || 'A', isReversed === '1');
         } else if (type === 'Figure8PointRail') {
             rail = new Figure8PointRail(+x, +y, id, pointType || 'R');
         } else if (type === 'DoubleTrackRail') {
@@ -3538,9 +3608,9 @@ function loadLayout() {
         } else if (type === 'DoubleCurveRail') {
             rail = new DoubleCurveRail(+x, +y, id, direction);
         } else if (type === 'DoubleTrackCrossoverRail') {
-            rail = new DoubleTrackCrossoverRail(+x, +y, id, isReversed === 'true');
+            rail = new DoubleTrackCrossoverRail(+x, +y, id, isReversed === '1');
         } else if (type === 'DoubleTrackTurnoutRail') {
-            rail = new DoubleTrackTurnoutRail(+x, +y, id, direction, isReversed === 'true');
+            rail = new DoubleTrackTurnoutRail(+x, +y, id, direction, isReversed === '1');
         } else if (type === 'CrossPointRail') {
             rail = new CrossPointRail(+x, +y, id);
         } else if (type === 'Slide') {
@@ -3555,8 +3625,113 @@ function loadLayout() {
     drawAll();
 }
 
-        document.getElementById('saveLayout').addEventListener('click', saveLayout);
-        document.getElementById('loadLayout').addEventListener('click', loadLayout); 
+// LocalStorage保存/読込
+function saveToSlot(slot) {
+    const data = saveLayout();
+    localStorage.setItem(`plarail_layout_slot${slot}`, data);
+    showStatus(`スロット${slot}に保存しました`);
+}
+
+function loadFromSlot(slot) {
+    const data = localStorage.getItem(`plarail_layout_slot${slot}`);
+    if (data) {
+        document.getElementById('layoutData').value = data;
+        loadLayout();
+        showStatus(`スロット${slot}から読み込みました`);
+    } else {
+        showStatus(`スロット${slot}は空です`);
+    }
+}
+
+// URL共有機能
+function getLayoutURL() {
+    const data = saveLayout();
+    const compressed = encodeURIComponent(data);
+    const url = `${window.location.origin}${window.location.pathname}?layout=${compressed}`;
+    return url;
+}
+
+function copyURLToClipboard() {
+    const url = getLayoutURL();
+    
+    // クリップボードにコピー
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            showStatus('URLをコピーしました！');
+        }).catch(() => {
+            fallbackCopyTextToClipboard(url);
+        });
+    } else {
+        fallbackCopyTextToClipboard(url);
+    }
+}
+
+function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "0";
+    textArea.style.left = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+        document.execCommand('copy');
+        showStatus('URLをコピーしました！');
+    } catch (err) {
+        showStatus('コピーに失敗しました');
+    }
+    
+    document.body.removeChild(textArea);
+}
+
+function shareToTwitter() {
+    const url = getLayoutURL();
+    const text = 'プラレールレイアウトを作りました！';
+    const twitterURL = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+    window.open(twitterURL, '_blank');
+}
+
+function showStatus(message) {
+    const status = document.getElementById('urlStatus');
+    status.textContent = message;
+    setTimeout(() => {
+        status.textContent = '';
+    }, 3000);
+}
+
+// URLからレイアウトを読み込み
+function loadFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const layoutData = params.get('layout');
+    if (layoutData) {
+        try {
+            document.getElementById('layoutData').value = decodeURIComponent(layoutData);
+            loadLayout();
+            showStatus('URLからレイアウトを読み込みました');
+        } catch (e) {
+            console.error('レイアウト読み込みエラー:', e);
+        }
+    }
+}
+
+// イベントリスナー設定
+document.getElementById('saveLayout').addEventListener('click', saveLayout);
+document.getElementById('loadLayout').addEventListener('click', loadLayout);
+
+// スロット保存/読込
+for (let i = 1; i <= 5; i++) {
+    document.getElementById(`saveSlot${i}`).addEventListener('click', () => saveToSlot(i));
+    document.getElementById(`loadSlot${i}`).addEventListener('click', () => loadFromSlot(i));
+}
+
+// URL共有
+document.getElementById('copyURL').addEventListener('click', copyURLToClipboard);
+document.getElementById('shareTwitter').addEventListener('click', shareToTwitter);
+
+// ページ読み込み時にURLからレイアウトを復元
+window.addEventListener('DOMContentLoaded', loadFromURL);
 
 
 
