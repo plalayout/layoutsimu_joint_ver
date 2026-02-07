@@ -2445,71 +2445,7 @@ class UTurnRail {
         this._sync();
         this.components.forEach(c => c.draw());
     }
-    draw2() {
-        const a = (this.type === 'V' || this.type === 'v') ? -1 : 1;
-        const b = (this.type === 'V' || this.type === 'v') ? 0 : 1;
-        const c = (this.type === 'V' || this.type === 'v') ? 1 : 0;
-        
-        const angleRad = this.angle * Math.PI / 180;
-        const deg_sin = Math.sin(angleRad);
-        const deg_cos = Math.cos(angleRad);
-        
-        // Aパーツ（接続部分の円弧）
-        const c1x = this.x + RAIL_LENGTH * (this.URAIL_CNCT_R_RATIO + c * this.DOUBLE_TRACK_DISTANCE_RATIO) * deg_cos;
-        const c1y = this.y + RAIL_LENGTH * (this.URAIL_CNCT_R_RATIO + c * this.DOUBLE_TRACK_DISTANCE_RATIO) * deg_sin;
-        const s1a = rotatedegAngle(this.angle , 180) * Math.PI / 180;
-        const e1a = rotatedegAngle(this.angle , 225) * Math.PI / 180;
-        
-        // Bパーツ（メインのU字カーブ）
-        const c2x = this.x + RAIL_LENGTH * ((this.URAIL_RADIUS_RATIO + this.URAIL_CNCT_R_RATIO) * Math.sqrt(0.5) * deg_sin - a * this.DOUBLE_TRACK_DISTANCE_RATIO / 2 * deg_cos);
-        const c2y = this.y - RAIL_LENGTH * ((this.URAIL_RADIUS_RATIO + this.URAIL_CNCT_R_RATIO) * Math.sqrt(0.5) * deg_cos + a * this.DOUBLE_TRACK_DISTANCE_RATIO / 2 * deg_sin);
-        const s2a = rotatedegAngle(this.angle ,- 225) * Math.PI / 180;
-        const e2a = rotatedegAngle(this.angle , 45) * Math.PI / 180;
-        
-        // Cパーツ（もう一方の接続部分の円弧）
-        const c3x = this.x - RAIL_LENGTH * (this.URAIL_CNCT_R_RATIO + b * this.DOUBLE_TRACK_DISTANCE_RATIO) * deg_cos;
-        const c3y = this.y - RAIL_LENGTH * (this.URAIL_CNCT_R_RATIO + b * this.DOUBLE_TRACK_DISTANCE_RATIO) * deg_sin;
-        const s3a = this.angle * Math.PI / 180;
-        const e3a = rotatedegAngle(this.angle ,- 45) * Math.PI / 180;
-        
-        const a1 = RAIL_LENGTH * this.URAIL_CNCT_R_RATIO * 0.5;
-        const b1 = RAIL_LENGTH * this.URAIL_CNCT_R_RATIO * 0.2 * a;
-        const d1 = RAIL_LENGTH * a * this.DOUBLE_TRACK_DISTANCE_RATIO;
-        
-        ctx.save();
-        
-        // 塗りつぶし部分（複線の間）
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + a1 * deg_sin + b1 * deg_cos, this.y - a1 * deg_cos + b1 * deg_sin);
-        ctx.lineTo(this.x + a1 * deg_sin - (b1 + d1) * deg_cos, this.y - a1 * deg_cos - (b1 + d1) * deg_sin);
-        ctx.lineTo(this.x - d1 * deg_cos, this.y - d1 * deg_sin);
-        ctx.closePath();
-        ctx.fill();
-        
-        // レール描画
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = RAIL_WIDTH;
-        
-        // Bパーツ（メインカーブ）
-        ctx.beginPath();
-        ctx.arc(c2x, c2y, RAIL_LENGTH * this.URAIL_RADIUS_RATIO, s2a, e2a, false);
-        ctx.stroke();
-        
-        // Aパーツ
-        ctx.beginPath();
-        ctx.arc(c1x, c1y, RAIL_LENGTH * this.URAIL_CNCT_R_RATIO, s1a, e1a, false);
-        ctx.stroke();
-        
-        // Cパーツ
-        ctx.beginPath();
-        ctx.arc(c3x, c3y, RAIL_LENGTH * this.URAIL_CNCT_R_RATIO, e3a, s3a, false);
-        ctx.stroke();
-        
-       
-        ctx.restore();
-    }
+
 
     /* =========================
        当たり判定
