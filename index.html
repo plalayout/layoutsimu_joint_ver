@@ -241,7 +241,7 @@
         </div>
         <div class="color-item">
             <div class="color-box" style="background: mediumseagreen;"></div>
-            <span>R-15幅広</span>
+            <span>R-15幅広 / R-30三角</span>
         </div>
         <div class="color-item">
             <div class="color-box" style="background: plum;"></div>
@@ -278,6 +278,11 @@
             <button id="addTurnoutRight">(R裏)</button>
             <button id="addTurnoutLeftL">(L)</button>
             <button id="addTurnoutRightL">(L裏)</button>
+        </div>
+
+        <div class="button-group">
+            <button id="addR30TrianglePoint">R-30三角</button>
+            <button id="addR30TrianglePointRev">(裏)</button>
         </div>
         
         <div class="button-group">
@@ -1431,6 +1436,135 @@ class R15WidePointRail {
             });
         }
 
+        return eps;
+    }
+}
+
+class R30TrianglePointRail {
+    constructor(x, y, id, isReversed = false) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.angle = 0;
+        this.isReversed = isReversed; // 裏タイプ
+        this.components = [];
+        this.color = 'mediumseagreen';  // R-30三角ポイント専用の色
+        
+        // 端点構造の説明（R-30三角ポイント）:
+        // 表タイプ: 起点(凹) → 1本目左90度カーブ終点(凸) +右側に3点目
+        // 裏タイプ: 起点(凹) → 1本目右90度カーブ終点(凸) +左側に3点目
+        // 定数（元のスクリプトから）
+        this.TRI_P_A = 0.585786;
+        this.TRI_P_B = 0.171573;
+        
+    }
+
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+        const base = this.angle;
+
+        const dir = this.isReversed ? 'left' : 'right';
+        const dir2 = this.isReversed ? 'right' : 'left';
+            
+        // 主カーブ（90度）
+        const curve1 = new Curve(this.x, this.y, this.id + '-1', dir);
+        curve1.angle = base;
+        curve1.turnAngle = 90;
+        curve1.color = this.color;
+            
+        // 2本目: 導入直線 
+        const straight1 = new StraightRail(this.x, this.y, this.id + '-2', this.TRI_P_A * RAIL_LENGTH);
+        straight1.angle = base;
+        straight1.color = this.color;
+            
+        // 3本目: 反対に曲がるカーブ
+        const startCurve1 = straight1.getEndpoints()[1];
+        const curve3 = new Curve(startCurve1.x, startCurve1.y, this.id + '-3', dir2);
+        curve3.angle = base;
+        curve3.color = this.color;
+
+        // 4本目: 直線第三のジョイント
+        const endCurve1 = curve3.getEndpoints()[1];
+        const straight2 = new StraightRail(endCurve1.x, endCurve1.y, this.id + '-4', this.TRI_P_B * RAIL_LENGTH);
+        straight2.angle = endCurve1.angle;
+        straight2.color = this.color;
+
+        // 5本目：戻りカーブ
+        const curve5 = new Curve(endCurve1.x, endCurve1.y, this.id + '-5', dir2);
+        curve5.angle = reversedegAngle(endCurve1.angle);
+        curve5.color = this.color;
+
+        // 6本目
+        const mainCurveEnd = curve1.getEndpoints()[1];
+        const straight3 = new StraightRail(mainCurveEnd.x, mainCurveEnd.y, this.id + '-6', this.TRI_P_A * RAIL_LENGTH);
+        straight3.angle = reversedegAngle(mainCurveEnd.angle);
+        straight3.color = this.color;
+            
+        this.components.push(curve1, straight1, curve3, straight2, curve5, straight3);
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        this.components.forEach(c => c.draw());
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+
+    /* =========================
+       endpoint
+    ========================= */
+    getEndpoints() {
+        this._sync();
+        const eps = [];
+
+        // 起点（凹）- 1本目と2本目と3本目の共通起点
+        eps.push({
+            x: this.x,
+            y: this.y,
+            angle: this.angle,
+            id: this.id + '-1',
+            type: 'concave'
+        });
+            
+        // 1本目終点（凸）- 次レール接続点
+        const ep1 = this.components[0].getEndpoints()[1];
+        eps.push({
+            x: ep1.x,
+            y: ep1.y,
+            angle: ep1.angle,
+            id: this.id + '-2',
+            type: 'convex'
+        });
+            
+        // 2本目終点
+        const ep2 = this.components[3].getEndpoints()[1];
+        eps.push({
+            x: ep2.x,
+            y: ep2.y,
+            angle: ep2.angle,
+            id: this.id + '-4',
+            type: 'concave'
+        });
+            
         return eps;
     }
 }
@@ -3708,7 +3842,8 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     if (addedRail.constructor.name === 'TurnoutRail' ||
         addedRail.constructor.name === 'R13PointRail' ||
         addedRail.constructor.name === 'R22YPointRail' ||
-        addedRail.constructor.name === 'R15WidePointRail') {
+        addedRail.constructor.name === 'R15WidePointRail' ||
+        addedRail.constructor.name === 'R30TrianglePointRail') {
         railProgression.endpointIndex = 1;  // 固定: endpoints[1] = -2の主要終点
         railProgression.isReversed = false;
         console.log('→ Point rail: endpoint 1 (ID-2), reversed=false');
@@ -4347,6 +4482,32 @@ document.getElementById('addR15WideBRev').addEventListener('click', () => {
     }
 });
 
+document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R30T${rails.length + 1}`;
+        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, false);
+        r30Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r30Point, lastEndpoint);
+        rails.push(r30Point);
+        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
+        drawAll();
+    }
+});
+
+document.getElementById('addR30TrianglePointRev').addEventListener('click', () => {
+    const lastEndpoint = getLastEndpoint();
+    if (lastEndpoint) {
+        const id = `R30TR${rails.length + 1}`;
+        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, true);
+        r30Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r30Point, lastEndpoint);
+        rails.push(r30Point);
+        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
+        drawAll();
+    }
+});
+
 // 複線直線レールを追加するボタンのイベントリスナー
 document.getElementById('addDoubleTrack').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
@@ -4646,6 +4807,8 @@ function loadLayout() {
             rail = new R22YPointRail(+x, +y, id, pointType || 'A', isReversed === '1');
         } else if (type === 'R15WidePointRail') {
             rail = new R15WidePointRail(+x, +y, id, pointType || 'A', isReversed === '1');
+        } else if (type === 'R30TrianglePointRail') {
+            rail = new R30TrianglePointRail(+x, +y, id, isReversed === '1');
         } else if (type === 'Figure8PointRail') {
             rail = new Figure8PointRail(+x, +y, id, pointType || 'R');
         } else if (type === 'DoubleTrackRail') {
