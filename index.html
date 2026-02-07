@@ -3870,725 +3870,402 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     console.log('→ Normal rail: endpoint', endpoints.length - 1, 'reversed=false');
 }
 
-// 直線を追加するボタンのイベントリスナー
-document.getElementById('addStraight').addEventListener('click', () => {
+function addRailFromLastEndpoint(createRail, { adjustPlacement = false } = {}) {
     const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-        adjustRailPlacement(rect, lastEndpoint);
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-
+    if (!lastEndpoint) return;
+    const rail = createRail(lastEndpoint);
+    if (!rail) return;
+    if (adjustPlacement) {
+        adjustRailPlacement(rail, lastEndpoint);
     }
+    rails.push(rail);
+    updateProgressionAfterAdd(rail, lastEndpoint.placeFromEnd);
+    drawAll();
+}
+
+function registerRailButton(buttonId, createRail, options) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    button.addEventListener('click', () => {
+        addRailFromLastEndpoint(createRail, options);
+    });
+}
+
+function createR13PointRail(lastEndpoint, pointType, direction) {
+    const id = `R13${pointType}${direction === 'right' ? 'R' : 'L'}${rails.length + 1}`;
+    const rail = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, pointType, direction);
+    rail.angle = lastEndpoint.angle;
+    return rail;
+}
+
+function createR22YPointRail(lastEndpoint, pointType, isReversed) {
+    const suffix = isReversed ? 'R' : '';
+    const id = `R22${pointType}${suffix}${rails.length + 1}`;
+    const rail = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, pointType, isReversed);
+    rail.angle = lastEndpoint.angle;
+    return rail;
+}
+
+function createR15WidePointRail(lastEndpoint, pointType, isReversed) {
+    const suffix = isReversed ? 'R' : '';
+    const id = `R15${pointType}${suffix}${rails.length + 1}`;
+    const rail = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, pointType, isReversed);
+    rail.angle = lastEndpoint.angle;
+    return rail;
+}
+
+function createR30TrianglePointRail(lastEndpoint, isReversed) {
+    const suffix = isReversed ? 'R' : '';
+    const id = `R30T${suffix}${rails.length + 1}`;
+    const rail = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, isReversed);
+    rail.angle = lastEndpoint.angle;
+    return rail;
+}
+
+registerRailButton('addStraight', (lastEndpoint) => {
+    const id = `R${rails.length + 1}`;
+    const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
+    rect.angle = lastEndpoint.angle;
+    return rect;
+}, { adjustPlacement: true });
+
+registerRailButton('addHalfStraight', (lastEndpoint) => {
+    const id = `H${rails.length + 1}`;
+    const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'lightblue';
+    return rect;
 });
 
-// 1/2直線を追加するボタンのイベントリスナー
-document.getElementById('addHalfStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `H${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'lightblue';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addQuarterStraight', (lastEndpoint) => {
+    const id = `Q${rails.length + 1}`;
+    const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'skyblue';
+    return rect;
 });
 
-// 1/4直線を追加するボタンのイベントリスナー
-// 1/4直線を追加するボタンのイベントリスナー（凹凸）
-document.getElementById('addQuarterStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Q${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'skyblue';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addQuarterCC', (lastEndpoint) => {
+    const id = `QCC${rails.length + 1}`;
+    const rect = new StraightRail(
+        lastEndpoint.x,
+        lastEndpoint.y,
+        id,
+        RAIL_LENGTH * 0.25,
+        { startType: 'concave', endType: 'concave' }
+    );
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'skyblue';
+    rect.railType = 'QuarterCC';
+    return rect;
 });
 
-// 1/4直線を追加するボタンのイベントリスナー（凹凹）
-document.getElementById('addQuarterCC').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `QCC${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
-            { startType: 'concave', endType: 'concave' });
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'skyblue';
-        rect.railType = 'QuarterCC';  // 識別用
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addQuarterVV', (lastEndpoint) => {
+    const id = `QVV${rails.length + 1}`;
+    const rect = new StraightRail(
+        lastEndpoint.x,
+        lastEndpoint.y,
+        id,
+        RAIL_LENGTH * 0.25,
+        { startType: 'convex', endType: 'convex' }
+    );
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'skyblue';
+    rect.railType = 'QuarterVV';
+    return rect;
 });
 
-// 1/4直線を追加するボタンのイベントリスナー（凸凸）
-document.getElementById('addQuarterVV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `QVV${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
-            { startType: 'convex', endType: 'convex' });
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'skyblue';
-        rect.railType = 'QuarterVV';  // 識別用
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addJointCC', (lastEndpoint) => {
+    const id = `JCC${rails.length + 1}`;
+    const rect = new StraightRail(
+        lastEndpoint.x,
+        lastEndpoint.y,
+        id,
+        RAIL_LENGTH / 6,
+        { startType: 'concave', endType: 'concave' }
+    );
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'lightgray';
+    return rect;
 });
 
-// ジョイントレールを追加するボタンのイベントリスナー（凹凹）
-document.getElementById('addJointCC').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `JCC${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
-            { startType: 'concave', endType: 'concave' });
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'lightgray';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addJointVV', (lastEndpoint) => {
+    const id = `JVV${rails.length + 1}`;
+    const rect = new StraightRail(
+        lastEndpoint.x,
+        lastEndpoint.y,
+        id,
+        RAIL_LENGTH / 6,
+        { startType: 'convex', endType: 'convex' }
+    );
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'lightgray';
+    return rect;
 });
 
-// ジョイントレールを追加するボタンのイベントリスナー（凸凸）
-document.getElementById('addJointVV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `JVV${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
-            { startType: 'convex', endType: 'convex' });
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'lightgray';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addDoubleStraight', (lastEndpoint) => {
+    const id = `D${rails.length + 1}`;
+    const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
+    rect.angle = lastEndpoint.angle;
+    rect.color = 'navy';
+    return rect;
 });
 
-// 2倍直線を追加するボタンのイベントリスナー
-document.getElementById('addDoubleStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `D${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
-        rect.angle = lastEndpoint.angle;
-        rect.color = 'navy';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addRightOuterCurve', (lastEndpoint) => {
+    const id = `OR${rails.length + 1}`;
+    const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
+    curve.angle = (lastEndpoint.angle + 360) % 360;
+    curve.color = 'purple';
+    return curve;
+}, { adjustPlacement: true });
+
+registerRailButton('addLeftOuterCurve', (lastEndpoint) => {
+    const id = `OL${rails.length + 1}`;
+    const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
+    curve.angle = (lastEndpoint.angle + 360) % 360;
+    curve.color = 'purple';
+    return curve;
+}, { adjustPlacement: true });
+
+registerRailButton('addSlide', (lastEndpoint) => {
+    const id = `Sl${rails.length + 1}`;
+    const rect = new Slide(lastEndpoint.x, lastEndpoint.y, id);
+    rect.angle = lastEndpoint.angle;
+    rect.slide = D_TRACK_WIDTH;
+    return rect;
 });
 
-// 右外側曲線を追加するボタンのイベントリスナー
-document.getElementById('addRightOuterCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `OR${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
-        curve.angle = (lastEndpoint.angle + 360) % 360;
-        curve.color = "purple";
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
+registerRailButton('addRSlide', (lastEndpoint) => {
+    const id = `Sl${rails.length + 1}`;
+    const rect = new Slide(lastEndpoint.x, lastEndpoint.y, id);
+    rect.angle = lastEndpoint.angle;
+    rect.slide = -D_TRACK_WIDTH;
+    return rect;
 });
 
-// 左外側曲線を追加するボタンのイベントリスナー
-document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `OL${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
-        curve.angle = (lastEndpoint.angle + 360) % 360;
-        curve.color = "purple";
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
-    }
-});
+registerRailButton('addRightCurve', (lastEndpoint) => {
+    const id = `R${rails.length + 1}`;
+    const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
+    curve.angle = (lastEndpoint.angle + 360) % 360;
+    return curve;
+}, { adjustPlacement: true });
 
-// スライド直線を追加するボタンのイベントリスナー
-document.getElementById('addSlide').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Sl${rails.length + 1}`;
-        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-	rect.slide = D_TRACK_WIDTH;
+registerRailButton('addLeftCurve', (lastEndpoint) => {
+    const id = `L${rails.length + 1}`;
+    const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
+    curve.angle = lastEndpoint.angle;
+    return curve;
+}, { adjustPlacement: true });
 
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+registerRailButton('addDoubleLengthCurveRight', (lastEndpoint) => {
+    const id = `DLC_R${rails.length + 1}`;
+    const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'right');
+    curve.angle = lastEndpoint.angle;
+    return curve;
+}, { adjustPlacement: true });
 
-    }
-});
+registerRailButton('addDoubleLengthCurveLeft', (lastEndpoint) => {
+    const id = `DLC_L${rails.length + 1}`;
+    const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'left');
+    curve.angle = lastEndpoint.angle;
+    return curve;
+}, { adjustPlacement: true });
 
+registerRailButton('addUTurnRailU', (lastEndpoint) => {
+    const id = `UT_U${rails.length + 1}`;
+    const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'U');
+    uturn.angle = lastEndpoint.angle;
+    return uturn;
+}, { adjustPlacement: true });
 
-// スライド直線を追加するボタンのイベントリスナー
-document.getElementById('addRSlide').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Sl${rails.length + 1}`;
-        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-	rect.slide = -D_TRACK_WIDTH;
+registerRailButton('addUTurnRailV', (lastEndpoint) => {
+    const id = `UT_V${rails.length + 1}`;
+    const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'V');
+    uturn.angle = lastEndpoint.angle;
+    return uturn;
+}, { adjustPlacement: true });
 
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+registerRailButton('addTurnoutLeft', (lastEndpoint) => {
+    const id = `TR${rails.length + 1}`;
+    const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-    }
-});
+registerRailButton('addTurnoutRight', (lastEndpoint) => {
+    const id = `TR${rails.length + 1}`;
+    const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
+registerRailButton('addTurnoutLeftL', (lastEndpoint) => {
+    const id = `TL${rails.length + 1}`;
+    const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-// 右に曲がるレールを追加するボタンのイベントリスナー
-document.getElementById('addRightCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = (lastEndpoint.angle+360)%360;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
+registerRailButton('addTurnoutRightL', (lastEndpoint) => {
+    const id = `TL${rails.length + 1}`;
+    const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
+registerRailButton('addFigure8Point', (lastEndpoint) => {
+    const id = `F8R${rails.length + 1}`;
+    const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
+    figure8Point.angle = lastEndpoint.angle;
+    return figure8Point;
+}, { adjustPlacement: true });
 
-    }
-});
+registerRailButton('addFigure8PointRRev', (lastEndpoint) => {
+    const id = `F8RR${rails.length + 1}`;
+    const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV', 'left');
+    figure8Point.angle = lastEndpoint.angle;
+    return figure8Point;
+}, { adjustPlacement: true });
 
-// 左に曲がるレールを追加するボタンのイベントリスナー
-document.getElementById('addLeftCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `L${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
+registerRailButton('addFigure8PointL', (lastEndpoint) => {
+    const id = `F8L${rails.length + 1}`;
+    const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
+    figure8Point.angle = lastEndpoint.angle;
+    return figure8Point;
+}, { adjustPlacement: true });
 
+registerRailButton('addFigure8PointLRev', (lastEndpoint) => {
+    const id = `F8LR${rails.length + 1}`;
+    const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV', 'left');
+    figure8Point.angle = lastEndpoint.angle;
+    return figure8Point;
+}, { adjustPlacement: true });
 
-    }
-});
+registerRailButton('addR13PointBRight', (lastEndpoint) => {
+    return createR13PointRail(lastEndpoint, 'B', 'right');
+}, { adjustPlacement: true });
 
-// 倍曲線(右)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleLengthCurveRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DLC_R${rails.length + 1}`;
-        const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR13PointBLeft', (lastEndpoint) => {
+    return createR13PointRail(lastEndpoint, 'B', 'left');
+}, { adjustPlacement: true });
 
-// 倍曲線(左)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DLC_L${rails.length + 1}`;
-        const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR13PointARight', (lastEndpoint) => {
+    return createR13PointRail(lastEndpoint, 'A', 'right');
+}, { adjustPlacement: true });
 
-// Uターンレール(U)を追加するボタンのイベントリスナー
-document.getElementById('addUTurnRailU').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `UT_U${rails.length + 1}`;
-        const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'U');
-        uturn.angle = lastEndpoint.angle;
-        adjustRailPlacement(uturn, lastEndpoint);
-        rails.push(uturn);
-        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR13PointALeft', (lastEndpoint) => {
+    return createR13PointRail(lastEndpoint, 'A', 'left');
+}, { adjustPlacement: true });
 
-// Uターンレール(V)を追加するボタンのイベントリスナー
-document.getElementById('addUTurnRailV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `UT_V${rails.length + 1}`;
-        const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'V');
-        uturn.angle = lastEndpoint.angle;
-        adjustRailPlacement(uturn, lastEndpoint);
-        rails.push(uturn);
-        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR22YPointA', (lastEndpoint) => {
+    return createR22YPointRail(lastEndpoint, 'A', false);
+}, { adjustPlacement: true });
 
+registerRailButton('addR22YPointARev', (lastEndpoint) => {
+    return createR22YPointRail(lastEndpoint, 'A', true);
+}, { adjustPlacement: true });
 
-// 右に曲がる外レールを追加するボタンのイベントリスナー(旧版)
-// ターンアウトレールを追加するボタンのイベントリスナー
-document.getElementById('addTurnoutLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TR${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR22YPointB', (lastEndpoint) => {
+    return createR22YPointRail(lastEndpoint, 'B', false);
+}, { adjustPlacement: true });
 
-document.getElementById('addTurnoutRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TR${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR22YPointBRev', (lastEndpoint) => {
+    return createR22YPointRail(lastEndpoint, 'B', true);
+}, { adjustPlacement: true });
 
-document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TL${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR15WideA', (lastEndpoint) => {
+    return createR15WidePointRail(lastEndpoint, 'A', false);
+}, { adjustPlacement: true });
 
-document.getElementById('addTurnoutRightL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TL${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR15WideARev', (lastEndpoint) => {
+    return createR15WidePointRail(lastEndpoint, 'A', true);
+}, { adjustPlacement: true });
 
-// 8の字ポイントレールを追加するボタンのイベントリスナー(R)
-document.getElementById('addFigure8Point').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8R${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R','right');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR15WideB', (lastEndpoint) => {
+    return createR15WidePointRail(lastEndpoint, 'B', false);
+}, { adjustPlacement: true });
 
-// 8の字ポイントレールを追加するボタンのイベントリスナー(R反転)
-document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8RR${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV','left');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR15WideBRev', (lastEndpoint) => {
+    return createR15WidePointRail(lastEndpoint, 'B', true);
+}, { adjustPlacement: true });
 
-// 8の字ポイントレールを追加するボタンのイベントリスナー(L)
-document.getElementById('addFigure8PointL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8L${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L','right');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR30TrianglePoint', (lastEndpoint) => {
+    return createR30TrianglePointRail(lastEndpoint, false);
+}, { adjustPlacement: true });
 
-// 8の字ポイントレールを追加するボタンのイベントリスナー(L反転)
-document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8LR${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV','left');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addR30TrianglePointRev', (lastEndpoint) => {
+    return createR30TrianglePointRail(lastEndpoint, true);
+}, { adjustPlacement: true });
 
-// R-13単線・複線ポイントレールを追加するボタンのイベントリスナー
-document.getElementById('addR13PointBRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13BR${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'right');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrack', (lastEndpoint) => {
+    const id = `DT${rails.length + 1}`;
+    const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
+    doubleTrack.angle = lastEndpoint.angle;
+    return doubleTrack;
+}, { adjustPlacement: true });
 
-document.getElementById('addR13PointBLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13BL${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'left');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleCurveLeft', (lastEndpoint) => {
+    const id = `DCL${rails.length + 1}`;
+    const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
+    doubleCurve.angle = lastEndpoint.angle;
+    return doubleCurve;
+}, { adjustPlacement: true });
 
-document.getElementById('addR13PointARight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13AR${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'right');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleCurveRight', (lastEndpoint) => {
+    const id = `DCR${rails.length + 1}`;
+    const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
+    doubleCurve.angle = lastEndpoint.angle;
+    return doubleCurve;
+}, { adjustPlacement: true });
 
-document.getElementById('addR13PointALeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13AL${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'left');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackCrossover', (lastEndpoint) => {
+    const id = `DTX${rails.length + 1}`;
+    const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, false);
+    crossover.angle = lastEndpoint.angle;
+    return crossover;
+}, { adjustPlacement: true });
 
-// R-22 Y字ポイント(A)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointA').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22A${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackCrossoverRev', (lastEndpoint) => {
+    const id = `DTXR${rails.length + 1}`;
+    const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, true);
+    crossover.angle = lastEndpoint.angle;
+    return crossover;
+}, { adjustPlacement: true });
 
-// R-22 Y字ポイント(A裏)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointARev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22AR${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackTurnoutLeft', (lastEndpoint) => {
+    const id = `DTTL${rails.length + 1}`;
+    const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', false);
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-// R-22 Y字ポイント(B)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointB').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22B${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackTurnoutRight', (lastEndpoint) => {
+    const id = `DTTR${rails.length + 1}`;
+    const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', false);
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-// R-22 Y字ポイント(B裏)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointBRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22BR${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackTurnoutLeftRev', (lastEndpoint) => {
+    const id = `DTTLR${rails.length + 1}`;
+    const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', true);
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-// R-15複線幅広ポイント(A)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideA').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15A${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
+registerRailButton('addDoubleTrackTurnoutRightRev', (lastEndpoint) => {
+    const id = `DTTRR${rails.length + 1}`;
+    const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', true);
+    turnout.angle = lastEndpoint.angle;
+    return turnout;
+}, { adjustPlacement: true });
 
-// R-15複線幅広ポイント(A裏)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideARev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15AR${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// R-15複線幅広ポイント(B)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideB').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15B${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// R-15複線幅広ポイント(B裏)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideBRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15BR${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R30T${rails.length + 1}`;
-        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        r30Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r30Point, lastEndpoint);
-        rails.push(r30Point);
-        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-document.getElementById('addR30TrianglePointRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R30TR${rails.length + 1}`;
-        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        r30Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r30Point, lastEndpoint);
-        rails.push(r30Point);
-        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線直線レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrack').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DT${rails.length + 1}`;
-        const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
-        doubleTrack.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleTrack, lastEndpoint);
-        rails.push(doubleTrack);
-        updateProgressionAfterAdd(doubleTrack, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複曲線(左)レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DCL${rails.length + 1}`;
-        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        doubleCurve.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleCurve, lastEndpoint);
-        rails.push(doubleCurve);
-        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複曲線(右)レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DCR${rails.length + 1}`;
-        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        doubleCurve.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleCurve, lastEndpoint);
-        rails.push(doubleCurve);
-        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線渡りを追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackCrossover').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTX${rails.length + 1}`;
-        const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        crossover.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossover, lastEndpoint);
-        rails.push(crossover);
-        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線渡り(裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTXR${rails.length + 1}`;
-        const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        crossover.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossover, lastEndpoint);
-        rails.push(crossover);
-        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線ターンアウト(左)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTL${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', false);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線ターンアウト(右)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', false);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線ターンアウト(左裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTLR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', true);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 複線ターンアウト(右裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTRR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', true);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-// 十字ポイントを追加するボタンのイベントリスナー
-document.getElementById('addCrossPoint').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `CP${rails.length + 1}`;
-        const crossPoint = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
-        crossPoint.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossPoint, lastEndpoint);
-        rails.push(crossPoint);
-        updateProgressionAfterAdd(crossPoint, lastEndpoint.placeFromEnd);
-        drawAll();
-    }
-});
-
-
-
-
-
-
+registerRailButton('addCrossPoint', (lastEndpoint) => {
+    const id = `CP${rails.length + 1}`;
+    const crossPoint = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
+    crossPoint.angle = lastEndpoint.angle;
+    return crossPoint;
+}, { adjustPlacement: true });
 
 // レールを追加する関数
 function addRail(type) {
