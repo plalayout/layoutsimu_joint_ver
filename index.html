@@ -196,20 +196,12 @@
             <span>カーブ</span>
         </div>
         <div class="color-item">
-            <div class="color-box" style="background: lawngreen;"></div>
-            <span>ターンアウト</span>
-        </div>
-        <div class="color-item">
-            <div class="color-box" style="background: plum;"></div>
-            <span>8の字</span>
-        </div>
-        <div class="color-item">
             <div class="color-box" style="background: violet;"></div>
             <span>倍曲線</span>
         </div>
         <div class="color-item">
             <div class="color-box" style="background: red;"></div>
-            <span>R-10 Uターン</span>
+            <span>Uターン</span>
         </div>
         <div class="color-item">
             <div class="color-box" style="background: purple;"></div>
@@ -236,16 +228,24 @@
             <span>十字</span>
         </div>
         <div class="color-item">
+            <div class="color-box" style="background: lawngreen;"></div>
+            <span>ターンアウト</span>
+        </div>
+        <div class="color-item">
             <div class="color-box" style="background: orange;"></div>
-            <span>単複</span>
+            <span>R-13</span>
         </div>
         <div class="color-item">
             <div class="color-box" style="background: yellowgreen;"></div>
-            <span>Y字</span>
+            <span>R-22 Y字</span>
         </div>
         <div class="color-item">
             <div class="color-box" style="background: mediumseagreen;"></div>
-            <span>幅広</span>
+            <span>R-15幅広</span>
+        </div>
+        <div class="color-item">
+            <div class="color-box" style="background: plum;"></div>
+            <span>8の字</span>
         </div>
     </div>
 
@@ -360,6 +360,12 @@
         <div class="button-group">
             <button id="canvasreset">表示リセット</button>
             <button id="allclear">全クリア</button>
+        </div>
+        <div style="margin: 10px 0; padding: 8px; background: #f0f0f0; border-radius: 5px;">
+            <label style="display: flex; align-items: center; cursor: pointer;">
+                <input type="checkbox" id="groupMoveMode" style="width: 18px; height: 18px; margin-right: 8px;">
+                <span style="font-size: 14px;">接続レールをまとめて移動</span>
+            </label>
         </div>
 
         <div class="section-title">レイアウト保存/読込</div>
@@ -938,12 +944,15 @@ class R13PointRail {
         this.direction = direction;   // 'right' or 'left' (スライドの方向)
         this.components = [];
         this.color = 'orange';  // R-13ポイント専用の色
+        this.isDoubleTrack = true;  // 単複ポイントは複線扱い
+        // R-13は単線→複線なので特殊: Bタイプは[1]→[2,4]、Aタイプは[1,2]→[3]
+        this.endpointPairs = pointType === 'B' ? [[2, 4]] : [[1, 2]];
         
         // 端点構造の説明（R-13単線・複線ポイント）:
-        // Bタイプ: 起点(凹) → 直線終点(凸) + スライド終点(凸)
-        //          起点から直線とスライドが分岐。両方とも接続元
-        // Aタイプ: 起点(凹) → 直線終点(凸) → スライド終点(凹)
-        //          直線終点から180度反転したスライド。直線は凸、スライドは凹
+        // Bタイプ: 起点(凹-1) → 直線終点(凸-2) + スライド終点(凸-4)
+        //          起点から直線とスライドが分岐。端点2と4がペア
+        // Aタイプ: 起点(凹-1) → 直線終点(凸-2) → スライド終点(凹-3)
+        //          直線終点から180度反転したスライド。端点1と2がペア
     }
 
     /* =========================
@@ -1226,10 +1235,13 @@ class R15WidePointRail {
         this.isReversed = isReversed; // 裏タイプ
         this.components = [];
         this.color = 'mediumseagreen';  // R-15複線幅広ポイント専用の色
+        this.isDoubleTrack = true;  // 複線ポイント
+        // R-15は3本分岐なので2組のペア（3本目は1本目と共通端点）
+        this.endpointPairs = pointType === 'A' ? [[2, 4]] : [[2, 4], [5, 6]];
         
         // 端点構造の説明（R-15複線幅広ポイント）:
-        // Aタイプ: 起点(凹) → 1本目S字(右40)終点(凸) + 2本目直線終点(凹) + 3本目S字(右18)終点(1本目と共通)
-        // Bタイプ: 起点(凹) → 1本目S字(左40)終点(凸) + 2本目S字(左18)終点(凸) + 3本目直線(起点凸)終点(凸)
+        // Aタイプ: 起点(凹-1) → 1本目S字(右40)終点(凸-2,4共通) + 2本目直線終点(凹-3) + 3本目S字(右18)
+        // Bタイプ: 起点(凹-1) → 1本目S字(左40)終点(凸-2) + 2本目S字(左18)終点(凸-4) + 3本目直線終点(凸-5,6)
         // 裏タイプ: 左右反転
     }
 
@@ -1575,11 +1587,14 @@ class DoubleTrackCrossoverRail {
         this.isReversed = isReversed;  // 表裏
         this.components = [];
         this.color = 'turquoise';  // 複線渡り専用の色
+        this.isDoubleTrack = true;  // 複線レールフラグ
+        this.endpointPairs = [[1, 3], [2, 4]];  // 端点ペア
         
         // 端点構造の説明（複線渡り・実際の仕様）:
         // 複線直線2本 + S字2本（交差）
         // 表: 左→右、右→左
         // 裏: 右→左、左→右（逆）
+        // 端点: 1,3が起点側（凹×2）、2,4が終点側（凸×2）
     }
 
     /* =========================
@@ -1696,10 +1711,13 @@ class DoubleTrackTurnoutRail {
         this.isReversed = isReversed;  // 裏タイプ
         this.components = [];
         this.color = 'lightseagreen';  // 複線ターンアウト専用の色
+        this.isDoubleTrack = true;  // 複線レールフラグ
+        // 複線ターンアウトは3組の端点ペア: 直線2本+分岐2本
+        this.endpointPairs = [[1, 3], [2, 4], [5, 6]];  
         
         // 端点構造の説明（複線ターンアウト・実際の仕様）:
-        // 複線幅の直線2本（長さ120）
-        // 複曲線カーブ2本（90度、外側カーブ）を重ねる
+        // 複線幅の直線2本（長さ120）- 端点 1,3（凹）→ 2,4（凸）
+        // 複曲線カーブ2本（90度、外側カーブ）- 端点 5,6（凸）
         // ターンアウトのように4種（左右×表裏）
     }
 
@@ -1808,7 +1826,7 @@ class DoubleTrackTurnoutRail {
             x: rightStart.x,
             y: rightStart.y,
             angle: rightStart.angle,
-            id: this.id + '-３',
+            id: this.id + '-3',
             type: 'concave'
         });
 
@@ -1880,10 +1898,12 @@ class DoubleTrackRail {
         this.angle = 0;
         this.components = [];
         this.color = 'cyan';  // 複線レール専用の色
+        this.isDoubleTrack = true;  // 複線レールフラグ
+        this.endpointPairs = [[1, 3], [2, 4]];  // 端点ペア: [1,3]と[2,4]がペア
         
         // 端点構造の説明:
-        // 起点側: 2本のレール（凹×2）
-        // 終点側: 2本のレール（凸×2）
+        // 起点側: 2本のレール（凹×2） - ID末尾 1, 3
+        // 終点側: 2本のレール（凸×2） - ID末尾 2, 4
     }
 
     /* =========================
@@ -1986,10 +2006,12 @@ class DoubleCurveRail {
         this.direction = direction;  // 'left' or 'right'
         this.components = [];
         this.color = 'lightcyan';  // 複曲線レール専用の色
+        this.isDoubleTrack = true;  // 複線レールフラグ
+        this.endpointPairs = [[1, 3], [2, 4]];  // 端点ペア
         
         // 端点構造の説明:
-        // 起点側: 2本のカーブ（凹×2）
-        // 終点側: 2本のカーブ（凸×2）
+        // 起点側: 2本のカーブ（凹×2） - ID末尾 1, 3
+        // 終点側: 2本のカーブ（凸×2） - ID末尾 2, 4
     }
 
     /* =========================
@@ -2245,7 +2267,7 @@ class UTurnRail {
         
 //レールでないパーツ
 		const UturnPart1 = new Curve(C1end.x, C1end.y, this.id +'-p1',dir,RAIL_LENGTH * this.URAIL_RADIUS_RATIO);
-		UturnPart1.angle =　reversedegAngle(C1end.angle);
+		UturnPart1.angle = reversedegAngle(C1end.angle);
 		UturnPart1.turnAngle = 90;
 		UturnPart1.color = this.color;
 
@@ -2557,22 +2579,29 @@ class Figure8PointRail {
         function drawEndpoints() {
             const rootPoints = [];
 
+            // 端点タイプ判定関数
+            const getEndpointType = (endpoint) => {
+                if (endpoint.type) return endpoint.type;
+                const lastChar = endpoint.id.slice(-1);
+                const num = parseInt(lastChar);
+                if (!isNaN(num)) {
+                    return num % 2 === 1 ? 'concave' : 'convex';
+                }
+                return null;
+            };
+
             // 凸端点（接続する側）- 青色（色弱者対応）
             ctx.fillStyle = 'blue';
             rails.forEach(shape => {
                 shape.getEndpoints().forEach(endpoint => {
-                    // typeプロパティがある場合はそれを優先、なければIDで判定
-                    const isConcave = endpoint.type === 'concave' || 
-                                     (!endpoint.type && (endpoint.id.slice(-1) == '1' || endpoint.id.slice(-1) == '3'));
-                    const isConvex = endpoint.type === 'convex' || 
-                                    (!endpoint.type && (endpoint.id.slice(-1) == '2' || endpoint.id.slice(-1) == '4'));
+                    const epType = getEndpointType(endpoint);
                     
-                    if (isConvex) {
+                    if (epType === 'convex') {
                         const pointAngleRad = endpoint.angle * Math.PI / 180;
                         ctx.beginPath();
                         ctx.arc(endpoint.x, endpoint.y, 4, pointAngleRad, pointAngleRad + Math.PI);
                         ctx.fill();
-                    } else if (isConcave) {
+                    } else if (epType === 'concave') {
                         rootPoints.push(endpoint);
                     }
                 });
@@ -2589,6 +2618,389 @@ class Figure8PointRail {
 
         }
 
+// ========================================
+// グループ移動機能
+// ========================================
+
+let groupMoveEnabled = false;
+let draggingGroup = null;
+
+// 2つの端点が接続されているか判定（厳格な条件）
+function areEndpointsConnected(ep1, ep2) {
+    const dx = ep1.x - ep2.x;
+    const dy = ep1.y - ep2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // 距離チェック: 厳格に（2px以内）
+    if (distance > 2) return false;
+    
+    // 端点タイプを取得（typeプロパティまたはIDから判定）
+    // 奇数(1,3,5,7)=凹(concave)、偶数(2,4,6,8)=凸(convex)
+    const getEndpointType = (ep) => {
+        if (ep.type) return ep.type;
+        const lastChar = ep.id.slice(-1);
+        const num = parseInt(lastChar);
+        if (!isNaN(num)) {
+            return num % 2 === 1 ? 'concave' : 'convex';
+        }
+        return null;
+    };
+    
+    const ep1Type = getEndpointType(ep1);
+    const ep2Type = getEndpointType(ep2);
+    
+    // 凹と凸のペアでなければ接続しない
+    const validPair = (ep1Type === 'concave' && ep2Type === 'convex') || 
+                      (ep1Type === 'convex' && ep2Type === 'concave');
+    if (!validPair) return false;
+    
+    // 角度差を計算
+    let angleDiff = Math.abs(ep1.angle - ep2.angle);
+    angleDiff = angleDiff % 360;
+    if (angleDiff > 180) angleDiff = 360 - angleDiff;
+    
+    // 角度が同じ（0度±5度）なら接続
+    const sameDirection = angleDiff < 5;
+    return sameDirection;
+}
+
+// 2つの端点がスナップ可能か判定（緩い条件）
+function canSnapEndpoints(ep1, ep2) {
+    const dx = ep1.x - ep2.x;
+    const dy = ep1.y - ep2.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // 距離チェック: 20px以内
+    if (distance > 20) return false;
+    
+    // 端点タイプを取得
+    const getEndpointType = (ep) => {
+        if (ep.type) return ep.type;
+        const lastChar = ep.id.slice(-1);
+        const num = parseInt(lastChar);
+        if (!isNaN(num)) {
+            return num % 2 === 1 ? 'concave' : 'convex';
+        }
+        return null;
+    };
+    
+    const ep1Type = getEndpointType(ep1);
+    const ep2Type = getEndpointType(ep2);
+    
+    // 凹と凸のペアでなければスナップ不可
+    const validPair = (ep1Type === 'concave' && ep2Type === 'convex') || 
+                      (ep1Type === 'convex' && ep2Type === 'concave');
+    if (!validPair) return false;
+    
+    // 角度差を計算
+    let angleDiff = Math.abs(ep1.angle - ep2.angle);
+    angleDiff = angleDiff % 360;
+    if (angleDiff > 180) angleDiff = 360 - angleDiff;
+    
+    // -90度～+90度以内（90度未満）ならスナップ可能
+    const validAngle = angleDiff < 90;
+    return validAngle;
+}
+
+// 特定の端点が他のレールと接続済みかチェック
+function isEndpointConnected(rail, endpointId) {
+    const targetEndpoint = rail.getEndpoints().find(ep => ep.id === endpointId);
+    if (!targetEndpoint) return false;
+    
+    // 他のレールの全端点をチェック
+    for (const otherRail of rails) {
+        if (otherRail === rail) continue;
+        
+        const otherEndpoints = otherRail.getEndpoints();
+        for (const otherEp of otherEndpoints) {
+            // 厳格な接続判定を使用
+            if (areEndpointsConnected(targetEndpoint, otherEp)) {
+                return true;  // 接続済み
+            }
+        }
+    }
+    return false;  // 未接続
+}
+
+// 接続されているレール群を検出
+function findConnectedGroup(startRail) {
+    const connected = new Set();
+    const queue = [startRail];
+    connected.add(startRail);
+    
+    while (queue.length > 0) {
+        const current = queue.shift();
+        const currentEndpoints = current.getEndpoints();
+        
+        // 全レールをチェック
+        rails.forEach(other => {
+            if (connected.has(other)) return;
+            
+            const otherEndpoints = other.getEndpoints();
+            
+            // 端点同士が接続されているかチェック
+            for (const ep1 of currentEndpoints) {
+                for (const ep2 of otherEndpoints) {
+                    if (areEndpointsConnected(ep1, ep2)) {
+                        connected.add(other);
+                        queue.push(other);
+                        return;
+                    }
+                }
+            }
+        });
+    }
+    
+    return Array.from(connected);
+}
+
+// グループ全体を移動
+function moveGroup(group, dx, dy) {
+    group.forEach(rail => {
+        rail.x += dx;
+        rail.y += dy;
+    });
+}
+
+// グリップ位置に基づいてインテリジェントにグループを検出
+function findGroupByGripPosition(rail, gripX, gripY) {
+    const endpoints = rail.getEndpoints();
+    
+    // 各端点からグリップ位置までの距離を計算
+    let closestEndpoint = null;
+    let closestDistance = Infinity;
+    
+    endpoints.forEach(ep => {
+        const dx = gripX - ep.x;
+        const dy = gripY - ep.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closestEndpoint = ep;
+        }
+    });
+    
+    // グリップ位置による判定
+    if (closestDistance <= 20) {
+        // 20px以内: ジョイント近く → この端点で切断して反対側のみ移動
+        console.log('Grip near endpoint:', closestEndpoint.id, 'distance:', closestDistance.toFixed(1));
+        return findGroupExcludingEndpoint(rail, closestEndpoint);
+    } else if (closestDistance >= 24) {
+        // 24px以遠: レール中央 → 全グループ移動
+        console.log('Grip at center, full group move');
+        return findConnectedGroup(rail);
+    } else {
+        // 20-23px: デッドゾーン → 単独移動
+        console.log('Grip in dead zone (20-23px), single rail move');
+        return null;
+    }
+}
+
+// 特定の端点を除外してグループを検出（複線レールのペア接続を考慮）
+function findGroupExcludingEndpoint(startRail, excludeEndpoint) {
+    // まず、除外する端点に接続しているレールを特定
+    let excludedRails = new Set();
+    
+    // 複線レールの場合、ペアになっている端点も一緒に除外する必要がある
+    let excludeEndpointIds = [excludeEndpoint.id];
+    
+    if (startRail.isDoubleTrack && startRail.endpointPairs) {
+        // 除外する端点の番号を取得
+        const excludeNum = parseInt(excludeEndpoint.id.slice(-1));
+        
+        // このendpointPairs内に含まれていれば、ペア全体を除外
+        startRail.endpointPairs.forEach(pair => {
+            if (pair.includes(excludeNum)) {
+                // このペアの全端点を除外リストに追加
+                pair.forEach(num => {
+                    excludeEndpointIds.push(`${startRail.id}-${num}`);
+                });
+                console.log('Double track detected, excluding pair:', pair);
+            }
+        });
+    }
+    
+    console.log('Excluding endpoints:', excludeEndpointIds);
+    
+    // 除外する端点群に接続している全レールを特定
+    const allStartEndpoints = startRail.getEndpoints();
+    allStartEndpoints.forEach(startEp => {
+        if (excludeEndpointIds.includes(startEp.id)) {
+            // この端点に接続しているレールを探す
+            rails.forEach(other => {
+                if (other === startRail) return;
+                
+                const otherEndpoints = other.getEndpoints();
+                for (const otherEp of otherEndpoints) {
+                    if (areEndpointsConnected(startEp, otherEp)) {
+                        excludedRails.add(other);
+                        console.log('Excluding rail:', other.id, 'connected via', startEp.id, '-', otherEp.id);
+                    }
+                }
+            });
+        }
+    });
+    
+    console.log('Total excluded rails:', excludedRails.size);
+    
+    // グループ検出（除外するレール群との接続は全て無視）
+    const connected = new Set();
+    const queue = [startRail];
+    connected.add(startRail);
+    
+    while (queue.length > 0) {
+        const current = queue.shift();
+        const currentEndpoints = current.getEndpoints();
+        
+        // 全レールをチェック
+        rails.forEach(other => {
+            if (connected.has(other)) return;
+            
+            // 除外するレールへの接続はスキップ
+            if (excludedRails.has(other)) {
+                return;
+            }
+            
+            const otherEndpoints = other.getEndpoints();
+            
+            // 端点同士が接続されているかチェック
+            for (const ep1 of currentEndpoints) {
+                // startRailの除外端点群はスキップ
+                if (current === startRail && excludeEndpointIds.includes(ep1.id)) {
+                    continue;
+                }
+                
+                for (const ep2 of otherEndpoints) {
+                    if (areEndpointsConnected(ep1, ep2)) {
+                        connected.add(other);
+                        queue.push(other);
+                        return;
+                    }
+                }
+            }
+        });
+    }
+    
+    return Array.from(connected);
+}
+
+// グループ全体を回転
+function rotateGroup(group, centerX, centerY, angleDelta) {
+    const angleRad = angleDelta * Math.PI / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    
+    group.forEach(rail => {
+        // 中心からの相対位置を計算
+        const dx = rail.x - centerX;
+        const dy = rail.y - centerY;
+        
+        // 回転後の位置を計算
+        const newDx = dx * cos - dy * sin;
+        const newDy = dx * sin + dy * cos;
+        
+        // 新しい位置を設定
+        rail.x = centerX + newDx;
+        rail.y = centerY + newDy;
+        
+        // レール自体の角度も回転
+        rail.angle += angleDelta;
+    });
+}
+
+// グループ全体をスナップ
+function snapGroupToClosestEndpoint(group, draggedRail) {
+    // グループ内の全端点を取得
+    let allEndpoints = [];
+    group.forEach(rail => {
+        const endpoints = rail.getEndpoints();
+        endpoints.forEach(ep => {
+            allEndpoints.push({ rail: rail, endpoint: ep });
+        });
+    });
+    
+    // グループ外のレールの全端点を取得
+    let externalEndpoints = [];
+    rails.forEach(rail => {
+        if (!group.includes(rail)) {
+            const endpoints = rail.getEndpoints();
+            endpoints.forEach(ep => {
+                externalEndpoints.push({ rail: rail, endpoint: ep });
+            });
+        }
+    });
+    
+    // 最も近い端点ペアを見つける
+    let closestPair = null;
+    let closestDistance = Infinity;
+    
+    allEndpoints.forEach(groupEp => {
+        externalEndpoints.forEach(extEp => {
+            // 両端点が未接続かチェック
+            if (isEndpointConnected(groupEp.rail, groupEp.endpoint.id)) return;
+            if (isEndpointConnected(extEp.rail, extEp.endpoint.id)) return;
+            
+            // スナップ可能かチェック
+            if (!canSnapEndpoints(groupEp.endpoint, extEp.endpoint)) return;
+            
+            const dx = groupEp.endpoint.x - extEp.endpoint.x;
+            const dy = groupEp.endpoint.y - extEp.endpoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestPair = {
+                    groupEndpoint: groupEp,
+                    externalEndpoint: extEp
+                };
+            }
+        });
+    });
+    
+    // スナップ実行
+    if (closestPair) {
+        const groupEp = closestPair.groupEndpoint.endpoint;
+        const extEp = closestPair.externalEndpoint.endpoint;
+        
+        // 1. まず角度を合わせる（グループの掴んでいるレールを中心に回転）
+        const angleDiff = extEp.angle - groupEp.angle;
+        rotateGroup(group, draggedRail.x, draggedRail.y, angleDiff);
+        
+        // 2. 回転後の端点位置を再計算
+        const updatedGroupEndpoints = closestPair.groupEndpoint.rail.getEndpoints();
+        const updatedGroupEp = updatedGroupEndpoints.find(ep => ep.id === groupEp.id);
+        
+        // 3. 位置を合わせる（平行移動）
+        const dx = extEp.x - updatedGroupEp.x;
+        const dy = extEp.y - updatedGroupEp.y;
+        moveGroup(group, dx, dy);
+        
+        return true; // スナップした
+    }
+    
+    return false; // スナップしなかった
+}
+
+// レールを指定点を中心に回転（グループ移動と共通化）
+function rotateRailAroundPoint(rail, centerX, centerY, angleDelta) {
+    const angleRad = angleDelta * Math.PI / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    
+    // 中心からの相対位置
+    const dx = rail.x - centerX;
+    const dy = rail.y - centerY;
+    
+    // 回転後の位置
+    const newDx = dx * cos - dy * sin;
+    const newDy = dx * sin + dy * cos;
+    
+    rail.x = centerX + newDx;
+    rail.y = centerY + newDy;
+    rail.angle += angleDelta;
+}
+
 function snapToClosestEndpoint(shape) {
     const endpoints = shape.getEndpoints();
     let closestEndpoint = null;
@@ -2598,9 +3010,17 @@ function snapToClosestEndpoint(shape) {
         if (otherShape !== shape) {
             otherShape.getEndpoints().forEach(endpoint => {
                 endpoints.forEach(shapeEndpoint => {
+                    // 両端点が未接続かチェック
+                    if (isEndpointConnected(shape, shapeEndpoint.id)) return;
+                    if (isEndpointConnected(otherShape, endpoint.id)) return;
+                    
+                    // スナップ可能かチェック（緩い条件: 20px, -90～+90度）
+                    if (!canSnapEndpoints(shapeEndpoint, endpoint)) return;
+                    
                     const dx = shapeEndpoint.x - endpoint.x;
                     const dy = shapeEndpoint.y - endpoint.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
+                    
                     if (distance < closestDistance) {
                         closestDistance = distance;
                         closestEndpoint = { shape: otherShape, endpoint, shapeEndpoint };
@@ -2610,7 +3030,8 @@ function snapToClosestEndpoint(shape) {
         }
     });
 
-    if (closestDistance < 20) { // スナップ距離の閾値
+    if (closestEndpoint) {
+        // 角度を合わせる
         const angleDiff = closestEndpoint.endpoint.angle - closestEndpoint.shapeEndpoint.angle;
         shape.angle += angleDiff;
 
@@ -2618,18 +3039,21 @@ function snapToClosestEndpoint(shape) {
         const newEndpoints = shape.getEndpoints();
         const newEndpoint = newEndpoints.find(ep => ep.id === closestEndpoint.shapeEndpoint.id);
 
+        // 位置を合わせる
         const dx = closestEndpoint.endpoint.x - newEndpoint.x;
         const dy = closestEndpoint.endpoint.y - newEndpoint.y;
         shape.x += dx;
         shape.y += dy;
     }
 }
+
     canvas.addEventListener('mousedown', (e) => {
       //  console.log('Screen: x=' + e.offsetX + ', y=' + e.offsetY);
         const world = screenToWorld(e.offsetX, e.offsetY);
      //   console.log('World: x=' + world.x.toFixed(2) + ', y=' + world.y.toFixed(2));
         
         dragging = null;
+        draggingGroup = null;
         selectedShape = null;
 
         rails.forEach(rect => {
@@ -2638,6 +3062,11 @@ function snapToClosestEndpoint(shape) {
                 selectedShape = rect;
                 offsetX = world.x - rect.x;
                 offsetY = world.y - rect.y;
+                
+                // グループ移動モードならグリップ位置に基づいて接続グループを検出
+                if (groupMoveEnabled) {
+                    draggingGroup = findGroupByGripPosition(rect, world.x, world.y);
+                }
             }
         });
 
@@ -2648,11 +3077,35 @@ function snapToClosestEndpoint(shape) {
         }
     });
 
+    // クリックイベント: 端点選択（レール追加の進行方向変更）
+    canvas.addEventListener('click', (e) => {
+        // ドラッグしていた場合はスキップ
+        if (dragging || isPanning) return;
+        
+        const world = screenToWorld(e.offsetX, e.offsetY);
+        
+        // 端点をクリックして進行方向を変更
+        if (selectEndpointForProgression(world.x, world.y)) {
+            console.log('Endpoint selected for rail progression');
+        }
+    });
+
     canvas.addEventListener('mousemove', (e) => {
         if (dragging) {
             const world = screenToWorld(e.offsetX, e.offsetY);
-            dragging.x = world.x - offsetX;
-            dragging.y = world.y - offsetY;
+            const newX = world.x - offsetX;
+            const newY = world.y - offsetY;
+            
+            if (draggingGroup) {
+                // グループ移動: 相対移動量を計算
+                const dx = newX - dragging.x;
+                const dy = newY - dragging.y;
+                moveGroup(draggingGroup, dx, dy);
+            } else {
+                // 単独移動
+                dragging.x = newX;
+                dragging.y = newY;
+            }
             drawAll();
         } else if (isPanning) {
             const dx = e.offsetX - startX;
@@ -2667,9 +3120,16 @@ function snapToClosestEndpoint(shape) {
 
     canvas.addEventListener('mouseup', () => {
         if (dragging) {
-            snapToClosestEndpoint(dragging);
+            if (draggingGroup) {
+                // グループ移動の場合、グループ全体をスナップ
+                snapGroupToClosestEndpoint(draggingGroup, dragging);
+            } else {
+                // 単独移動の場合のみスナップ
+                snapToClosestEndpoint(dragging);
+            }
 	    LastselectedShape = dragging;
             dragging = null;
+            draggingGroup = null;
         }
         isPanning = false;
         drawAll();
@@ -2731,6 +3191,7 @@ function snapToClosestEndpoint(shape) {
             // シングルタップ: ドラッグ開始またはパン開始
             touchStartPos = {x: touch.x, y: touch.y};
             dragging = null;
+            draggingGroup = null;
             selectedShape = null;
 
             rails.forEach(rect => {
@@ -2739,6 +3200,11 @@ function snapToClosestEndpoint(shape) {
                     selectedShape = rect;
                     offsetX = world.x - rect.x;
                     offsetY = world.y - rect.y;
+                    
+                    // グループ移動モードならグリップ位置に基づいて接続グループを検出
+                    if (groupMoveEnabled) {
+                        draggingGroup = findGroupByGripPosition(rect, world.x, world.y);
+                    }
                 }
             });
 
@@ -2781,8 +3247,19 @@ function snapToClosestEndpoint(shape) {
             
             if (dragging) {
                 const world = screenToWorld(touch.x, touch.y);
-                dragging.x = world.x - offsetX;
-                dragging.y = world.y - offsetY;
+                const newX = world.x - offsetX;
+                const newY = world.y - offsetY;
+                
+                if (draggingGroup) {
+                    // グループ移動: 相対移動量を計算
+                    const dx = newX - dragging.x;
+                    const dy = newY - dragging.y;
+                    moveGroup(draggingGroup, dx, dy);
+                } else {
+                    // 単独移動
+                    dragging.x = newX;
+                    dragging.y = newY;
+                }
                 drawAll();
             } else if (isPanning) {
                 const dx = touch.x - startX;
@@ -2817,19 +3294,37 @@ function snapToClosestEndpoint(shape) {
                     Math.pow(endY - touchStartPos.y, 2)
                 );
                 
-                // ほとんど動いていない場合、コンテキストメニューを表示
+                // ほとんど動いていない場合
                 if (distance < 10) {
-                    const menu = document.getElementById('contextMenu');
-                    menu.style.left = `${touch.clientX}px`;
-                    menu.style.top = `${touch.clientY}px`;
-                    menu.style.display = 'block';
+                    // 端点選択を試みる（タップ）
+                    const rect = canvas.getBoundingClientRect();
+                    const touchX = touch.clientX - rect.left;
+                    const touchY = touch.clientY - rect.top;
+                    const world = screenToWorld(touchX, touchY);
+                    
+                    if (selectEndpointForProgression(world.x, world.y)) {
+                        console.log('Endpoint selected via touch');
+                    } else {
+                        // 端点が見つからない場合、コンテキストメニュー
+                        const menu = document.getElementById('contextMenu');
+                        menu.style.left = `${touch.clientX}px`;
+                        menu.style.top = `${touch.clientY}px`;
+                        menu.style.display = 'block';
+                    }
                 }
             }
             
             if (dragging) {
-                snapToClosestEndpoint(dragging);
+                if (draggingGroup) {
+                    // グループ移動の場合、グループ全体をスナップ
+                    snapGroupToClosestEndpoint(draggingGroup, dragging);
+                } else {
+                    // 単独移動の場合のみスナップ
+                    snapToClosestEndpoint(dragging);
+                }
                 LastselectedShape = dragging;
                 dragging = null;
+                draggingGroup = null;
             }
             isPanning = false;
             touchStartPos = null;
@@ -3015,18 +3510,293 @@ function snapToClosestEndpoint(shape) {
 
 
 // 最後に置いたレールの端点を取得する関数
-function getLastEndpoint() {
-    if (rails.length === 0 ) return {x: 0, y:0, angle:0};
-    let endpoints;
-    if (LastselectedShape == null){
-    	const lastShape = rails.slice(-1)[0];//console.log(lastShape);
-   	endpoints = lastShape.getEndpoints();
-	}
-	else {
-   	endpoints = LastselectedShape.getEndpoints();
+// 最後に配置したレールの端点を取得する関数
+// レール追加の進行方向を管理
+let railProgression = {
+    rail: null,           // 最後に選択されたレール
+    endpointIndex: 1,     // 使用する端点のインデックス（デフォルト1=第2端点）
+    isReversed: false     // 逆方向フラグ（凹進行か凸進行か）
+};
+
+// 端点をクリック/タップして進行方向を変更
+function selectEndpointForProgression(x, y) {
+    let closestEndpoint = null;
+    let closestDistance = Infinity;
+    let closestRail = null;
+    let closestIndex = -1;
+    
+    rails.forEach(rail => {
+        const endpoints = rail.getEndpoints();
+        endpoints.forEach((ep, index) => {
+            const dx = x - ep.x;
+            const dy = y - ep.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < closestDistance && distance < 15) { // 15px以内
+                closestDistance = distance;
+                closestEndpoint = ep;
+                closestRail = rail;
+                closestIndex = index;
+            }
+        });
+    });
+    
+    if (closestEndpoint) {
+        railProgression.rail = closestRail;
+        railProgression.endpointIndex = closestIndex;
+        
+        // 端点タイプから進行方向を判定
+        const getEndpointType = (ep) => {
+            if (ep.type) return ep.type;
+            const lastChar = ep.id.slice(-1);
+            const num = parseInt(lastChar);
+            if (!isNaN(num)) {
+                return num % 2 === 1 ? 'concave' : 'convex';
+            }
+            return null;
+        };
+        
+        const epType = getEndpointType(closestEndpoint);
+        railProgression.isReversed = (epType === 'concave'); // 凹なら逆方向
+        
+        console.log('Selected endpoint:', closestEndpoint.id, 'type:', epType, 'reversed:', railProgression.isReversed);
+        
+        // 視覚的フィードバック（端点を強調表示）
+        drawAll();
+        ctx.save();
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(closestEndpoint.x, closestEndpoint.y, 8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        
+        return true;
+    }
+    
+    return false;
 }
 
-    return endpoints[1]; // 2つ目の端点を返す
+function getLastEndpoint() {
+    if (rails.length === 0) return {x: 0, y: 0, angle: 0, type: 'convex'};
+    
+    let targetRail = railProgression.rail || LastselectedShape || rails.slice(-1)[0];
+    const endpoints = targetRail.getEndpoints();
+    
+    // 指定されたインデックスの端点を取得
+    let endpoint = endpoints[railProgression.endpointIndex] || endpoints[endpoints.length - 1];
+    
+    console.log('getLastEndpoint: rail=', targetRail.id, 'endpointIndex=', railProgression.endpointIndex, 
+                'isReversed=', railProgression.isReversed, 'endpoint=', endpoint.id);
+    
+    // 凹端点を選択した場合（逆方向フラグが立っている）
+    if (railProgression.isReversed) {
+        console.log('Reversed (concave selected): endpoint angle=', endpoint.angle, 'placeFromEnd=true');
+        
+        // 元の端点情報をそのまま返す + placeFromEnd フラグ
+        return {
+            x: endpoint.x,
+            y: endpoint.y,
+            angle: endpoint.angle,  // 元の凹端点の角度のまま
+            id: endpoint.id,
+            type: endpoint.type,
+            placeFromEnd: true
+        };
+    }
+    
+    // 通常の場合
+    return {
+        x: endpoint.x,
+        y: endpoint.y,
+        angle: endpoint.angle,
+        id: endpoint.id,
+        type: endpoint.type,
+        placeFromEnd: false
+    };
+}
+
+// レール配置位置の調整（凹端点から配置する場合）
+function adjustRailPlacement(rail, lastEndpoint) {
+    if (!lastEndpoint.placeFromEnd) {
+        return; // 通常配置
+    }
+    
+    console.log('=== Adjusting placement for concave connection ===');
+    
+    // 角度を0-360度に正規化
+    const normalizedAngle = ((lastEndpoint.angle % 360) + 360) % 360;
+    console.log('Target concave endpoint:', lastEndpoint.id, 'at (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ') angle=', normalizedAngle);
+    
+    // Step 1: レールを180度反転
+    const reversedAngle = (normalizedAngle + 180) % 360;
+    rail.angle = reversedAngle;
+    console.log('Step 1: Reversed rail angle to', reversedAngle, '(concave angle + 180)');
+    
+    // Step 2: レールの終点（凸）座標を取得
+    let railEndpoints = rail.getEndpoints();
+    let endPoint = railEndpoints[railEndpoints.length - 1];
+    console.log('Step 2: Rail end point at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    
+    // Step 3: 終点を目標位置（選択された凹端点）に移動
+    const dx = lastEndpoint.x - endPoint.x;
+    const dy = lastEndpoint.y - endPoint.y;
+    rail.x += dx;
+    rail.y += dy;
+    console.log('Step 3: Translated by dx=', dx.toFixed(2), 'dy=', dy.toFixed(2));
+    console.log('        New rail position (', rail.x.toFixed(1), ',', rail.y.toFixed(1), ')');
+    
+    // Step 4: 終点の角度を目標角度に合わせる
+    railEndpoints = rail.getEndpoints();
+    endPoint = railEndpoints[railEndpoints.length - 1];
+    
+    const targetEndAngle = normalizedAngle;  // 正規化された凹端点の角度
+    const currentEndAngle = ((endPoint.angle % 360) + 360) % 360;  // 終点角度も正規化
+    
+    // 角度差を計算（-180～180の範囲に正規化）
+    let angleDiff = targetEndAngle - currentEndAngle;
+    while (angleDiff > 180) angleDiff -= 360;
+    while (angleDiff < -180) angleDiff += 360;
+    
+    console.log('Step 4: Target end angle=', targetEndAngle, 'Current end angle=', currentEndAngle);
+    console.log('        Angle difference=', angleDiff.toFixed(2), 'degrees');
+    
+    if (Math.abs(angleDiff) > 0.1) {
+        console.log('        Rotating around (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ')');
+        rotateRailAroundPoint(rail, lastEndpoint.x, lastEndpoint.y, angleDiff);
+        
+        // 回転後の角度を正規化
+        rail.angle = ((rail.angle % 360) + 360) % 360;
+        console.log('        Rotated. New rail angle=', rail.angle);
+    }
+    
+    // 検証
+    const finalEndpoints = rail.getEndpoints();
+    const finalEndPoint = finalEndpoints[finalEndpoints.length - 1];
+    const finalDx = lastEndpoint.x - finalEndPoint.x;
+    const finalDy = lastEndpoint.y - finalEndPoint.y;
+    const finalDistance = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
+    
+    const finalEndAngle = ((finalEndPoint.angle % 360) + 360) % 360;
+    let finalAngleDiff = Math.abs(normalizedAngle - finalEndAngle);
+    if (finalAngleDiff > 180) finalAngleDiff = 360 - finalAngleDiff;
+    
+    console.log('Verification: Final distance=', finalDistance.toFixed(3), 'px, angle diff=', finalAngleDiff.toFixed(2), 'deg');
+    console.log('=== Adjustment complete ===');
+}
+
+// レール追加後の進行方向更新
+function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
+    LastselectedShape = addedRail;
+    railProgression.rail = addedRail;
+    
+    // レールタイプによって進行方向を自動調整
+    const endpoints = addedRail.getEndpoints();
+    
+    console.log('updateProgression: rail=', addedRail.id, 'type=', addedRail.constructor.name, 
+                'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
+                'wasPlacedFromEnd=', wasPlacedFromEnd);
+    
+    // 凹端点から配置された場合: 配置したレールの起点（凹）が次の接続点
+    if (wasPlacedFromEnd) {
+        railProgression.endpointIndex = 0;  // 起点（凹）
+        railProgression.isReversed = true;  // 凹端点なので逆方向フラグを立てる
+        console.log('→ Placed from concave: endpoint 0 (start, concave), reversed=true');
+        return;
+    }
+    
+    // ポイントレール: 常にendpoints[1]（ID-2の主要終点）を使用
+    if (addedRail.constructor.name === 'TurnoutRail' ||
+        addedRail.constructor.name === 'R13PointRail' ||
+        addedRail.constructor.name === 'R22YPointRail' ||
+        addedRail.constructor.name === 'R15WidePointRail') {
+        railProgression.endpointIndex = 1;  // 固定: endpoints[1] = -2の主要終点
+        railProgression.isReversed = false;
+        console.log('→ Point rail: endpoint 1 (ID-2), reversed=false');
+        return;
+    }
+    
+    // 8の字ポイント: タイプ別処理
+    if (addedRail.constructor.name === 'Figure8PointRail') {
+        // 8の字R系: 終点3が凹なので、凹進行を停止
+        if (addedRail.pointType === 'R' || addedRail.pointType === 'R_REV') {
+            if (wasPlacedFromEnd) {
+                // 凹から配置された場合: 起点(凹)を次の接続点にするが、凹進行は停止
+                railProgression.endpointIndex = 0;  // 起点(凹)
+                railProgression.isReversed = false; // ❗ 凹進行停止（手動選択待ち）
+                console.log('→ Figure8 R-type (from concave): endpoint 0 (concave), reversed=false (stop auto-concave)');
+            } else {
+                // 通常配置: endpoint 1から
+                railProgression.endpointIndex = 1;
+                railProgression.isReversed = false;
+                console.log('→ Figure8 R-type: endpoint 1 (ID-2), reversed=false');
+            }
+        } else {
+            // 8の字L系: 通常のポイントレールと同じ
+            railProgression.endpointIndex = 1;
+            railProgression.isReversed = false;
+            console.log('→ Figure8 L-type: endpoint 1 (ID-2), reversed=false');
+        }
+        return;
+    }
+    
+    // Uターンレール: 両端が凹なので特殊処理
+    if (addedRail.constructor.name === 'UTurnRail') {
+        if (wasPlacedFromEnd) {
+            // 凹から配置された場合: もう一方の凹端点(endpoint 1)を次の起点に
+            railProgression.endpointIndex = 1; // endpoint 1 (もう一方の凹)
+            railProgression.isReversed = true;  // 引き続き凹端点
+            console.log('→ UTurn placed from concave: endpoint 1 (other concave), reversed=true');
+        } else {
+            // 通常配置（凸から）: endpoint 1から逆方向で続ける
+            railProgression.endpointIndex = 1; // endpoint 1 (凹)
+            railProgression.isReversed = true;  // 逆方向
+            console.log('→ UTurn: endpoint 1, reversed=true');
+        }
+        return;
+    }
+    
+    // 1/4(凹凹)、ジョイント(凹凹): 終点が凹なので逆方向
+    if (addedRail.railType === 'QuarterCC' ||
+        (addedRail.endpointTypes && addedRail.endpointTypes.endType === 'concave')) {
+        
+        railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凹)
+        railProgression.isReversed = true;  // 逆方向
+        console.log('→ CC rail: endpoint', endpoints.length - 1, 'reversed=true');
+        return;
+    }
+    
+    // 1/4(凸凸)、ジョイント(凸凸): 終点が凸なので順方向に戻る
+    if (addedRail.railType === 'QuarterVV' ||
+        (addedRail.endpointTypes && addedRail.endpointTypes.endType === 'convex' &&
+         addedRail.endpointTypes.startType === 'convex')) {
+        
+        // 凸凸レールの後は通常進行に戻る
+        if (wasPlacedFromEnd) {
+            // 凹から配置された凸凸レール: 起点(凸)が次の接続点
+            railProgression.endpointIndex = 0; // 起点(凸)
+            railProgression.isReversed = false; // 通常進行に戻る
+            console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false');
+        } else {
+            // 通常配置された凸凸レール: 終点(凸)が次の接続点
+            railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凸)
+            railProgression.isReversed = false; // 順方向
+            console.log('→ VV rail: endpoint', endpoints.length - 1, 'reversed=false');
+        }
+        return;
+    }
+    
+    // 複線レール（4端点）: 進行方向は端点1（ID-2）を使用
+    if (addedRail.isDoubleTrack && endpoints.length === 4) {
+        railProgression.endpointIndex = 1; // 端点1（ID-2、1本目の終点）
+        railProgression.isReversed = false;
+        console.log('→ Double track rail: endpoint 1 (ID-2), reversed=false');
+        return;
+    }
+    
+    // 通常レール: 最後の端点（凸）を使用
+    railProgression.endpointIndex = endpoints.length - 1;
+    railProgression.isReversed = false;
+    console.log('→ Normal rail: endpoint', endpoints.length - 1, 'reversed=false');
 }
 
 // 直線を追加するボタンのイベントリスナー
@@ -3036,10 +3806,10 @@ document.getElementById('addStraight').addEventListener('click', () => {
         const id = `R${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
         rect.angle = lastEndpoint.angle;
+        adjustRailPlacement(rect, lastEndpoint);
         rails.push(rect);
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
        drawAll();
-
-        LastselectedShape = rect;
 
     }
 });
@@ -3053,8 +3823,8 @@ document.getElementById('addHalfStraight').addEventListener('click', () => {
         rect.angle = lastEndpoint.angle;
         rect.color = 'lightblue';
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3068,8 +3838,8 @@ document.getElementById('addQuarterStraight').addEventListener('click', () => {
         rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3082,9 +3852,10 @@ document.getElementById('addQuarterCC').addEventListener('click', () => {
             { startType: 'concave', endType: 'concave' });
         rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
+        rect.railType = 'QuarterCC';  // 識別用
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3097,9 +3868,10 @@ document.getElementById('addQuarterVV').addEventListener('click', () => {
             { startType: 'convex', endType: 'convex' });
         rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
+        rect.railType = 'QuarterVV';  // 識別用
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3113,8 +3885,8 @@ document.getElementById('addJointCC').addEventListener('click', () => {
         rect.angle = lastEndpoint.angle;
         rect.color = 'lightgray';
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3128,8 +3900,8 @@ document.getElementById('addJointVV').addEventListener('click', () => {
         rect.angle = lastEndpoint.angle;
         rect.color = 'lightgray';
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3142,8 +3914,8 @@ document.getElementById('addDoubleStraight').addEventListener('click', () => {
         rect.angle = lastEndpoint.angle;
         rect.color = 'navy';
         rails.push(rect);
-        drawAll();
-        LastselectedShape = rect;
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3155,9 +3927,10 @@ document.getElementById('addRightOuterCurve').addEventListener('click', () => {
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
         curve.angle = (lastEndpoint.angle + 360) % 360;
         curve.color = "purple";
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        drawAll();
-        LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3169,9 +3942,10 @@ document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
         curve.angle = (lastEndpoint.angle + 360) % 360;
         curve.color = "purple";
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        drawAll();
-        LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
+       drawAll();
     }
 });
 
@@ -3185,9 +3959,8 @@ document.getElementById('addSlide').addEventListener('click', () => {
 	rect.slide = D_TRACK_WIDTH;
 
         rails.push(rect);
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
        drawAll();
-
-        LastselectedShape = rect;
 
     }
 });
@@ -3203,9 +3976,8 @@ document.getElementById('addRSlide').addEventListener('click', () => {
 	rect.slide = -D_TRACK_WIDTH;
 
         rails.push(rect);
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
        drawAll();
-
-        LastselectedShape = rect;
 
     }
 });
@@ -3218,9 +3990,10 @@ document.getElementById('addRightCurve').addEventListener('click', () => {
         const id = `R${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
         curve.angle = (lastEndpoint.angle+360)%360;
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        drawAll();
-	    LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
+       drawAll();
 
 
     }
@@ -3233,10 +4006,10 @@ document.getElementById('addLeftCurve').addEventListener('click', () => {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
         curve.angle = lastEndpoint.angle;
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        drawAll();
-
-	    LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
+       drawAll();
 
 
     }
@@ -3249,8 +4022,9 @@ document.getElementById('addDoubleLengthCurveRight').addEventListener('click', (
         const id = `DLC_R${rails.length + 1}`;
         const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'right');
         curve.angle = lastEndpoint.angle;
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3262,8 +4036,9 @@ document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', ()
         const id = `DLC_L${rails.length + 1}`;
         const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'left');
         curve.angle = lastEndpoint.angle;
+        adjustRailPlacement(curve, lastEndpoint);
         rails.push(curve);
-        LastselectedShape = curve;
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3275,8 +4050,9 @@ document.getElementById('addUTurnRailU').addEventListener('click', () => {
         const id = `UT_U${rails.length + 1}`;
         const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'U');
         uturn.angle = lastEndpoint.angle;
+        adjustRailPlacement(uturn, lastEndpoint);
         rails.push(uturn);
-        LastselectedShape = uturn;
+        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3288,8 +4064,9 @@ document.getElementById('addUTurnRailV').addEventListener('click', () => {
         const id = `UT_V${rails.length + 1}`;
         const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'V');
         uturn.angle = lastEndpoint.angle;
+        adjustRailPlacement(uturn, lastEndpoint);
         rails.push(uturn);
-        LastselectedShape = uturn;
+        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3303,8 +4080,9 @@ document.getElementById('addTurnoutLeft').addEventListener('click', () => {
         const id = `TR${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3315,8 +4093,9 @@ document.getElementById('addTurnoutRight').addEventListener('click', () => {
         const id = `TR${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3327,8 +4106,9 @@ document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
         const id = `TL${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3339,8 +4119,9 @@ document.getElementById('addTurnoutRightL').addEventListener('click', () => {
         const id = `TL${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3352,8 +4133,9 @@ document.getElementById('addFigure8Point').addEventListener('click', () => {
         const id = `F8R${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R','right');
         figure8Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(figure8Point, lastEndpoint);
         rails.push(figure8Point);
-        LastselectedShape = figure8Point;
+        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3365,8 +4147,9 @@ document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
         const id = `F8RR${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV','left');
         figure8Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(figure8Point, lastEndpoint);
         rails.push(figure8Point);
-        LastselectedShape = figure8Point;
+        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3378,8 +4161,9 @@ document.getElementById('addFigure8PointL').addEventListener('click', () => {
         const id = `F8L${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L','right');
         figure8Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(figure8Point, lastEndpoint);
         rails.push(figure8Point);
-        LastselectedShape = figure8Point;
+        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3391,8 +4175,9 @@ document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
         const id = `F8LR${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV','left');
         figure8Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(figure8Point, lastEndpoint);
         rails.push(figure8Point);
-        LastselectedShape = figure8Point;
+        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3404,8 +4189,9 @@ document.getElementById('addR13PointBRight').addEventListener('click', () => {
         const id = `R13BR${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'right');
         r13Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r13Point, lastEndpoint);
         rails.push(r13Point);
-        LastselectedShape = r13Point;
+        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3416,8 +4202,9 @@ document.getElementById('addR13PointBLeft').addEventListener('click', () => {
         const id = `R13BL${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'left');
         r13Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r13Point, lastEndpoint);
         rails.push(r13Point);
-        LastselectedShape = r13Point;
+        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3428,8 +4215,9 @@ document.getElementById('addR13PointARight').addEventListener('click', () => {
         const id = `R13AR${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'right');
         r13Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r13Point, lastEndpoint);
         rails.push(r13Point);
-        LastselectedShape = r13Point;
+        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3440,8 +4228,9 @@ document.getElementById('addR13PointALeft').addEventListener('click', () => {
         const id = `R13AL${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'left');
         r13Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r13Point, lastEndpoint);
         rails.push(r13Point);
-        LastselectedShape = r13Point;
+        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3453,8 +4242,9 @@ document.getElementById('addR22YPointA').addEventListener('click', () => {
         const id = `R22A${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
         r22Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r22Point, lastEndpoint);
         rails.push(r22Point);
-        LastselectedShape = r22Point;
+        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3466,8 +4256,9 @@ document.getElementById('addR22YPointARev').addEventListener('click', () => {
         const id = `R22AR${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
         r22Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r22Point, lastEndpoint);
         rails.push(r22Point);
-        LastselectedShape = r22Point;
+        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3479,8 +4270,9 @@ document.getElementById('addR22YPointB').addEventListener('click', () => {
         const id = `R22B${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
         r22Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r22Point, lastEndpoint);
         rails.push(r22Point);
-        LastselectedShape = r22Point;
+        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3492,8 +4284,9 @@ document.getElementById('addR22YPointBRev').addEventListener('click', () => {
         const id = `R22BR${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
         r22Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r22Point, lastEndpoint);
         rails.push(r22Point);
-        LastselectedShape = r22Point;
+        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3505,8 +4298,9 @@ document.getElementById('addR15WideA').addEventListener('click', () => {
         const id = `R15A${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
         r15Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r15Point, lastEndpoint);
         rails.push(r15Point);
-        LastselectedShape = r15Point;
+        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3518,8 +4312,9 @@ document.getElementById('addR15WideARev').addEventListener('click', () => {
         const id = `R15AR${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
         r15Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r15Point, lastEndpoint);
         rails.push(r15Point);
-        LastselectedShape = r15Point;
+        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3531,8 +4326,9 @@ document.getElementById('addR15WideB').addEventListener('click', () => {
         const id = `R15B${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
         r15Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r15Point, lastEndpoint);
         rails.push(r15Point);
-        LastselectedShape = r15Point;
+        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3544,8 +4340,9 @@ document.getElementById('addR15WideBRev').addEventListener('click', () => {
         const id = `R15BR${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
         r15Point.angle = lastEndpoint.angle;
+        adjustRailPlacement(r15Point, lastEndpoint);
         rails.push(r15Point);
-        LastselectedShape = r15Point;
+        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3557,8 +4354,9 @@ document.getElementById('addDoubleTrack').addEventListener('click', () => {
         const id = `DT${rails.length + 1}`;
         const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
         doubleTrack.angle = lastEndpoint.angle;
+        adjustRailPlacement(doubleTrack, lastEndpoint);
         rails.push(doubleTrack);
-        LastselectedShape = doubleTrack;
+        updateProgressionAfterAdd(doubleTrack, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3570,8 +4368,9 @@ document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
         const id = `DCL${rails.length + 1}`;
         const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
         doubleCurve.angle = lastEndpoint.angle;
+        adjustRailPlacement(doubleCurve, lastEndpoint);
         rails.push(doubleCurve);
-        LastselectedShape = doubleCurve;
+        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3583,8 +4382,9 @@ document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
         const id = `DCR${rails.length + 1}`;
         const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
         doubleCurve.angle = lastEndpoint.angle;
+        adjustRailPlacement(doubleCurve, lastEndpoint);
         rails.push(doubleCurve);
-        LastselectedShape = doubleCurve;
+        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3596,8 +4396,9 @@ document.getElementById('addDoubleTrackCrossover').addEventListener('click', () 
         const id = `DTX${rails.length + 1}`;
         const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, false);
         crossover.angle = lastEndpoint.angle;
+        adjustRailPlacement(crossover, lastEndpoint);
         rails.push(crossover);
-        LastselectedShape = crossover;
+        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3609,8 +4410,9 @@ document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', 
         const id = `DTXR${rails.length + 1}`;
         const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, true);
         crossover.angle = lastEndpoint.angle;
+        adjustRailPlacement(crossover, lastEndpoint);
         rails.push(crossover);
-        LastselectedShape = crossover;
+        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3622,8 +4424,9 @@ document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', (
         const id = `DTTL${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', false);
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3635,8 +4438,9 @@ document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', 
         const id = `DTTR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', false);
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3648,8 +4452,9 @@ document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click'
         const id = `DTTLR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', true);
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3661,8 +4466,9 @@ document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click
         const id = `DTTRR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', true);
         turnout.angle = lastEndpoint.angle;
+        adjustRailPlacement(turnout, lastEndpoint);
         rails.push(turnout);
-        LastselectedShape = turnout;
+        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3674,8 +4480,9 @@ document.getElementById('addCrossPoint').addEventListener('click', () => {
         const id = `CP${rails.length + 1}`;
         const crossPoint = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
         crossPoint.angle = lastEndpoint.angle;
+        adjustRailPlacement(crossPoint, lastEndpoint);
         rails.push(crossPoint);
-        LastselectedShape = crossPoint;
+        updateProgressionAfterAdd(crossPoint, lastEndpoint.placeFromEnd);
         drawAll();
     }
 });
@@ -3695,8 +4502,9 @@ function addRail(type) {
         const id = `S${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
         rect.angle = lastEndpoint.angle;
-        LastselectedShape = rect;
+        adjustRailPlacement(rect, lastEndpoint);
         rails.push(rect);
+        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
 
 
 
@@ -3704,16 +4512,17 @@ function addRail(type) {
         const id = `R${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
         curve.angle = (lastEndpoint.angle+360)%360;
-        LastselectedShape = curve;
         rails.push(curve);
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
 
 
     } else if (type === 'L'|| type ==='l') {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
         curve.angle = lastEndpoint.angle;
-        LastselectedShape = curve;
-	rails.push(curve);
+        adjustRailPlacement(curve, lastEndpoint);
+        rails.push(curve);
+        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
 
 
     }
@@ -3968,6 +4777,11 @@ document.getElementById('shareTwitter').addEventListener('click', shareToTwitter
 
 // ページ読み込み時にURLからレイアウトを復元
 window.addEventListener('DOMContentLoaded', loadFromURL);
+
+// グループ移動モードのチェックボックス
+document.getElementById('groupMoveMode').addEventListener('change', (e) => {
+    groupMoveEnabled = e.target.checked;
+});
 
 
 
