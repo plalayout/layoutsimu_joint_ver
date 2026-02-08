@@ -1420,21 +1420,12 @@ class R15WidePointRail {
             eps.push({
                 x: ep3start.x,
                 y: ep3start.y,
-                angle: reversedegAngle(ep3start.angle),
+                angle: ep3start.angle,
                 id: this.id + '-6',
                 type: 'convex'
             });
             
-            // 3本目終点（凸）
-            const ep3end = this.components[2].getEndpoints()[1];
-            eps.push({
-                x: ep3end.x,
-                y: ep3end.y,
-                angle: ep3end.angle,
-                id: this.id + '-5',
-                type: 'convex'
-            });
-        }
+    }
 
         return eps;
     }
