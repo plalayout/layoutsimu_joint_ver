@@ -3870,18 +3870,24 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     console.log('→ Normal rail: endpoint', endpoints.length - 1, 'reversed=false');
 }
 
+function addRailCommon(rail, lastEndpoint, options = {}) {
+    const { setAngle = true } = options;
+    if (setAngle) {
+        rail.angle = lastEndpoint.angle;
+    }
+    adjustRailPlacement(rail, lastEndpoint);
+    rails.push(rail);
+    updateProgressionAfterAdd(rail, lastEndpoint.placeFromEnd);
+    drawAll();
+}
+
 // 直線を追加するボタンのイベントリスナー
 document.getElementById('addStraight').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
         const id = `R${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-        adjustRailPlacement(rect, lastEndpoint);
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3891,11 +3897,8 @@ document.getElementById('addHalfStraight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `H${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
-        rect.angle = lastEndpoint.angle;
         rect.color = 'lightblue';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3906,11 +3909,8 @@ document.getElementById('addQuarterStraight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `Q${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
-        rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3921,12 +3921,9 @@ document.getElementById('addQuarterCC').addEventListener('click', () => {
         const id = `QCC${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
             { startType: 'concave', endType: 'concave' });
-        rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
         rect.railType = 'QuarterCC';  // 識別用
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3937,12 +3934,9 @@ document.getElementById('addQuarterVV').addEventListener('click', () => {
         const id = `QVV${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
             { startType: 'convex', endType: 'convex' });
-        rect.angle = lastEndpoint.angle;
         rect.color = 'skyblue';
         rect.railType = 'QuarterVV';  // 識別用
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3953,11 +3947,8 @@ document.getElementById('addJointCC').addEventListener('click', () => {
         const id = `JCC${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
             { startType: 'concave', endType: 'concave' });
-        rect.angle = lastEndpoint.angle;
         rect.color = 'lightgray';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3968,11 +3959,8 @@ document.getElementById('addJointVV').addEventListener('click', () => {
         const id = `JVV${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
             { startType: 'convex', endType: 'convex' });
-        rect.angle = lastEndpoint.angle;
         rect.color = 'lightgray';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3982,11 +3970,8 @@ document.getElementById('addDoubleStraight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `D${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
-        rect.angle = lastEndpoint.angle;
         rect.color = 'navy';
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -3998,10 +3983,7 @@ document.getElementById('addRightOuterCurve').addEventListener('click', () => {
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
         curve.angle = (lastEndpoint.angle + 360) % 360;
         curve.color = "purple";
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(curve, lastEndpoint, { setAngle: false });
     }
 });
 
@@ -4013,10 +3995,7 @@ document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
         curve.angle = (lastEndpoint.angle + 360) % 360;
         curve.color = "purple";
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
+        addRailCommon(curve, lastEndpoint, { setAngle: false });
     }
 });
 
@@ -4026,13 +4005,9 @@ document.getElementById('addSlide').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `Sl${rails.length + 1}`;
         const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-	rect.slide = D_TRACK_WIDTH;
+        rect.slide = D_TRACK_WIDTH;
 
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -4043,13 +4018,9 @@ document.getElementById('addRSlide').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `Sl${rails.length + 1}`;
         const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-	rect.slide = -D_TRACK_WIDTH;
+        rect.slide = -D_TRACK_WIDTH;
 
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-       drawAll();
-
+        addRailCommon(rect, lastEndpoint);
     }
 });
 
@@ -4060,13 +4031,8 @@ document.getElementById('addRightCurve').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = (lastEndpoint.angle+360)%360;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
-
-
+        curve.angle = (lastEndpoint.angle + 360) % 360;
+        addRailCommon(curve, lastEndpoint, { setAngle: false });
     }
 });
 
@@ -4076,13 +4042,7 @@ document.getElementById('addLeftCurve').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-       drawAll();
-
-
+        addRailCommon(curve, lastEndpoint);
     }
 });
 
@@ -4092,11 +4052,7 @@ document.getElementById('addDoubleLengthCurveRight').addEventListener('click', (
     if (lastEndpoint) {
         const id = `DLC_R${rails.length + 1}`;
         const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(curve, lastEndpoint);
     }
 });
 
@@ -4106,11 +4062,7 @@ document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', ()
     if (lastEndpoint) {
         const id = `DLC_L${rails.length + 1}`;
         const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(curve, lastEndpoint);
     }
 });
 
@@ -4120,11 +4072,7 @@ document.getElementById('addUTurnRailU').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `UT_U${rails.length + 1}`;
         const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'U');
-        uturn.angle = lastEndpoint.angle;
-        adjustRailPlacement(uturn, lastEndpoint);
-        rails.push(uturn);
-        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(uturn, lastEndpoint);
     }
 });
 
@@ -4134,11 +4082,7 @@ document.getElementById('addUTurnRailV').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `UT_V${rails.length + 1}`;
         const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'V');
-        uturn.angle = lastEndpoint.angle;
-        adjustRailPlacement(uturn, lastEndpoint);
-        rails.push(uturn);
-        updateProgressionAfterAdd(uturn, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(uturn, lastEndpoint);
     }
 });
 
@@ -4150,11 +4094,7 @@ document.getElementById('addTurnoutLeft').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `TR${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4163,11 +4103,7 @@ document.getElementById('addTurnoutRight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `TR${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4176,11 +4112,7 @@ document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `TL${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4189,11 +4121,7 @@ document.getElementById('addTurnoutRightL').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `TL${rails.length + 1}`;
         const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4203,11 +4131,7 @@ document.getElementById('addFigure8Point').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `F8R${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R','right');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(figure8Point, lastEndpoint);
     }
 });
 
@@ -4217,11 +4141,7 @@ document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `F8RR${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV','left');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(figure8Point, lastEndpoint);
     }
 });
 
@@ -4231,11 +4151,7 @@ document.getElementById('addFigure8PointL').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `F8L${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L','right');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(figure8Point, lastEndpoint);
     }
 });
 
@@ -4245,11 +4161,7 @@ document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `F8LR${rails.length + 1}`;
         const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV','left');
-        figure8Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(figure8Point, lastEndpoint);
-        rails.push(figure8Point);
-        updateProgressionAfterAdd(figure8Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(figure8Point, lastEndpoint);
     }
 });
 
@@ -4259,11 +4171,7 @@ document.getElementById('addR13PointBRight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R13BR${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'right');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r13Point, lastEndpoint);
     }
 });
 
@@ -4272,11 +4180,7 @@ document.getElementById('addR13PointBLeft').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R13BL${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'left');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r13Point, lastEndpoint);
     }
 });
 
@@ -4285,11 +4189,7 @@ document.getElementById('addR13PointARight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R13AR${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'right');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r13Point, lastEndpoint);
     }
 });
 
@@ -4298,11 +4198,7 @@ document.getElementById('addR13PointALeft').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R13AL${rails.length + 1}`;
         const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'left');
-        r13Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r13Point, lastEndpoint);
-        rails.push(r13Point);
-        updateProgressionAfterAdd(r13Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r13Point, lastEndpoint);
     }
 });
 
@@ -4312,11 +4208,7 @@ document.getElementById('addR22YPointA').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R22A${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r22Point, lastEndpoint);
     }
 });
 
@@ -4326,11 +4218,7 @@ document.getElementById('addR22YPointARev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R22AR${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r22Point, lastEndpoint);
     }
 });
 
@@ -4340,11 +4228,7 @@ document.getElementById('addR22YPointB').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R22B${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r22Point, lastEndpoint);
     }
 });
 
@@ -4354,11 +4238,7 @@ document.getElementById('addR22YPointBRev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R22BR${rails.length + 1}`;
         const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        r22Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r22Point, lastEndpoint);
-        rails.push(r22Point);
-        updateProgressionAfterAdd(r22Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r22Point, lastEndpoint);
     }
 });
 
@@ -4368,11 +4248,7 @@ document.getElementById('addR15WideA').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R15A${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r15Point, lastEndpoint);
     }
 });
 
@@ -4382,11 +4258,7 @@ document.getElementById('addR15WideARev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R15AR${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r15Point, lastEndpoint);
     }
 });
 
@@ -4396,11 +4268,7 @@ document.getElementById('addR15WideB').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R15B${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r15Point, lastEndpoint);
     }
 });
 
@@ -4410,11 +4278,7 @@ document.getElementById('addR15WideBRev').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R15BR${rails.length + 1}`;
         const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        r15Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r15Point, lastEndpoint);
-        rails.push(r15Point);
-        updateProgressionAfterAdd(r15Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r15Point, lastEndpoint);
     }
 });
 
@@ -4423,11 +4287,7 @@ document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `R30T${rails.length + 1}`;
         const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        r30Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r30Point, lastEndpoint);
-        rails.push(r30Point);
-        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r30Point, lastEndpoint);
     }
 });
 
@@ -4436,11 +4296,7 @@ document.getElementById('addR30TrianglePointRev').addEventListener('click', () =
     if (lastEndpoint) {
         const id = `R30TR${rails.length + 1}`;
         const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        r30Point.angle = lastEndpoint.angle;
-        adjustRailPlacement(r30Point, lastEndpoint);
-        rails.push(r30Point);
-        updateProgressionAfterAdd(r30Point, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(r30Point, lastEndpoint);
     }
 });
 
@@ -4450,11 +4306,7 @@ document.getElementById('addDoubleTrack').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `DT${rails.length + 1}`;
         const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
-        doubleTrack.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleTrack, lastEndpoint);
-        rails.push(doubleTrack);
-        updateProgressionAfterAdd(doubleTrack, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(doubleTrack, lastEndpoint);
     }
 });
 
@@ -4464,11 +4316,7 @@ document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `DCL${rails.length + 1}`;
         const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        doubleCurve.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleCurve, lastEndpoint);
-        rails.push(doubleCurve);
-        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(doubleCurve, lastEndpoint);
     }
 });
 
@@ -4478,11 +4326,7 @@ document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `DCR${rails.length + 1}`;
         const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        doubleCurve.angle = lastEndpoint.angle;
-        adjustRailPlacement(doubleCurve, lastEndpoint);
-        rails.push(doubleCurve);
-        updateProgressionAfterAdd(doubleCurve, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(doubleCurve, lastEndpoint);
     }
 });
 
@@ -4492,11 +4336,7 @@ document.getElementById('addDoubleTrackCrossover').addEventListener('click', () 
     if (lastEndpoint) {
         const id = `DTX${rails.length + 1}`;
         const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        crossover.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossover, lastEndpoint);
-        rails.push(crossover);
-        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(crossover, lastEndpoint);
     }
 });
 
@@ -4506,11 +4346,7 @@ document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', 
     if (lastEndpoint) {
         const id = `DTXR${rails.length + 1}`;
         const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        crossover.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossover, lastEndpoint);
-        rails.push(crossover);
-        updateProgressionAfterAdd(crossover, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(crossover, lastEndpoint);
     }
 });
 
@@ -4520,11 +4356,7 @@ document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', (
     if (lastEndpoint) {
         const id = `DTTL${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', false);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4534,11 +4366,7 @@ document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', 
     if (lastEndpoint) {
         const id = `DTTR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', false);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4548,11 +4376,7 @@ document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click'
     if (lastEndpoint) {
         const id = `DTTLR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', true);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4562,11 +4386,7 @@ document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click
     if (lastEndpoint) {
         const id = `DTTRR${rails.length + 1}`;
         const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', true);
-        turnout.angle = lastEndpoint.angle;
-        adjustRailPlacement(turnout, lastEndpoint);
-        rails.push(turnout);
-        updateProgressionAfterAdd(turnout, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(turnout, lastEndpoint);
     }
 });
 
@@ -4576,11 +4396,7 @@ document.getElementById('addCrossPoint').addEventListener('click', () => {
     if (lastEndpoint) {
         const id = `CP${rails.length + 1}`;
         const crossPoint = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
-        crossPoint.angle = lastEndpoint.angle;
-        adjustRailPlacement(crossPoint, lastEndpoint);
-        rails.push(crossPoint);
-        updateProgressionAfterAdd(crossPoint, lastEndpoint.placeFromEnd);
-        drawAll();
+        addRailCommon(crossPoint, lastEndpoint);
     }
 });
 
@@ -4598,32 +4414,17 @@ function addRail(type) {
     if (type === 'S' || type ==='s') {
         const id = `S${rails.length + 1}`;
         const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-        rect.angle = lastEndpoint.angle;
-        adjustRailPlacement(rect, lastEndpoint);
-        rails.push(rect);
-        updateProgressionAfterAdd(rect, lastEndpoint.placeFromEnd);
-
-
-
+        addRailCommon(rect, lastEndpoint);
     } else if (type === 'R'|| type ==='r') {
         const id = `R${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = (lastEndpoint.angle+360)%360;
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-
-
+        curve.angle = (lastEndpoint.angle + 360) % 360;
+        addRailCommon(curve, lastEndpoint, { setAngle: false });
     } else if (type === 'L'|| type ==='l') {
         const id = `L${rails.length + 1}`;
         const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        curve.angle = lastEndpoint.angle;
-        adjustRailPlacement(curve, lastEndpoint);
-        rails.push(curve);
-        updateProgressionAfterAdd(curve, lastEndpoint.placeFromEnd);
-
-
+        addRailCommon(curve, lastEndpoint);
     }
-    drawAll();
 }
 
 // 縮尺リセット　イベントリスナー
