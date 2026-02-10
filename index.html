@@ -267,8 +267,7 @@
             <button id="addQuarterStraight">1/4 (凹凸)</button>
             <button id="addQuarterCC">1/4 (凹凹)</button>
             <button id="addQuarterVV">1/4 (凸凸)</button>
-            <button id="addJointCC">1/6 (凹凹)</button>
-            <button id="addJointVV">1/6 (凸凸)</button>
+            <button id="addJoint">1/6</button>
         </div>
       
 
@@ -280,10 +279,6 @@
             <button id="addTurnoutRightL">(L裏)</button>
         </div>
 
-        <div class="button-group">
-            <button id="addR30TrianglePoint">R-30三角</button>
-            <button id="addR30TrianglePointRev">(裏)</button>
-        </div>
         
         <div class="button-group">
             <button id="addFigure8Point">8の字 (R)</button>
@@ -292,7 +287,9 @@
             <button id="addFigure8PointLRev">(L裏)</button>
         </div>
 <div class="button-group">
-            <button id="addCrossPoint">十字ポイント</button>
+            <button id="addCrossPoint">十字ポイント</button>  
+            <button id="addR30TrianglePoint">R-30三角</button>
+            <button id="addR30TrianglePointRev">(裏)</button>
         </div>
 
         
@@ -315,38 +312,36 @@
             <button id="addDoubleTrackCrossover">複線渡り(表)</button>
             <button id="addDoubleTrackCrossoverRev">複線渡り(裏)</button>
         </div>
-          <div class="button-group">
+         <div class="section-title">複線ターンアウト/R-15複線幅広ポイント</div>
+         <div class="button-group">
             <button id="addDoubleTrackTurnoutLeft">複T.O.(左)</button>
             <button id="addDoubleTrackTurnoutLeftRev">(左裏)</button>
             <button id="addDoubleTrackTurnoutRight">(右)</button>
             <button id="addDoubleTrackTurnoutRightRev">(右裏)</button>
-        </div>         
+             <button id="addR15WideA">R-15 (A)</button>
+            <button id="addR15WideARev">(A裏)</button>
+            <button id="addR15WideB">(B)</button>
+            <button id="addR15WideBRev">(B裏)</button>
+
+ </div>         
 
         
 
 
-
+       <div class="section-title">単複P/R-22 Y字P</div>
         <div class="button-group">
-            <button id="addR13PointBRight">単複P (B右)</button>
-            <button id="addR13PointBLeft">(B左)</button>
+            <button id="addR13PointBRight">単複 (B右)</button>
+            <button id="addR13PointBLeft">（B左)</button>
             <button id="addR13PointARight">(A右)</button>
             <button id="addR13PointALeft">(A左)</button>
-        </div>
-        
-        <div class="section-title">R-22 Y字ポイント</div>
-        <div class="button-group">
-            <button id="addR22YPointA">R-22 (A)</button>
+            <button id="addR22YPointA">Y字(A)</button>
             <button id="addR22YPointARev">(A裏)</button>
             <button id="addR22YPointB">(B)</button>
             <button id="addR22YPointBRev">(B裏)</button>
         </div>
         
-        <div class="section-title">R-15複線幅広ポイント</div>
+
         <div class="button-group">
-            <button id="addR15WideA">R-15 (A)</button>
-            <button id="addR15WideARev">(A裏)</button>
-            <button id="addR15WideB">(B)</button>
-            <button id="addR15WideBRev">(B裏)</button>
         </div>
         
         <div class="section-title">S字レール</div>
@@ -1420,18 +1415,8 @@ class R15WidePointRail {
             eps.push({
                 x: ep3start.x,
                 y: ep3start.y,
-                angle: reversedegAngle(ep3start.angle),
+                angle: ep3start.angle,
                 id: this.id + '-6',
-                type: 'convex'
-            });
-            
-            // 3本目終点（凸）
-            const ep3end = this.components[2].getEndpoints()[1];
-            eps.push({
-                x: ep3end.x,
-                y: ep3end.y,
-                angle: ep3end.angle,
-                id: this.id + '-5',
                 type: 'convex'
             });
         }
@@ -1789,7 +1774,6 @@ class DoubleTrackCrossoverRail {
     getEndpoints() {
         this._sync();
         const eps = [];
-
         // 起点側（左）
         const leftStart = this.components[0].getEndpoints()[0];
         eps.push({
@@ -1800,29 +1784,26 @@ class DoubleTrackCrossoverRail {
             type: 'concave'
         });
  
-		// 終点側（左）- 右レールの終点
-        const leftEnd = this.components[1].getEndpoints()[1];
+        // 終点側（左）- 左レールの終点
+        const leftEnd = this.components[0].getEndpoints()[1];
         eps.push({
             x: leftEnd.x,
             y: leftEnd.y,
             angle: leftEnd.angle,
-            id: this.id + '-3',
+            id: this.id + '-2',
             type: 'convex'
         });
-
         // 起点側（右）
         const rightStart = this.components[1].getEndpoints()[0];
         eps.push({
             x: rightStart.x,
             y: rightStart.y,
             angle: rightStart.angle,
-            id: this.id + '-2',
+            id: this.id + '-3',
             type: 'concave'
         });
-
-
-        // 終点側（右）- 左レールの終点
-        const rightEnd = this.components[0].getEndpoints()[1];
+        // 終点側（右）- 右レールの終点
+        const rightEnd = this.components[1].getEndpoints()[1];
         eps.push({
             x: rightEnd.x,
             y: rightEnd.y,
@@ -3661,13 +3642,16 @@ function getLastEndpoint() {
     
     // 凹端点を選択した場合（逆方向フラグが立っている）
     if (railProgression.isReversed) {
+        // 凹進行では eps[0] (凹) の位置と角度をそのまま使用
+        // 新レールの eps[1] (凸) を eps[0] (凹) に接続する
+        
         console.log('Reversed (concave selected): endpoint angle=', endpoint.angle, 'placeFromEnd=true');
         
-        // 元の端点情報をそのまま返す + placeFromEnd フラグ
+        // 端点情報を返す + placeFromEnd フラグ
         return {
             x: endpoint.x,
             y: endpoint.y,
-            angle: endpoint.angle,  // 元の凹端点の角度のまま
+            angle: endpoint.angle,  // eps[0]の角度をそのまま使用
             id: endpoint.id,
             type: endpoint.type,
             placeFromEnd: true
@@ -3702,10 +3686,43 @@ function adjustRailPlacement(rail, lastEndpoint) {
     rail.angle = reversedAngle;
     console.log('Step 1: Reversed rail angle to', reversedAngle, '(concave angle + 180)');
     
-    // Step 2: レールの終点（凸）座標を取得
+    // Step 2: 接続すべき端点を決定
+    // ⚠️ 重要: rail.angle設定後にgetEndpoints()を呼ぶ（実際の長さ・角度で端点計算）
     let railEndpoints = rail.getEndpoints();
-    let endPoint = railEndpoints[railEndpoints.length - 1];
-    console.log('Step 2: Rail end point at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    let endPoint;
+    
+    // 【原則】凹進行時は常にeps[1]（ID-2、主要凸端点）を目標に配置
+    // 
+    // 【例外処理】以下のレールのみ特殊な端点を使用:
+    
+    // 例外1: ターンアウトL、8の字L、R15A、単複Bは終点3が凹なので、終点2（直線凸）を使用
+    const needsEndpoint2 = (
+        (rail.constructor.name === 'TurnoutRail' && rail.turnoutType === 'L') ||
+        (rail.constructor.name === 'Figure8PointRail' && (rail.pointType === 'L' || rail.pointType === 'L_REV')) ||
+        (rail.constructor.name === 'R15WidePointRail' && rail.pointType === 'A') ||
+        (rail.constructor.name === 'R13PointRail' && rail.pointType === 'B')
+    );
+    
+    // 例外2: Uターンレールは両端が凹で同じ角度なので、endpoint 1を目標に配置
+    const isUTurn = rail.constructor.name === 'UTurnRail';
+    
+    if (isUTurn) {
+        // Uターン: もう一方の凹を使用
+        endPoint = railEndpoints[1]; // endpoint 1 (もう一方の凹)
+        console.log('Step 2: UTurn - using endpoint 1 (other concave) at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    } else if (needsEndpoint2 && railEndpoints.length >= 2) {
+        // 特定ポイントレール: 直線凸を使用
+        endPoint = railEndpoints[1]; // endpoint 2 (index 1, 直線凸)
+        console.log('Step 2: Using endpoint 2 (straight convex) at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    } else if (railEndpoints.length >= 2) {
+        // 【原則】eps[1]（ID-2、主要凸端点）を使用
+        endPoint = railEndpoints[1]; // endpoint 2 (index 1)
+        console.log('Step 2: Using endpoint 2 (principle: ID-2) at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    } else {
+        // 端点が1つしかない場合（通常ありえない）
+        endPoint = railEndpoints[0];
+        console.log('Step 2: Only one endpoint available at (', endPoint.x.toFixed(1), ',', endPoint.y.toFixed(1), ') angle=', endPoint.angle);
+    }
     
     // Step 3: 終点を目標位置（選択された凹端点）に移動
     const dx = lastEndpoint.x - endPoint.x;
@@ -3717,7 +3734,15 @@ function adjustRailPlacement(rail, lastEndpoint) {
     
     // Step 4: 終点の角度を目標角度に合わせる
     railEndpoints = rail.getEndpoints();
-    endPoint = railEndpoints[railEndpoints.length - 1];
+    if (isUTurn) {
+        endPoint = railEndpoints[1];
+    } else if (needsEndpoint2 && railEndpoints.length >= 2) {
+        endPoint = railEndpoints[1];
+    } else if (railEndpoints.length >= 2) {
+        endPoint = railEndpoints[1];
+    } else {
+        endPoint = railEndpoints[0];
+    }
     
     const targetEndAngle = normalizedAngle;  // 正規化された凹端点の角度
     const currentEndAngle = ((endPoint.angle % 360) + 360) % 360;  // 終点角度も正規化
@@ -3741,7 +3766,16 @@ function adjustRailPlacement(rail, lastEndpoint) {
     
     // 検証
     const finalEndpoints = rail.getEndpoints();
-    const finalEndPoint = finalEndpoints[finalEndpoints.length - 1];
+    let finalEndPoint;
+    if (isUTurn) {
+        finalEndPoint = finalEndpoints[1];
+    } else if (needsEndpoint2 && finalEndpoints.length >= 2) {
+        finalEndPoint = finalEndpoints[1];
+    } else if (finalEndpoints.length >= 2) {
+        finalEndPoint = finalEndpoints[1];
+    } else {
+        finalEndPoint = finalEndpoints[0];
+    }
     const finalDx = lastEndpoint.x - finalEndPoint.x;
     const finalDy = lastEndpoint.y - finalEndPoint.y;
     const finalDistance = Math.sqrt(finalDx * finalDx + finalDy * finalDy);
@@ -3766,6 +3800,45 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
                 'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
                 'wasPlacedFromEnd=', wasPlacedFromEnd);
     
+    // 【最優先】1/4凸凸・1/6凸凸（ジョイント凸凸）: 凹進行を停止
+    if (addedRail.railType === 'QuarterVV' ||
+        addedRail.railType === 'SixthVV' ||
+        (addedRail.endpointTypes && 
+         addedRail.endpointTypes.endType === 'convex' &&
+         addedRail.endpointTypes.startType === 'convex')) {
+        
+        if (wasPlacedFromEnd) {
+            // 凹から配置された凸凸レール: 起点(凸)が次の接続点、凹進行停止
+            railProgression.endpointIndex = 0; // 起点(凸)
+            railProgression.isReversed = false; // ❗ 凹進行停止
+            console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false (stop concave progression)');
+        } else {
+            // 通常配置された凸凸レール: 終点(凸)が次の接続点
+            railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凸)
+            railProgression.isReversed = false; // 通常進行
+            console.log('→ VV rail: endpoint', endpoints.length - 1, '(end convex), reversed=false');
+        }
+        return;
+    }
+    
+    // 【最優先】1/4凹凹・1/6凹凹（ジョイント凹凹）: 凹進行を開始/継続
+    if (addedRail.railType === 'QuarterCC' ||
+        addedRail.railType === 'SixthCC' ||
+        (addedRail.endpointTypes && 
+         addedRail.endpointTypes.endType === 'concave' &&
+         addedRail.endpointTypes.startType === 'concave')) {
+        
+        railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凹)
+        railProgression.isReversed = true;  // 凹進行開始/継続
+        
+        if (wasPlacedFromEnd) {
+            console.log('→ CC rail (from concave): endpoint', endpoints.length - 1, '(end concave), reversed=true (continue)');
+        } else {
+            console.log('→ CC rail: endpoint', endpoints.length - 1, '(end concave), reversed=true (start concave progression)');
+        }
+        return;
+    }
+    
     // 凹端点から配置された場合: 配置したレールの起点（凹）が次の接続点
     if (wasPlacedFromEnd) {
         railProgression.endpointIndex = 0;  // 起点（凹）
@@ -3779,7 +3852,10 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
         addedRail.constructor.name === 'R13PointRail' ||
         addedRail.constructor.name === 'R22YPointRail' ||
         addedRail.constructor.name === 'R15WidePointRail' ||
-        addedRail.constructor.name === 'R30TrianglePointRail') {
+        addedRail.constructor.name === 'R30TrianglePointRail' ||
+        addedRail.constructor.name === 'CrossPointRail' ||
+        addedRail.constructor.name === 'DoubleTrackCrossoverRail' ||
+        addedRail.constructor.name === 'DoubleTrackTurnoutRail') {
         railProgression.endpointIndex = 1;  // 固定: endpoints[1] = -2の主要終点
         railProgression.isReversed = false;
         console.log('→ Point rail: endpoint 1 (ID-2), reversed=false');
@@ -3826,48 +3902,33 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
         return;
     }
     
-    // 1/4(凹凹)、ジョイント(凹凹): 終点が凹なので逆方向
-    if (addedRail.railType === 'QuarterCC' ||
-        (addedRail.endpointTypes && addedRail.endpointTypes.endType === 'concave')) {
-        
-        railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凹)
-        railProgression.isReversed = true;  // 逆方向
-        console.log('→ CC rail: endpoint', endpoints.length - 1, 'reversed=true');
-        return;
-    }
-    
-    // 1/4(凸凸)、ジョイント(凸凸): 終点が凸なので順方向に戻る
-    if (addedRail.railType === 'QuarterVV' ||
-        (addedRail.endpointTypes && addedRail.endpointTypes.endType === 'convex' &&
-         addedRail.endpointTypes.startType === 'convex')) {
-        
-        // 凸凸レールの後は通常進行に戻る
+    // 複線レール（4端点）: 凹進行時と通常時で異なる処理
+    if (addedRail.isDoubleTrack && endpoints.length === 4) {
         if (wasPlacedFromEnd) {
-            // 凹から配置された凸凸レール: 起点(凸)が次の接続点
-            railProgression.endpointIndex = 0; // 起点(凸)
-            railProgression.isReversed = false; // 通常進行に戻る
-            console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false');
+            // 凹から配置された場合: 内側凹（endpoint 2, ID-3）を次の起点に
+            railProgression.endpointIndex = 2; // eps[2] (内側凹)
+            railProgression.isReversed = true; // 凹進行継続
+            console.log('→ Double track rail (from concave): endpoint 2 (ID-3, inner concave), reversed=true');
         } else {
-            // 通常配置された凸凸レール: 終点(凸)が次の接続点
-            railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凸)
-            railProgression.isReversed = false; // 順方向
-            console.log('→ VV rail: endpoint', endpoints.length - 1, 'reversed=false');
+            // 通常配置: 外側凸（endpoint 1, ID-2）を次の起点に
+            railProgression.endpointIndex = 1; // eps[1] (外側凸)
+            railProgression.isReversed = false;
+            console.log('→ Double track rail: endpoint 1 (ID-2, outer convex), reversed=false');
         }
         return;
     }
     
-    // 複線レール（4端点）: 進行方向は端点1（ID-2）を使用
-    if (addedRail.isDoubleTrack && endpoints.length === 4) {
-        railProgression.endpointIndex = 1; // 端点1（ID-2、1本目の終点）
+    // 【原則】通常レール: endpoint 1（ID-2）を使用
+    if (endpoints.length >= 2) {
+        railProgression.endpointIndex = 1; // eps[1] (ID-2)
         railProgression.isReversed = false;
-        console.log('→ Double track rail: endpoint 1 (ID-2), reversed=false');
-        return;
+        console.log('→ Normal rail: endpoint 1 (ID-2), reversed=false');
+    } else {
+        // 端点が1つしかない場合（通常ありえない）
+        railProgression.endpointIndex = 0;
+        railProgression.isReversed = false;
+        console.log('→ Single endpoint: endpoint 0, reversed=false');
     }
-    
-    // 通常レール: 最後の端点（凸）を使用
-    railProgression.endpointIndex = endpoints.length - 1;
-    railProgression.isReversed = false;
-    console.log('→ Normal rail: endpoint', endpoints.length - 1, 'reversed=false');
 }
 
 function addRailCommon(rail, lastEndpoint, options = {}) {
@@ -3940,28 +4001,10 @@ document.getElementById('addQuarterVV').addEventListener('click', () => {
     }
 });
 
-// ジョイントレールを追加するボタンのイベントリスナー（凹凹）
-document.getElementById('addJointCC').addEventListener('click', () => {
+// ジョイントレールを追加するボタンのイベントリスナー
+document.getElementById('addJoint').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `JCC${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
-            { startType: 'concave', endType: 'concave' });
-        rect.color = 'lightgray';
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-// ジョイントレールを追加するボタンのイベントリスナー（凸凸）
-document.getElementById('addJointVV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `JVV${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6, 
-            { startType: 'convex', endType: 'convex' });
-        rect.color = 'lightgray';
-        addRailCommon(rect, lastEndpoint);
-    }
+    addJointRail(lastEndpoint?.placeFromEnd || false);
 });
 
 // 2倍直線を追加するボタンのイベントリスナー
@@ -4426,7 +4469,34 @@ function addRail(type) {
         addRailCommon(curve, lastEndpoint);
     }
 }
-
+function addJointRail(isConcaveProgression) {
+    const lastEndpoint = getLastEndpoint();
+    if (!lastEndpoint) return;
+    
+    if (isConcaveProgression) {
+        // 凹進行時 → 1/6凸凸
+        const id = `JVV${rails.length + 1}`;
+        const rect = new StraightRail(
+            lastEndpoint.x, lastEndpoint.y, id, 
+            RAIL_LENGTH / 6,
+            { startType: 'convex', endType: 'convex' }
+        );
+        rect.color = 'lightgray';
+        rect.railType = 'SixthVV';
+        addRailCommon(rect, lastEndpoint);
+    } else {
+        // 凸進行時 → 1/6凹凹
+        const id = `JCC${rails.length + 1}`;
+        const rect = new StraightRail(
+            lastEndpoint.x, lastEndpoint.y, id, 
+            RAIL_LENGTH / 6,
+            { startType: 'concave', endType: 'concave' }
+        );
+        rect.color = 'lightgray';
+        rect.railType = 'SixthCC';
+        addRailCommon(rect, lastEndpoint);
+    }
+}
 // 縮尺リセット　イベントリスナー
 document.getElementById('canvasreset').addEventListener('click', () => {
  scale = 1;
