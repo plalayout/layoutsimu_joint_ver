@@ -263,10 +263,11 @@
             <button id="addDoubleLengthCurveRight">倍曲線(右)</button>
             <button id="addDoubleLengthCurveLeft">倍曲線(左)</button>
         </div>
-         <div class="button-group">
-            <button id="addQuarterStraight">1/4 (凹凸)</button>
-            <button id="addQuarterCC">1/4 (凹凹)</button>
-            <button id="addQuarterVV">1/4 (凸凸)</button>
+		<div class="button-group">		
+			<button id="addQuarterV">1/4 (to凸)</button>  <!-- 終点が凸 -->
+			<button id="addQuarterC">1/4 (to凹)</button>  <!-- 終点が凹 -->
+		</div>
+		<div class="button-group">
             <button id="addJoint">1/6</button>
         </div>
       
@@ -3825,9 +3826,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     if (addedRail.railType === 'QuarterCC' ||
         addedRail.railType === 'SixthCC' ||
         (addedRail.endpointTypes && 
-         addedRail.endpointTypes.endType === 'concave' &&
-         addedRail.endpointTypes.startType === 'concave')) {
-        
+         addedRail.endpointTypes.endType === 'concave')) {
         railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凹)
         railProgression.isReversed = true;  // 凹進行開始/継続
         
@@ -3942,29 +3941,220 @@ function addRailCommon(rail, lastEndpoint, options = {}) {
     drawAll();
 }
 
-// 直線を追加するボタンのイベントリスナー
+
+// ==========================================
+// イベントリスナー（v37用）
+// ==========================================
+
+// ===== 基本レール =====
 document.getElementById('addStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-        addRailCommon(rect, lastEndpoint);
-    }
+    addRailByType('straight');
 });
 
-// 1/2直線を追加するボタンのイベントリスナー
 document.getElementById('addHalfStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `H${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
-        rect.color = 'lightblue';
-        addRailCommon(rect, lastEndpoint);
-    }
+    addRailByType('halfStraight');
 });
 
-// 1/4直線を追加するボタンのイベントリスナー
+document.getElementById('addDoubleStraight').addEventListener('click', () => {
+    addRailByType('doubleStraight');
+});
+
+document.getElementById('addRightCurve').addEventListener('click', () => {
+    addRailByType('curve', { direction: 'right' });
+});
+
+document.getElementById('addLeftCurve').addEventListener('click', () => {
+    addRailByType('curve', { direction: 'left' });
+});
+
+// ===== 外側曲線 =====
+document.getElementById('addRightOuterCurve').addEventListener('click', () => {
+    addRailByType('outerCurve', { direction: 'right' });
+});
+
+document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
+    addRailByType('outerCurve', { direction: 'left' });
+});
+
+// ===== 倍曲線（90度） =====
+document.getElementById('addDoubleLengthCurveRight').addEventListener('click', () => {
+    addRailByType('doubleLengthCurve', { direction: 'right' });
+});
+
+document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', () => {
+    addRailByType('doubleLengthCurve', { direction: 'left' });
+});
+
+// ===== スライド =====
+document.getElementById('addSlide').addEventListener('click', () => {
+    addRailByType('slide', { reversed: false });
+});
+
+document.getElementById('addRSlide').addEventListener('click', () => {
+    addRailByType('slide', { reversed: true });
+});
+
+// ===== ターンアウト =====
+document.getElementById('addTurnoutLeft').addEventListener('click', () => {
+    addRailByType('turnout', { direction: 'left', type: 'R' });
+});
+
+document.getElementById('addTurnoutRight').addEventListener('click', () => {
+    addRailByType('turnout', { direction: 'right', type: 'R' });
+});
+
+document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
+    addRailByType('turnout', { direction: 'left', type: 'L' });
+});
+
+document.getElementById('addTurnoutRightL').addEventListener('click', () => {
+    addRailByType('turnout', { direction: 'right', type: 'L' });
+});
+
+// ===== 8の字ポイント =====
+document.getElementById('addFigure8Point').addEventListener('click', () => {
+    addRailByType('figure8', { type: 'R' });
+});
+
+document.getElementById('addFigure8PointL').addEventListener('click', () => {
+    addRailByType('figure8', { type: 'L' });
+});
+
+document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
+    addRailByType('figure8', { type: 'R_REV' });
+});
+
+document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
+    addRailByType('figure8', { type: 'L_REV' });
+});
+
+// ===== 十字ポイント =====
+document.getElementById('addCrossPoint').addEventListener('click', () => {
+    addRailByType('crossPoint');
+});
+
+// ===== Uターン =====
+document.getElementById('addUTurnRailU').addEventListener('click', () => {
+    addRailByType('uturn', { type: 'U' });
+});
+
+document.getElementById('addUTurnRailV').addEventListener('click', () => {
+    addRailByType('uturn', { type: 'V' });
+});
+
+// ===== R13ポイント =====
+document.getElementById('addR13PointARight').addEventListener('click', () => {
+    addRailByType('r13', { type: 'A', direction: 'right' });
+});
+
+document.getElementById('addR13PointALeft').addEventListener('click', () => {
+    addRailByType('r13', { type: 'A', direction: 'left' });
+});
+
+document.getElementById('addR13PointBRight').addEventListener('click', () => {
+    addRailByType('r13', { type: 'B', direction: 'right' });
+});
+
+document.getElementById('addR13PointBLeft').addEventListener('click', () => {
+    addRailByType('r13', { type: 'B', direction: 'left' });
+});
+
+// ===== R22 Y字 =====
+document.getElementById('addR22YPointA').addEventListener('click', () => {
+    addRailByType('r22', { type: 'A', reversed: false });
+});
+
+document.getElementById('addR22YPointARev').addEventListener('click', () => {
+    addRailByType('r22', { type: 'A', reversed: true });
+});
+
+document.getElementById('addR22YPointB').addEventListener('click', () => {
+    addRailByType('r22', { type: 'B', reversed: false });
+});
+
+document.getElementById('addR22YPointBRev').addEventListener('click', () => {
+    addRailByType('r22', { type: 'B', reversed: true });
+});
+
+// ===== R15ワイドポイント =====
+document.getElementById('addR15WideA').addEventListener('click', () => {
+    addRailByType('r15', { type: 'A', reversed: false });
+});
+
+document.getElementById('addR15WideARev').addEventListener('click', () => {
+    addRailByType('r15', { type: 'A', reversed: true });
+});
+
+document.getElementById('addR15WideB').addEventListener('click', () => {
+    addRailByType('r15', { type: 'B', reversed: false });
+});
+
+document.getElementById('addR15WideBRev').addEventListener('click', () => {
+    addRailByType('r15', { type: 'B', reversed: true });
+});
+
+// ===== R30三角ポイント =====
+document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
+    addRailByType('r30', { reversed: false });
+});
+
+document.getElementById('addR30TrianglePointRev').addEventListener('click', () => {
+    addRailByType('r30', { reversed: true });
+});
+
+// ===== 複線レール =====
+document.getElementById('addDoubleTrack').addEventListener('click', () => {
+    addRailByType('doubleTrack');
+});
+
+document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
+    addRailByType('doubleCurve', { direction: 'right' });
+});
+
+document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
+    addRailByType('doubleCurve', { direction: 'left' });
+});
+
+document.getElementById('addDoubleTrackCrossover').addEventListener('click', () => {
+    addRailByType('doubleCrossover', { reversed: false });
+});
+
+document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', () => {
+    addRailByType('doubleCrossover', { reversed: true });
+});
+
+document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', () => {
+    addRailByType('doubleTurnout', { direction: 'left', reversed: false });
+});
+
+document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', () => {
+    addRailByType('doubleTurnout', { direction: 'right', reversed: false });
+});
+
+document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click', () => {
+    addRailByType('doubleTurnout', { direction: 'left', reversed: true });
+});
+
+document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click', () => {
+    addRailByType('doubleTurnout', { direction: 'right', reversed: true });
+});
+
+// ===== 1/4・1/6レール =====
+document.getElementById('addQuarterV').addEventListener('click', () => {
+    addRailByType('quarterV');
+});
+
+document.getElementById('addQuarterC').addEventListener('click', () => {
+    addRailByType('quarterC');
+});
+
+document.getElementById('addJoint').addEventListener('click', () => {
+    addRailByType('joint');
+});
+
 // 1/4直線を追加するボタンのイベントリスナー（凹凸）
+// 以下のボタンは削除済みだが、将来の使用のためイベントリスナーを残す
+/*
 document.getElementById('addQuarterStraight').addEventListener('click', () => {
     const lastEndpoint = getLastEndpoint();
     if (lastEndpoint) {
@@ -4000,448 +4190,7 @@ document.getElementById('addQuarterVV').addEventListener('click', () => {
         addRailCommon(rect, lastEndpoint);
     }
 });
-
-// ジョイントレールを追加するボタンのイベントリスナー
-document.getElementById('addJoint').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    addJointRail(lastEndpoint?.placeFromEnd || false);
-});
-
-// 2倍直線を追加するボタンのイベントリスナー
-document.getElementById('addDoubleStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `D${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
-        rect.color = 'navy';
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-// 右外側曲線を追加するボタンのイベントリスナー
-document.getElementById('addRightOuterCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `OR${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right', RAIL_LENGTH + D_TRACK_WIDTH);
-        curve.angle = (lastEndpoint.angle + 360) % 360;
-        curve.color = "purple";
-        addRailCommon(curve, lastEndpoint, { setAngle: false });
-    }
-});
-
-// 左外側曲線を追加するボタンのイベントリスナー
-document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `OL${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left', RAIL_LENGTH + D_TRACK_WIDTH);
-        curve.angle = (lastEndpoint.angle + 360) % 360;
-        curve.color = "purple";
-        addRailCommon(curve, lastEndpoint, { setAngle: false });
-    }
-});
-
-// スライド直線を追加するボタンのイベントリスナー
-document.getElementById('addSlide').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Sl${rails.length + 1}`;
-        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.slide = D_TRACK_WIDTH;
-
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-
-// スライド直線を追加するボタンのイベントリスナー
-document.getElementById('addRSlide').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Sl${rails.length + 1}`;
-        const rect = new Slide (lastEndpoint.x, lastEndpoint.y, id);
-        rect.slide = -D_TRACK_WIDTH;
-
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-
-// 右に曲がるレールを追加するボタンのイベントリスナー
-document.getElementById('addRightCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        curve.angle = (lastEndpoint.angle + 360) % 360;
-        addRailCommon(curve, lastEndpoint, { setAngle: false });
-    }
-});
-
-// 左に曲がるレールを追加するボタンのイベントリスナー
-document.getElementById('addLeftCurve').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `L${rails.length + 1}`;
-        const curve = new Curve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        addRailCommon(curve, lastEndpoint);
-    }
-});
-
-// 倍曲線(右)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleLengthCurveRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DLC_R${rails.length + 1}`;
-        const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        addRailCommon(curve, lastEndpoint);
-    }
-});
-
-// 倍曲線(左)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DLC_L${rails.length + 1}`;
-        const curve = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        addRailCommon(curve, lastEndpoint);
-    }
-});
-
-// Uターンレール(U)を追加するボタンのイベントリスナー
-document.getElementById('addUTurnRailU').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `UT_U${rails.length + 1}`;
-        const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'U');
-        addRailCommon(uturn, lastEndpoint);
-    }
-});
-
-// Uターンレール(V)を追加するボタンのイベントリスナー
-document.getElementById('addUTurnRailV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `UT_V${rails.length + 1}`;
-        const uturn = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, 'V');
-        addRailCommon(uturn, lastEndpoint);
-    }
-});
-
-
-// 右に曲がる外レールを追加するボタンのイベントリスナー(旧版)
-// ターンアウトレールを追加するボタンのイベントリスナー
-document.getElementById('addTurnoutLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TR${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'left');
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-document.getElementById('addTurnoutRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TR${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'R', 'right');
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TL${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'left');
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-document.getElementById('addTurnoutRightL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `TL${rails.length + 1}`;
-        const turnout = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'L', 'right');
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-// 8の字ポイントレールを追加するボタンのイベントリスナー(R)
-document.getElementById('addFigure8Point').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8R${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R','right');
-        addRailCommon(figure8Point, lastEndpoint);
-    }
-});
-
-// 8の字ポイントレールを追加するボタンのイベントリスナー(R反転)
-document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8RR${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'R_REV','left');
-        addRailCommon(figure8Point, lastEndpoint);
-    }
-});
-
-// 8の字ポイントレールを追加するボタンのイベントリスナー(L)
-document.getElementById('addFigure8PointL').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8L${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L','right');
-        addRailCommon(figure8Point, lastEndpoint);
-    }
-});
-
-// 8の字ポイントレールを追加するボタンのイベントリスナー(L反転)
-document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `F8LR${rails.length + 1}`;
-        const figure8Point = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, 'L_REV','left');
-        addRailCommon(figure8Point, lastEndpoint);
-    }
-});
-
-// R-13単線・複線ポイントレールを追加するボタンのイベントリスナー
-document.getElementById('addR13PointBRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13BR${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'right');
-        addRailCommon(r13Point, lastEndpoint);
-    }
-});
-
-document.getElementById('addR13PointBLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13BL${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', 'left');
-        addRailCommon(r13Point, lastEndpoint);
-    }
-});
-
-document.getElementById('addR13PointARight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13AR${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'right');
-        addRailCommon(r13Point, lastEndpoint);
-    }
-});
-
-document.getElementById('addR13PointALeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R13AL${rails.length + 1}`;
-        const r13Point = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', 'left');
-        addRailCommon(r13Point, lastEndpoint);
-    }
-});
-
-// R-22 Y字ポイント(A)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointA').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22A${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        addRailCommon(r22Point, lastEndpoint);
-    }
-});
-
-// R-22 Y字ポイント(A裏)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointARev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22AR${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        addRailCommon(r22Point, lastEndpoint);
-    }
-});
-
-// R-22 Y字ポイント(B)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointB').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22B${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        addRailCommon(r22Point, lastEndpoint);
-    }
-});
-
-// R-22 Y字ポイント(B裏)を追加するボタンのイベントリスナー
-document.getElementById('addR22YPointBRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R22BR${rails.length + 1}`;
-        const r22Point = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        addRailCommon(r22Point, lastEndpoint);
-    }
-});
-
-// R-15複線幅広ポイント(A)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideA').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15A${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', false);
-        addRailCommon(r15Point, lastEndpoint);
-    }
-});
-
-// R-15複線幅広ポイント(A裏)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideARev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15AR${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'A', true);
-        addRailCommon(r15Point, lastEndpoint);
-    }
-});
-
-// R-15複線幅広ポイント(B)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideB').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15B${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', false);
-        addRailCommon(r15Point, lastEndpoint);
-    }
-});
-
-// R-15複線幅広ポイント(B裏)を追加するボタンのイベントリスナー
-document.getElementById('addR15WideBRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R15BR${rails.length + 1}`;
-        const r15Point = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, 'B', true);
-        addRailCommon(r15Point, lastEndpoint);
-    }
-});
-
-document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R30T${rails.length + 1}`;
-        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        addRailCommon(r30Point, lastEndpoint);
-    }
-});
-
-document.getElementById('addR30TrianglePointRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `R30TR${rails.length + 1}`;
-        const r30Point = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        addRailCommon(r30Point, lastEndpoint);
-    }
-});
-
-// 複線直線レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrack').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DT${rails.length + 1}`;
-        const doubleTrack = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
-        addRailCommon(doubleTrack, lastEndpoint);
-    }
-});
-
-// 複曲線(左)レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DCL${rails.length + 1}`;
-        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'left');
-        addRailCommon(doubleCurve, lastEndpoint);
-    }
-});
-
-// 複曲線(右)レールを追加するボタンのイベントリスナー
-document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DCR${rails.length + 1}`;
-        const doubleCurve = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, 'right');
-        addRailCommon(doubleCurve, lastEndpoint);
-    }
-});
-
-// 複線渡りを追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackCrossover').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTX${rails.length + 1}`;
-        const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, false);
-        addRailCommon(crossover, lastEndpoint);
-    }
-});
-
-// 複線渡り(裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTXR${rails.length + 1}`;
-        const crossover = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, true);
-        addRailCommon(crossover, lastEndpoint);
-    }
-});
-
-// 複線ターンアウト(左)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTL${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', false);
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-// 複線ターンアウト(右)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', false);
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-// 複線ターンアウト(左裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTLR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'left', true);
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-// 複線ターンアウト(右裏)を追加するボタンのイベントリスナー
-document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `DTTRR${rails.length + 1}`;
-        const turnout = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, 'right', true);
-        addRailCommon(turnout, lastEndpoint);
-    }
-});
-
-// 十字ポイントを追加するボタンのイベントリスナー
-document.getElementById('addCrossPoint').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `CP${rails.length + 1}`;
-        const crossPoint = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
-        addRailCommon(crossPoint, lastEndpoint);
-    }
-});
+*/
 
 
 
@@ -4469,6 +4218,214 @@ function addRail(type) {
         addRailCommon(curve, lastEndpoint);
     }
 }
+
+// ========================
+// レール追加ヘルパー関数群（フェーズ1: 直線・曲線のみ）
+// ========================
+
+// ID生成ヘルパー
+function generateRailId(railType) {
+    const prefixes = {
+        // 基本レール
+        'straight': 'R',
+        'halfStraight': 'H',
+        'doubleStraight': 'D',
+        'curve': 'C',
+        
+        // 特殊直線・曲線
+        'outerCurve': 'OC',
+        'doubleLengthCurve': 'DLC',
+        'slide': 'Sl',
+        
+        // ポイントレール
+        'turnout': 'T',
+        'figure8': 'F',
+        'crossPoint': 'CP',
+        'uturn': 'UT',
+        'r13': 'R13',
+        'r22': 'R22',
+        'r15': 'R15',
+        'r30': 'R30',
+        
+        // 複線レール
+        'doubleTrack': 'DT',
+        'doubleCurve': 'DC',
+        'doubleCrossover': 'DTCR',
+        'doubleTurnout': 'DTT',
+        
+        // 1/4・1/6レール
+        'quarterV': 'QV',
+        'quarterC': 'QC',
+        'joint': 'J'
+    };
+    const prefix = prefixes[railType] || 'R';
+    return `${prefix}${rails.length + 1}`;
+}
+
+// 統一レール追加関数
+function addRailByType(railType, options = {}) {
+    const lastEndpoint = getLastEndpoint();
+    if (!lastEndpoint) return;
+    
+    const id = generateRailId(railType);
+    let rail = null;
+    
+    switch(railType) {
+        // ===== 基本直線 =====
+        case 'straight':
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
+            break;
+            
+        case 'halfStraight':
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
+            rail.color = 'lightblue';
+            break;
+            
+        case 'doubleStraight':
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
+            rail.color = 'navy';
+            break;
+            
+        // ===== 基本曲線 =====
+        case 'curve':
+            const direction = options.direction || 'right';
+            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction);
+            break;
+            
+        case 'outerCurve':
+            const outerDir = options.direction || 'right';
+            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, outerDir);
+            rail.radius = RAIL_LENGTH + D_TRACK_WIDTH;
+            rail.color = 'purple';
+            break;
+            
+        case 'doubleLengthCurve':
+            const dlDir = options.direction || 'right';
+            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, dlDir);
+            rail.curveAngle = Math.PI / 2;
+            rail.color = 'indigo';
+            break;
+            
+        // ===== スライドレール =====
+        case 'slide':
+            const slideOffset = options.reversed ? -D_TRACK_WIDTH : D_TRACK_WIDTH;
+            rail = new Slide(lastEndpoint.x, lastEndpoint.y, id, slideOffset);
+            break;
+            
+        // ===== ターンアウト =====
+        case 'turnout':
+            const turnoutDir = options.direction || 'left';
+            const turnoutType = options.type || 'R';
+            rail = new TurnoutRail(lastEndpoint.x, lastEndpoint.y, id, turnoutType, turnoutDir);
+            break;
+            
+        // ===== 8の字ポイント =====
+        case 'figure8':
+            const f8Type = options.type || 'R';
+            rail = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, f8Type);
+            break;
+            
+        // ===== 十字ポイント =====
+        case 'crossPoint':
+            rail = new CrossPointRail(lastEndpoint.x, lastEndpoint.y, id);
+            break;
+            
+        // ===== Uターンレール =====
+        case 'uturn':
+            const uturnType = options.type || 'U';
+            rail = new UTurnRail(lastEndpoint.x, lastEndpoint.y, id, uturnType);
+            break;
+            
+        // ===== R13ポイント =====
+        case 'r13':
+            const r13Type = options.type || 'A';
+            const r13Dir = options.direction || 'right';
+            rail = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, r13Type, r13Dir);
+            break;
+            
+        // ===== R22 Y字ポイント =====
+        case 'r22':
+            const r22Type = options.type || 'A';
+            const r22Reversed = options.reversed || false;
+            rail = new R22YPointRail(lastEndpoint.x, lastEndpoint.y, id, r22Type, r22Reversed);
+            break;
+            
+        // ===== R15ワイドポイント =====
+        case 'r15':
+            const r15Type = options.type || 'A';
+            const r15Reversed = options.reversed || false;
+            rail = new R15WidePointRail(lastEndpoint.x, lastEndpoint.y, id, r15Type, r15Reversed);
+            break;
+            
+        // ===== R30三角ポイント =====
+        case 'r30':
+            const r30Reversed = options.reversed || false;
+            rail = new R30TrianglePointRail(lastEndpoint.x, lastEndpoint.y, id, r30Reversed);
+            break;
+            
+        // ===== 複線直線 =====
+        case 'doubleTrack':
+            rail = new DoubleTrackRail(lastEndpoint.x, lastEndpoint.y, id);
+            break;
+            
+        // ===== 複線曲線 =====
+        case 'doubleCurve':
+            const dcDir = options.direction || 'right';
+            rail = new DoubleCurveRail(lastEndpoint.x, lastEndpoint.y, id, dcDir);
+            break;
+            
+        // ===== 複線渡り =====
+        case 'doubleCrossover':
+            const dcReversed = options.reversed || false;
+            rail = new DoubleTrackCrossoverRail(lastEndpoint.x, lastEndpoint.y, id, dcReversed);
+            break;
+            
+        // ===== 複線ターンアウト =====
+        case 'doubleTurnout':
+            const dtDir = options.direction || 'right';
+            const dtReversed = options.reversed || false;
+            rail = new DoubleTrackTurnoutRail(lastEndpoint.x, lastEndpoint.y, id, dtDir, dtReversed);
+            break;
+            
+        // ===== 1/4レール =====
+        case 'quarterV':
+            if (lastEndpoint.placeFromEnd) {
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'convex', endType: 'convex' });
+                rail.railType = 'QuarterVV';
+            } else {
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'concave', endType: 'convex' });
+            }
+            rail.color = 'skyblue';
+            break;
+            
+        case 'quarterC':
+            if (lastEndpoint.placeFromEnd) {
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'concave', endType: 'convex' });
+            } else {
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'concave', endType: 'concave' });
+                rail.railType = 'QuarterCC';
+            }
+            rail.color = 'skyblue';
+            break;
+            
+        // ===== 1/6ジョイント =====
+        case 'joint':
+            return addJointRail(lastEndpoint.placeFromEnd);
+            
+        default:
+            console.error('Unknown rail type:', railType);
+            return;
+    }
+    
+    if (rail) {
+        addRailCommon(rail, lastEndpoint);
+    }
+}
+
 function addJointRail(isConcaveProgression) {
     const lastEndpoint = getLastEndpoint();
     if (!lastEndpoint) return;
