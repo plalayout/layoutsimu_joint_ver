@@ -147,12 +147,41 @@
         
         .color-legend {
             display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
+            flex-wrap: nowrap;  /* 折り返しなし */
+            gap: 15px;
             padding: 10px;
             background: #f9f9f9;
             border-radius: 5px;
             margin-bottom: 10px;
+            
+            /* 横スクロール有効化 */
+            overflow-x: auto;
+            overflow-y: hidden;
+            
+            /* スムーズスクロール */
+            scroll-behavior: smooth;
+            
+            /* スクロールバーのスタイリング（Webkit系ブラウザ） */
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+        
+        .color-legend::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .color-legend::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .color-legend::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        
+        .color-legend::-webkit-scrollbar-thumb:hover {
+            background: #555;
         }
         
         .color-item {
@@ -160,6 +189,22 @@
             align-items: center;
             gap: 5px;
             font-size: 12px;
+            white-space: nowrap;  /* テキスト折り返しなし */
+            flex-shrink: 0;  /* アイテムが縮まないようにする */
+            
+            /* タップ可能にする */
+            cursor: pointer;
+            padding: 5px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .color-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .color-item:active {
+            background-color: rgba(0, 0, 0, 0.1);
         }
         
         .color-box {
@@ -167,6 +212,7 @@
             height: 20px;
             border: 1px solid #333;
             border-radius: 3px;
+            flex-shrink: 0;  /* サイズ固定 */
         }
         
         @media (max-width: 600px) {
@@ -177,6 +223,11 @@
             
             .color-legend {
                 font-size: 11px;
+                gap: 12px;
+            }
+            
+            .color-item {
+                padding: 4px 6px;
             }
         }
     </style>
@@ -282,10 +333,10 @@
 
         
         <div class="button-group">
-            <button id="addFigure8Point">8の字 (R)</button>
-            <button id="addFigure8PointRRev">(R裏)</button>
-            <button id="addFigure8PointL">(L)</button>
-            <button id="addFigure8PointLRev">(L裏)</button>
+            <button id="addFigure8Point">8の字 R(左)</button>
+            <button id="addFigure8PointRRev">R(右)</button>
+            <button id="addFigure8PointL">L(左)</button>
+            <button id="addFigure8PointLRev">L(右)</button>
         </div>
 <div class="button-group">
             <button id="addCrossPoint">十字ポイント</button>  
@@ -2486,10 +2537,9 @@ class Figure8PointRail {
         const base = this.angle;
         const dir = this.direction;
 		const oppDir = (dir === 'left') ? 'right' : 'left';
-        const flip = (this.pointType === 'R_REV' || this.pointType === 'L_REV') ? 1 : -1;
 
         /* ===== L 系：起点共有・左右分岐（実在製品のL型） ===== */
-        if (this.pointType === 'L' || this.pointType === 'L_REV') {
+        if (this.pointType === 'L') {
 
             // 左（または右）カーブ：凸
             const c1 = new Curve(this.x, this.y, this.id + '-A', dir);
@@ -2564,7 +2614,7 @@ class Figure8PointRail {
         });
 
         // L型の場合：起点共有・左右分岐（実在製品のL型）
-        if (this.pointType === 'L' || this.pointType === 'L_REV') {
+        if (this.pointType === 'L') {
             // 1本目終点（凸）
             eps.push({
                 ...this.curves[0].getEndpoints()[1],
@@ -3418,72 +3468,190 @@ function snapToClosestEndpoint(shape) {
 
 
 
-       canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            const world = screenToWorld(e.offsetX, e.offsetY);
+// ==========================================
+// タッチメニュー修正コード（v37.1用）
+// ==========================================
+//
+// 手順:
+// 1. 既存のcontextmenuイベントリスナーを置き換え
+// 2. documentのclickリスナーを置き換え
+// 3. 新しいタッチイベントリスナーを追加
+//
+// ==========================================
 
-            selectedShape = null;
-            rails.forEach(rect => {
-                if (rect.contains(world.x, world.y)) {
-                    selectedShape = rect;
-                }
-            });
+// ===== 共通関数 =====
 
-            if (selectedShape) {
-                const menu = document.getElementById('contextMenu');
-                menu.style.left = `${e.pageX}px`;
-                menu.style.top = `${e.pageY}px`;
-                menu.style.display = 'block';
-            }
-        });
+// メニューを閉じる
+function closeContextMenu() {
+    document.getElementById('contextMenu').style.display = 'none';
+}
 
-        document.getElementById('rotateRight').addEventListener('click', () => {
-            if (selectedShape) {
-                selectedShape.angle -= 45;
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
+// メニューを表示
+function showContextMenu(pageX, pageY, offsetX, offsetY) {
+    const world = screenToWorld(offsetX, offsetY);
+    
+    selectedShape = null;
+    rails.forEach(rect => {
+        if (rect.contains(world.x, world.y)) {
+            selectedShape = rect;
+        }
+    });
+    
+    if (selectedShape) {
+        const menu = document.getElementById('contextMenu');
+        menu.style.left = `${pageX}px`;
+        menu.style.top = `${pageY}px`;
+        menu.style.display = 'block';
+    }
+}
 
-        document.getElementById('rotateLeft').addEventListener('click', () => {
-            if (selectedShape) {
-                selectedShape.angle += 45;
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
+// ===== イベントリスナー =====
 
-        document.getElementById('duplicate').addEventListener('click', () => {
-            if (selectedShape) {console.log(selectedShape);
-                if (selectedShape instanceof StraightRail) {
-                    const newRect = new StraightRail(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
-                    newRect.angle = selectedShape.angle;
-		    rails.push(newRect);console.log(newRect);
-                }else if (selectedShape instanceof Curve) {
-                    const newRect = new Curve(selectedShape.x + 100, selectedShape.y + 100, `L${rails.length + 1}`);
-                    newRect.angle = selectedShape.angle;
-		    rails.push(newRect);console.log(newRect);
-                }
+// 右クリックでメニュー表示（マウス）
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showContextMenu(e.pageX, e.pageY, e.offsetX, e.offsetY);
+});
 
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
+// 長押しでメニュー表示（タッチデバイス）
+let longPressTimer = null;
+let longPressStartX = 0;
+let longPressStartY = 0;
 
-        document.getElementById('delete').addEventListener('click', () => {
-            if (selectedShape) {
-                if (selectedShape) {
-                    const index = rails.indexOf(selectedShape);
-                    if (index > -1) {
-                        rails.splice(index, 1);
-                    }
-                }
- //               console.log(rails);
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
+canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        longPressStartX = touch.clientX;
+        longPressStartY = touch.clientY;
+        
+        // 座標を事前にキャプチャ（グローバル変数として保存）
+        const savedPageX = touch.pageX;
+        const savedPageY = touch.pageY;
+        const savedOffsetX = touch.clientX - rect.left;
+        const savedOffsetY = touch.clientY - rect.top;
+        
+        longPressTimer = setTimeout(() => {
+            // 500ms後、移動していなければメニュー表示
+            showContextMenu(savedPageX, savedPageY, savedOffsetX, savedOffsetY);
+            longPressTimer = null;
+        }, 500); // 500ms長押し
+    }
+});
 
+canvas.addEventListener('touchend', () => {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+});
+
+canvas.addEventListener('touchmove', (e) => {
+    // 移動したら長押しキャンセル
+    if (longPressTimer) {
+        const touch = e.touches[0];
+        const moved = Math.abs(touch.clientX - longPressStartX) > 10 || 
+                     Math.abs(touch.clientY - longPressStartY) > 10;
+        if (moved) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
+    }
+});
+
+// メニュー外クリック/タッチで閉じる
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('contextMenu');
+    if (!menu.contains(e.target)) {
+        closeContextMenu();
+    }
+});
+
+document.addEventListener('touchstart', (e) => {
+    const menu = document.getElementById('contextMenu');
+    // メニューの外をタッチした場合のみ閉じる
+    if (menu.style.display === 'block' && !menu.contains(e.target)) {
+        closeContextMenu();
+    }
+});
+
+// ===== 置き換え対象（削除する既存コード） =====
+/*
+削除する既存コード:
+
+// 既存のcontextmenuリスナー（3421行目付近）
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const world = screenToWorld(e.offsetX, e.offsetY);
+    selectedShape = null;
+    rails.forEach(rect => {
+        if (rect.contains(world.x, world.y)) {
+            selectedShape = rect;
+        }
+    });
+    if (selectedShape) {
+        const menu = document.getElementById('contextMenu');
+        menu.style.left = `${e.pageX}px`;
+        menu.style.top = `${e.pageY}px`;
+        menu.style.display = 'block';
+    }
+});
+
+// 既存のdocument clickリスナー（3559行目付近）
+document.addEventListener('click', () => {
+    document.getElementById('contextMenu').style.display = 'none';
+});
+*/
+
+// ==========================================
+// 補足：メニューボタンのイベントリスナー修正
+// ==========================================
+//
+// 各メニューボタンのリスナーも closeContextMenu() を使用するように修正
+//
+
+document.getElementById('rotateRight').addEventListener('click', () => {
+    if (selectedShape) {
+        selectedShape.angle -= 45;
+        drawAll();
+        closeContextMenu();
+    }
+});
+
+document.getElementById('rotateLeft').addEventListener('click', () => {
+    if (selectedShape) {
+        selectedShape.angle += 45;
+        drawAll();
+        closeContextMenu();
+    }
+});
+
+document.getElementById('duplicate').addEventListener('click', () => {
+    if (selectedShape) {
+        if (selectedShape instanceof Rect) {
+            const newRect = new Rect(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
+            newRect.angle = selectedShape.angle;
+            rails.push(newRect);
+        } else if (selectedShape instanceof Curve) {
+            const newRect = new Curve(selectedShape.x + 100, selectedShape.y + 100, `L${rails.length + 1}`);
+            newRect.angle = selectedShape.angle;
+            rails.push(newRect);
+        }
+        drawAll();
+        closeContextMenu();
+    }
+});
+
+document.getElementById('delete').addEventListener('click', () => {
+    if (selectedShape) {
+        const index = rails.indexOf(selectedShape);
+        if (index > -1) {
+            rails.splice(index, 1);
+        }
+        drawAll();
+        closeContextMenu();
+    }
+});
         // タイプ切替 (R/L, A/B)
         document.getElementById('toggleType').addEventListener('click', () => {
             if (selectedShape) {
@@ -4013,19 +4181,19 @@ document.getElementById('addTurnoutRightL').addEventListener('click', () => {
 
 // ===== 8の字ポイント =====
 document.getElementById('addFigure8Point').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'R' });
+    addRailByType('figure8', { type: 'R', direction: 'left' });
 });
 
 document.getElementById('addFigure8PointL').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'L' });
+    addRailByType('figure8', { type: 'L', direction: 'left' });
 });
 
 document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'R_REV' });
+    addRailByType('figure8', { type: 'R', direction: 'right' });
 });
 
 document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'L_REV' });
+    addRailByType('figure8', { type: 'L', direction: 'right' });
 });
 
 // ===== 十字ポイント =====
@@ -4301,9 +4469,7 @@ function addRailByType(railType, options = {}) {
             
         case 'doubleLengthCurve':
             const dlDir = options.direction || 'right';
-            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, dlDir);
-            rail.curveAngle = Math.PI / 2;
-            rail.color = 'indigo';
+            rail = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, dlDir);
             break;
             
         // ===== スライドレール =====
@@ -4322,7 +4488,8 @@ function addRailByType(railType, options = {}) {
         // ===== 8の字ポイント =====
         case 'figure8':
             const f8Type = options.type || 'R';
-            rail = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, f8Type);
+            const f8Direction = options.direction || 'left';
+            rail = new Figure8PointRail(lastEndpoint.x, lastEndpoint.y, id, f8Type, f8Direction);
             break;
             
         // ===== 十字ポイント =====
@@ -4723,6 +4890,94 @@ document.getElementById('groupMoveMode').addEventListener('change', (e) => {
         }
 
         drawAll();
+
+// ==========================================
+// 凡例カルーセル機能
+// ==========================================
+
+// 凡例アイテムとボタンのマッピング
+const legendToButton = {
+    '直線': 'addStraight',
+    'カーブ': 'addRightCurve',
+    '倍曲線': 'addDoubleLengthCurveRight',
+    'Uターン': 'addUTurnRailU',
+    '外カーブ': 'addRightOuterCurve',
+    '複線': 'addDoubleTrack',
+    '複曲線': 'addDoubleCurveRight',
+    '複線渡り': 'addDoubleTrackCrossover',
+    '複線T.O.': 'addDoubleTrackTurnoutLeft',
+    '十字': 'addCrossPoint',
+    'ターンアウト': 'addTurnoutLeft',
+    'R-13': 'addR13PointARight',
+    'R-22 Y字': 'addR22YPointA',
+    'R-15幅広 / R-30三角': 'addR15WideA',
+    '8の字': 'addFigure8Point'
+};
+
+// 凡例アイテムクリック時の処理
+document.addEventListener('DOMContentLoaded', () => {
+    const legendItems = document.querySelectorAll('.color-item');
+    
+    legendItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const railName = item.querySelector('span').textContent;
+            const buttonId = legendToButton[railName];
+            
+            if (buttonId) {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    // ボタンまでスクロール
+                    button.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                    
+                    // ボタンをハイライト（0.8秒）
+                    button.style.backgroundColor = '#ffd700';
+                    button.style.transition = 'background-color 0.3s';
+                    setTimeout(() => {
+                        button.style.backgroundColor = '';
+                    }, 800);
+                }
+            }
+        });
+    });
+    
+    // マウスドラッグでスクロール（PC用）
+    const legend = document.querySelector('.color-legend');
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    
+    legend.addEventListener('mousedown', (e) => {
+        isDown = true;
+        legend.style.cursor = 'grabbing';
+        startX = e.pageX - legend.offsetLeft;
+        scrollLeft = legend.scrollLeft;
+    });
+    
+    legend.addEventListener('mouseleave', () => {
+        isDown = false;
+        legend.style.cursor = 'grab';
+    });
+    
+    legend.addEventListener('mouseup', () => {
+        isDown = false;
+        legend.style.cursor = 'grab';
+    });
+    
+    legend.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - legend.offsetLeft;
+        const walk = (x - startX) * 2; // スクロール速度
+        legend.scrollLeft = scrollLeft - walk;
+    });
+    
+    // 初期カーソル設定
+    legend.style.cursor = 'grab';
+});
     </script>
 </body>
 
