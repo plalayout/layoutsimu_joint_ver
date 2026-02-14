@@ -300,7 +300,21 @@
         </div>
     </div>
 
+    <!-- レール数カウンター -->
+    <div id="railCounterContainer" style="display: none; margin-bottom: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong>使用レール数</strong>
+            <button id="closeCounter" style="padding: 2px 8px; font-size: 12px;">閉じる</button>
+        </div>
+        <div id="railCounterContent" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; font-size: 12px;">
+            <!-- カウント内容がここに表示される -->
+        </div>
+    </div>
+
     <div class="controls">
+        <div class="button-group" style="margin-bottom: 10px;">
+            <button id="toggleCounter">レール数表示</button>
+        </div>
         <div class="section-title">基本レール</div>
         <div class="button-group rail-buttons">
             <button id="addStraight">直線</button>
@@ -621,7 +635,7 @@ const scaleFactor = 1.1;
                 this.x = x;
                 this.y = y;
                 this.width = RAIL_WIDTH;
-                this.height = length;
+                this.length = length;  // height から length に変更
                 this.id = id;
                 this.angle = 0;
 		this.color = 'deepskyblue';
@@ -641,9 +655,9 @@ const scaleFactor = 1.1;
 
 
 
-                ctx.fillRect(-this.width / 2, 0, this.width, this.height);
+                ctx.fillRect(-this.width / 2, 0, this.width, this.length);
                // ctx.fillStyle = 'white';
-               // ctx.fillText(this.id, -this.width , this.height / 2 );
+               // ctx.fillText(this.id, -this.width , this.length / 2 );
                 ctx.restore();
             }
 
@@ -659,7 +673,7 @@ const scaleFactor = 1.1;
                 const localX = cos * (scaledX - this.x) - sin * (scaledY - this.y) + this.x;
                 const localY = sin * (scaledX - this.x) + cos * (scaledY - this.y) + this.y;
                 return (localX >= this.x - this.width / 2 && localX <= this.x + this.width / 2 &&
-                        localY >= this.y  && localY <= this.y + this.height);
+                        localY >= this.y  && localY <= this.y + this.length);
             }
 
             getEndpoints() {
@@ -668,8 +682,8 @@ const scaleFactor = 1.1;
                 const sin = Math.sin(angleRad);
                 const x1 = this.x;
                 const y1 = this.y;
-                const x2 = this.x - (this.height) * sin;
-                const y2 = this.y + (this.height) * cos;
+                const x2 = this.x - (this.length) * sin;
+                const y2 = this.y + (this.length) * cos;
                 
                 // 端点の角度調整
                 // 通常（起点:凹、終点:凸）: そのまま
@@ -691,8 +705,7 @@ const scaleFactor = 1.1;
                 this.x = x;
                 this.y = y;
                 this.width = RAIL_WIDTH;
-                this.height = length;  // heightとして保存（StraightRailと統一）
-                this.length = length;  // 後方互換性のため残す
+                this.length = length;
                 this.id = id;
                 this.angle = 0;
 				this.color = 'pink';
@@ -4977,6 +4990,178 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初期カーソル設定
     legend.style.cursor = 'grab';
+});
+
+// ==========================================
+// レール数カウンター機能
+// ==========================================
+
+function countRails() {
+    const counter = {};
+    
+    rails.forEach(rail => {
+        let key = '';
+        
+        // クラス名で判定
+        const className = rail.constructor.name;
+        
+        if (className === 'StraightRail') {
+            // 直線系（長さと端点タイプで判別）
+            const length = rail.length || RAIL_LENGTH;
+            const railType = rail.railType || '';
+            
+            if (Math.abs(length - RAIL_LENGTH * 2) < 1) {
+                key = '2倍直線';
+            } else if (Math.abs(length - RAIL_LENGTH * 0.5) < 1) {
+                key = '1/2直線';
+            } else if (Math.abs(length - RAIL_LENGTH * 0.25) < 1) {
+                // 1/4レール（端点タイプで判別）
+                const startType = rail.startType || 'concave';
+                const endType = rail.endType || 'convex';
+                
+                if (railType === 'QuarterCC' || (startType === 'concave' && endType === 'concave')) {
+                    key = '1/4 (凹→凹)';
+                } else if (railType === 'QuarterVV' || (startType === 'convex' && endType === 'convex')) {
+                    key = '1/4 (凸→凸)';
+                } else {
+                    key = '1/4 (凹→凸)';
+                }
+            } else if (Math.abs(length - RAIL_LENGTH / 6) < 1) {
+                // 1/6ジョイント（端点タイプで判別）
+                const startType = rail.startType || 'concave';
+                const endType = rail.endType || 'convex';
+                
+                if (railType === 'SixthCC' || (startType === 'concave' && endType === 'concave')) {
+                    key = '1/6 (凹→凹)';
+                } else if (railType === 'SixthVV' || (startType === 'convex' && endType === 'convex')) {
+                    key = '1/6 (凸→凸)';
+                } else {
+                    key = '1/6 (凹→凸)';
+                }
+            } else {
+                key = '直線';
+            }
+        } else if (className === 'Curve') {
+            // 曲線（半径で判別）
+            if (rail.radius > RAIL_LENGTH + 10) {
+                key = '外側曲線';
+            } else {
+                key = 'カーブ';
+            }
+        } else if (className === 'DoubleLengthCurve') {
+            key = '倍曲線';
+        } else if (className === 'Slide') {
+            key = 'スライド';
+        } else if (className === 'UTurnRail') {
+            key = 'Uターン';
+        } else if (className === 'TurnoutRail') {
+            // ターンアウト（タイプで判別）
+            const type = rail.turnoutType || 'R';
+            key = `ターンアウト (${type}型)`;
+        } else if (className === 'Figure8PointRail') {
+            // 8の字（タイプで判別）
+            const type = rail.pointType || 'R';
+            key = `8の字 (${type}型)`;
+        } else if (className === 'CrossPointRail') {
+            key = '十字ポイント';
+        } else if (className === 'R13PointRail') {
+            // R13（タイプで判別）
+            const type = rail.pointType || 'A';
+            key = `R-13 (${type}型)`;
+        } else if (className === 'R22YPointRail') {
+            // R22（タイプで判別）
+            const type = rail.pointType || 'A';
+            key = `R-22 (${type}型)`;
+        } else if (className === 'R15WidePointRail') {
+            // R15（タイプで判別）
+            const type = rail.pointType || 'A';
+            key = `R-15 (${type}型)`;
+        } else if (className === 'R30TrianglePointRail') {
+            key = 'R-30三角';
+        } else if (className === 'DoubleTrackRail') {
+            key = '複線直線';
+        } else if (className === 'DoubleCurveRail') {
+            key = '複線カーブ';
+        } else if (className === 'DoubleTrackCrossoverRail') {
+            key = '複線渡り';
+        } else if (className === 'DoubleTrackTurnoutRail') {
+            // 複線ターンアウト（方向で判別）
+            const dir = rail.direction || 'left';
+            key = `複線T.O. (${dir === 'left' ? '左' : '右'})`;
+        } else {
+            key = 'その他';
+        }
+        
+        counter[key] = (counter[key] || 0) + 1;
+    });
+    
+    return counter;
+}
+
+function displayRailCounter() {
+    const counter = countRails();
+    const container = document.getElementById('railCounterContent');
+    container.innerHTML = '';
+    
+    // ソートして表示
+    const sorted = Object.entries(counter).sort((a, b) => {
+        // カテゴリ順にソート
+        const order = [
+            '直線', '2倍直線', '1/2直線',
+            'カーブ', '倍曲線', '外側曲線',
+            'スライド',
+            'Uターン',
+            'ターンアウト', '8の字', '十字ポイント',
+            'R-13', 'R-22', 'R-15', 'R-30三角',
+            '複線直線', '複線カーブ', '複線渡り', '複線T.O.',
+            '1/4', '1/6'
+        ];
+        
+        const aPrefix = a[0].split(' ')[0];
+        const bPrefix = b[0].split(' ')[0];
+        const aIndex = order.findIndex(o => aPrefix.includes(o) || o.includes(aPrefix));
+        const bIndex = order.findIndex(o => bPrefix.includes(o) || o.includes(bPrefix));
+        
+        if (aIndex !== bIndex) {
+            return aIndex - bIndex;
+        }
+        return a[0].localeCompare(b[0]);
+    });
+    
+    sorted.forEach(([name, count]) => {
+        const item = document.createElement('div');
+        item.style.padding = '4px 8px';
+        item.style.background = 'white';
+        item.style.borderRadius = '3px';
+        item.innerHTML = `<strong>${name}</strong>: ${count}本`;
+        container.appendChild(item);
+    });
+    
+    // 合計
+    const total = Object.values(counter).reduce((sum, val) => sum + val, 0);
+    const totalItem = document.createElement('div');
+    totalItem.style.padding = '4px 8px';
+    totalItem.style.background = '#fffacd';
+    totalItem.style.borderRadius = '3px';
+    totalItem.style.fontWeight = 'bold';
+    totalItem.innerHTML = `合計: ${total}本`;
+    container.appendChild(totalItem);
+}
+
+// トグルボタン
+document.getElementById('toggleCounter').addEventListener('click', () => {
+    const container = document.getElementById('railCounterContainer');
+    if (container.style.display === 'none') {
+        displayRailCounter();
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+});
+
+// 閉じるボタン
+document.getElementById('closeCounter').addEventListener('click', () => {
+    document.getElementById('railCounterContainer').style.display = 'none';
 });
     </script>
 </body>
