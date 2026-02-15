@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ</title>
+    <title>プラレールレイアウトシミュレータ v46.4</title>
     <style>
         * {
             box-sizing: border-box;
@@ -388,7 +388,7 @@
             <button id="addDoubleTrackCrossover">複線渡り(表)</button>
             <button id="addDoubleTrackCrossoverRev">複線渡り(裏)</button>
         </div>
-         <div class="section-title">複線ターンアウト/R-15複線幅広ポイント</div>
+         <div class="section-title">複線ターンアウト/R-15複線幅広/R-17三方向</div>
          <div class="button-group">
             <button id="addDoubleTrackTurnoutLeft">複T.O.(左)</button>
             <button id="addDoubleTrackTurnoutLeftRev">(左裏)</button>
@@ -398,6 +398,10 @@
             <button id="addR15WideARev">(A裏)</button>
             <button id="addR15WideB">(B)</button>
             <button id="addR15WideBRev">(B裏)</button>
+             <button id="addR17ThreewayPointALeft">R-17 (A左)</button>
+            <button id="addR17ThreewayPointARight">R-17 (A右)</button>
+            <button id="addR17ThreewayPointBLeft">R-17 (B左)</button>
+            <button id="addR17ThreewayPointBRight">R-17 (B右)</button>
 
  </div>         
 
@@ -584,26 +588,28 @@ const scaleFactor = 1.1;
             R22: { base: 'yellowgreen', highlight: 'lightgreen' },
             R15: { base: 'mediumseagreen', highlight: 'aquamarine' },
             R30: { base: 'mediumseagreen', highlight: 'aquamarine' },
+            R17: { base: 'forestgreen', highlight: 'lightgreen' },  // R-17三方向ポイント（独自色）
             CROSS: { base: 'coral', highlight: 'lightsalmon' },
             DOUBLE_TRACK_STRAIGHT: { base: 'cyan', highlight: 'lightcyan' },
             DOUBLE_TRACK_CURVE: { base: 'lightcyan', highlight: 'azure' },
             DOUBLE_TRACK_CROSS: { base: 'turquoise', highlight: 'paleturquoise' },
-            DOUBLE_TRACK_TURNOUT: { base: 'lightseagreen', highlight: 'aquamarine' },
+            DOUBLE_TRACK_TURNOUT: { base: 'teal', highlight: 'lightseagreen' },  // 複線ターンアウト（独自色）
             QUARTER: { base: 'skyblue', highlight: 'lightskyblue' },
             SIXTH: { base: 'skyblue', highlight: 'lightskyblue' }
         };
 
         // ========================================
-        // レール色の定義（旧コメント - 参考用）
+        // レール色の定義（参考用）
         // ========================================
-        // 直線レール(StraightRail): 'deepskyblue' (水色)
-        // カーブレール(Curve): 'pink' (ピンク)
-        // 外カーブレール: 'purple' (紫)
-        // S字レール(Slide): 'pink' (ピンク)
-        // ターンアウト(TurnoutRail): 'lawngreen' (黄緑)
-        // R-13ポイント(R13PointRail): 'orange' (オレンジ)
-        // 8の字ポイント(Figure8PointRail): 'plum' (梅色)
-        // Uターンレール(UturnRail): 'red' (赤)
+        // 直線レール: 'deepskyblue' (水色)
+        // カーブレール: 'pink' (ピンク)
+        // S字レール: 'pink' (ピンク)
+        // ターンアウト: 'lawngreen' (黄緑)
+        // R-13ポイント: 'orange' (オレンジ)
+        // 8の字ポイント: 'plum' (梅色)
+        // Uターンレール: 'red' (赤)
+        // R-17三方向ポイント: 'forestgreen' (深緑)
+        // 複線ターンアウト: 'teal' (ティール)
         // ========================================
 
         // ========================================
@@ -1089,6 +1095,194 @@ class TurnoutRail {
         return eps;
     }
 }
+
+
+class R17ThreewayRail {
+    constructor(x, y, id, ThreewayType = 'B', direction = 'left') {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.angle = 0;
+        this.ThreewayType = ThreewayType;   // 'A' or 'B'
+        this.direction = direction;       // 'left' or 'right'
+        this.components = [];
+        this.color = COLORS.R17.base;
+        this.highlightColor = COLORS.R17.highlight;
+        
+        // R-17 三方向ポイント（実在製品に準拠）:
+        // B型: 起点(凹) → 直線終点(凸) + 左曲線終点(凸) + 右曲線終点(凸)
+        //      起点から直線と左右のカーブが分岐する三方向
+        // A型: 起点(凹) → 直線終点(凸) → 左曲線終点(凸) + 右曲線終点(凸)
+        //      直線終点から180度反転した左右カーブ
+    }
+
+    /* =========================
+       内部構築
+    ========================= */
+    _buildComponents() {
+        this.components.length = 0;
+
+        const base = this.angle;
+        const dir = this.direction;
+		const dir2 =  (this.direction === 'right') ? 'left' : 'right';
+		
+
+        /* ===== B型：起点共有・直線と曲線が分岐 ===== */
+        if (this.ThreewayType === 'B') {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+            straight.highlightColor = this.highlightColor;
+
+            // 曲線部（起点共有）
+            const curve = new Curve(this.x, this.y, this.id + '-C', dir);
+            curve.angle = base;
+            curve.color = this.color;
+            curve.highlightColor = this.highlightColor;
+
+            // 曲線部2（起点共有）（起点共有）
+            const curve2 = new Curve(this.x, this.y, this.id + '-C2', dir2);
+            curve2.angle = base;
+            curve2.color = this.color;
+            curve2.highlightColor = this.highlightColor;
+
+            this.components.push(straight, curve, curve2);
+        }
+
+        /* ===== L型：直線終点から180度反転した曲線 ===== */
+        else {
+            // 直線部
+            const straight = new StraightRail(this.x, this.y, this.id + '-S');
+            straight.angle = base;
+            straight.color = this.color;
+            straight.highlightColor = this.highlightColor;
+
+            // 曲線部（直線終点から180度反転）
+            const straightEp = straight.getEndpoints()[1];
+            const curve = new Curve(straightEp.x, straightEp.y, this.id + '-C', dir);
+            curve.angle = reversedegAngle(straightEp.angle);
+            curve.color = this.color;
+            curve.highlightColor = this.highlightColor;
+
+            // 曲線部（直線終点から180度反転）
+            const curve2 = new Curve(straightEp.x, straightEp.y, this.id + '-C2', dir2);
+            curve2.angle = reversedegAngle(straightEp.angle);
+            curve2.color = this.color;
+            curve2.highlightColor = this.highlightColor;
+
+
+            this.components.push(straight, curve, curve2);
+        }
+    }
+
+    /* =========================
+       同期
+    ========================= */
+    _sync() {
+        this._buildComponents();
+    }
+
+    /* =========================
+       描画
+    ========================= */
+    draw() {
+        this._sync();
+        
+        if (useRealisticRendering) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(14, 'black'));
+            this.components.forEach(c => c.drawWithWidth(12, this.color));
+            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
+            this.components.forEach(c => c.drawWithWidth(4, this.color));
+        } else {
+            // シンプル描画
+            this.components.forEach(c => c.draw());
+        }
+    }
+
+    /* =========================
+       当たり判定
+    ========================= */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+
+    /* =========================
+       endpoint
+    ========================= */
+    getEndpoints() {
+        this._sync();
+        const eps = [];
+
+        // 起点（凹）
+        eps.push({
+            x: this.x,
+            y: this.y,
+            angle: this.angle,
+            id: this.id + '-1',
+            type: 'concave'
+        });
+
+        // B型の場合：起点共有・直線と曲線が分岐
+        if (this.ThreewayType === 'B') {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // 曲線終点（凸）
+            eps.push({
+                ...this.components[1].getEndpoints()[1],
+                id: this.id + '-4',
+                type: 'convex'
+            });
+
+            // 曲線2終点（凹）
+            eps.push({
+                ...this.components[2].getEndpoints()[1],
+                angle: reversedegAngle(this.components[2].getEndpoints()[1].angle),  // 凹なので角度を反転
+                id: this.id + '-3',
+                type: 'concave'
+            });
+
+        }
+        // A型の場合：直線終点から180度反転した曲線
+        else {
+            // 直線終点（凸）
+            eps.push({
+                ...this.components[0].getEndpoints()[1],
+                id: this.id + '-2',
+                type: 'convex'
+            });
+
+            // 曲線終点（凹）- L型は曲線が凹（接続を受ける側）
+            const curveEp = this.components[1].getEndpoints()[1];
+            eps.push({
+                x: curveEp.x,
+                y: curveEp.y,
+                angle: reversedegAngle(curveEp.angle),  // 凹なので角度を反転
+                id: this.id + '-3',
+                type: 'concave'
+            });
+        
+            // 曲線終点（凸）
+            eps.push({
+                ...this.components[2].getEndpoints()[1],
+                id: this.id + '-4',
+                type: 'convex'
+            });
+
+		
+		}
+
+        return eps;
+    }
+}
+
 
 class R13PointRail {
     constructor(x, y, id, pointType = 'B', direction = 'right') {
@@ -1944,11 +2138,11 @@ class DoubleTrackCrossoverRail {
         this.components.length = 0;
         const base = this.angle;
         const angleRad = base * Math.PI / 180;
-        const direction = this.isReversed ? -1 : 1;
-        const rev = this.isReversed ? -1 : 1;
+        const direction = this.isReversed ? 1 : -1;
+        const flg = this.isReversed ? 0 : 1;
         
         // 複線直線2本（DoubleTrackRailと同じ配置）
-		const { x: track1OffsetX, y: track1OffsetY } = rotatePoint(D_TRACK_WIDTH * rev, 0 , angleRad);
+		const { x: track1OffsetX, y: track1OffsetY } = rotatePoint(D_TRACK_WIDTH , 0 , angleRad);
         const Straight1 = new StraightRail(this.x, this.y, this.id + '-fS');
         Straight1.angle = base;
         Straight1.color = this.color;
@@ -1958,7 +2152,7 @@ class DoubleTrackCrossoverRail {
         Straight2.color = this.color;
         
         // S字2本（交差）
-        const Slide1 = new Slide(this.x, this.y, this.id + '-L', D_TRACK_WIDTH * direction);
+        const Slide1 = new Slide(this.x + track1OffsetX * flg, this.y + track1OffsetY * flg, this.id + '-L', D_TRACK_WIDTH * direction);
         Slide1.angle = base;
         Slide1.color = this.color;
         
@@ -2057,13 +2251,14 @@ class DoubleTrackTurnoutRail {
         this.color = COLORS.DOUBLE_TRACK_TURNOUT.base;
         this.highlightColor = COLORS.DOUBLE_TRACK_TURNOUT.highlight;
         this.isDoubleTrack = true;  // 複線レールフラグ
-        // 複線ターンアウトは3組の端点ペア: 直線2本+分岐2本
+        // 複線ターンアウトは4組の端点ペア: 直線2本+分岐2本
         this.endpointPairs = [[1, 3], [2, 4], [5, 7],[6, 8]];  
         
-        // 端点構造の説明（複線ターンアウト・実際の仕様）:
-        // 複線幅の直線2本（長さ120）- 端点 1,3（凹）→ 2,4（凸）
-        // 複曲線カーブ2本（90度、外側カーブ）- 端点 5,7（凸）
-        // ターンアウトのように4種（左右×表裏）
+        // 複線ターンアウトレール（単線→複線への分岐ポイント）:
+        // 複線幅(22mm)の直線2本（長さ120）- 端点 1,3（凹）→ 2,4（凸）
+        // 複曲線カーブ2本（90度、外側カーブ使用）- 端点 5,7（凸）→ 6,8（凸）
+        // 4種類のバリエーション: 左/右 × 表/裏
+        // ※R-17三方向ポイントとは全く別のレール
     }
 
     /* =========================
@@ -2078,7 +2273,7 @@ class DoubleTrackTurnoutRail {
         const curveDir = this.isReversed ? 'right' : 'left';
         
         // 複線幅の計算（表裏で入れ替わる）
-		const { x: track1OffsetX, y: track1OffsetY } = rotatePoint(D_TRACK_WIDTH * rev, 0 , angleRad);
+		const { x: track1OffsetX, y: track1OffsetY } = rotatePoint(D_TRACK_WIDTH , 0 , angleRad);
         
         // 直線2本（長さ120）
         const straight1 = new StraightRail(this.x , this.y, this.id + '-S1', 120);
@@ -2093,28 +2288,27 @@ class DoubleTrackTurnoutRail {
         
         // 複曲線カーブ2本（90度、外側カーブ使用）
         // 起点はそれぞれの直線の起点
-        const outerRadius = RAIL_LENGTH + D_TRACK_WIDTH;
+		const C1radius = curveDir === 'left'? RAIL_LENGTH : RAIL_LENGTH + D_TRACK_WIDTH;
+		const C2radius = curveDir === 'left'? RAIL_LENGTH + D_TRACK_WIDTH : RAIL_LENGTH;
+
 		let curve1, curve2;
 		if(this.direction === 'left'){	
-        curve1 = new Curve(this.x, this.y , this.id + '-C1', curveDir);
+        curve1 = new Curve(this.x, this.y , this.id + '-C1', curveDir, C1radius);
         curve1.angle = base;
         curve1.turnAngle = 90;
-
-        
-        curve2 = new Curve(this.x + track1OffsetX, this.y + track1OffsetY, this.id + '-C2', curveDir);
+       
+        curve2 = new Curve(this.x + track1OffsetX, this.y + track1OffsetY, this.id + '-C2', curveDir,C2radius);
         curve2.angle = base;
         curve2.turnAngle = 90;
-		curve2.radius = outerRadius
         }else{
 		const {x:L_startX,y:L_startY} = straight1.getEndpoints()[1]; 
-        curve1 = new Curve(L_startX + track1OffsetX, L_startY + track1OffsetY , this.id + '-C1', curveDir);
+        curve1 = new Curve(L_startX + track1OffsetX, L_startY + track1OffsetY , this.id + '-C1', curveDir,C1radius);
         curve1.angle = reversedegAngle(base);
         curve1.turnAngle = 90;
 
-        curve2 = new Curve(L_startX , L_startY, this.id + '-C2', curveDir);
+        curve2 = new Curve(L_startX , L_startY, this.id + '-C2', curveDir,C2radius);
         curve2.angle = curve1.angle;
         curve2.turnAngle = 90;
-		curve2.radius = outerRadius
 		} 
         curve1.color = this.color;
         curve1.highlightColor = this.highlightColor;
@@ -2391,31 +2585,24 @@ class DoubleCurveRail {
 
         const dir = this.direction;
         
-        // 1本目: 基準位置から通常の内側カーブ
-        const innerCurve = new Curve(this.x, this.y, this.id + '-I', dir, RAIL_LENGTH);
+        // 1本目: 基準位置からのカーブ
+		//右曲がり　外側カーブ、　左曲がりカーブ
+		const innerradius = dir === 'left'? RAIL_LENGTH : RAIL_LENGTH + D_TRACK_WIDTH;
+        const innerCurve = new Curve(this.x, this.y, this.id + '-I', dir, innerradius);
         innerCurve.angle = base;
         innerCurve.color = this.color;
         
-        // 2本目: 基準位置からオフセットした外側カーブ
-        // 左カーブ: 左方向（X軸負方向）にオフセット
-        // 右カーブ: 右方向（X軸正方向）にオフセット
+        // 2本目: 基準位置から右側にオフセットした外側カーブ
 		
         const offsetX =  D_TRACK_WIDTH * Math.sin(angleRad+Math.PI*0.5);
         const offsetY = -D_TRACK_WIDTH * Math.cos(angleRad+Math.PI*0.5);
-
-		
-		
-        let outerStartX, outerStartY;
-        if (dir === 'left') {
-            outerStartX = this.x + offsetX;
-            outerStartY = this.y + offsetY;
-        } else {
-            outerStartX = this.x - offsetX;
-            outerStartY = this.y - offsetY;
-        }
+	
+        const outerStartX = this.x + offsetX;
+        const outerStartY = this.y + offsetY;
         
-        // 外側カーブ（半径 + 複線幅、基準位置からオフセット）
-        const outerCurve = new Curve(outerStartX, outerStartY, this.id + '-O', dir, RAIL_LENGTH + D_TRACK_WIDTH);
+        // 右置きカーブ（右曲がり　カーブ　左曲がり　外側カーブ）
+		const outerradius = dir === 'left'? RAIL_LENGTH + D_TRACK_WIDTH : RAIL_LENGTH; 
+        const outerCurve = new Curve(outerStartX, outerStartY, this.id + '-O', dir, outerradius);
         outerCurve.angle = base;
         outerCurve.color = this.color;
         
@@ -2733,12 +2920,6 @@ class UTurnRail {
     }
 }
 
-
-
-    /* =========================
-       endpoint
-    ========================= */
- 
 
 class Figure8PointRail {
     constructor(x, y, id, pointType = 'R', direction = 'left') {
@@ -4038,6 +4219,10 @@ document.getElementById('delete').addEventListener('click', () => {
                 else if (selectedShape.pointType && selectedShape.constructor.name === 'R15WidePointRail') {
                     selectedShape.pointType = selectedShape.pointType === 'A' ? 'B' : 'A';
                 }
+                // R-17三方向ポイントのA/B切替
+                else if (selectedShape.ThreewayType && selectedShape.constructor.name === 'R17ThreewayRail') {
+                    selectedShape.ThreewayType = selectedShape.ThreewayType === 'A' ? 'B' : 'A';
+                }
                 // 8の字ポイントのR/L切替
                 else if (selectedShape.pointType && selectedShape.constructor.name === 'Figure8PointRail') {
                     if (selectedShape.pointType === 'R') selectedShape.pointType = 'L';
@@ -4625,6 +4810,23 @@ document.getElementById('addR15WideBRev').addEventListener('click', () => {
     addRailByType('r15', { type: 'B', reversed: true });
 });
 
+// ===== R17ポイント =====
+document.getElementById('addR17ThreewayPointARight').addEventListener('click', () => {
+    addRailByType('r17', { type: 'A', direction: 'right' });
+});
+
+document.getElementById('addR17ThreewayPointALeft').addEventListener('click', () => {
+    addRailByType('r17', { type: 'A', direction: 'left' });
+});
+
+document.getElementById('addR17ThreewayPointBRight').addEventListener('click', () => {
+    addRailByType('r17', { type: 'B', direction: 'right' });
+});
+
+document.getElementById('addR17ThreewayPointBLeft').addEventListener('click', () => {
+    addRailByType('r17', { type: 'B', direction: 'left' });
+});
+
 // ===== R30三角ポイント =====
 document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
     addRailByType('r30', { reversed: false });
@@ -4777,6 +4979,7 @@ function generateRailId(railType) {
         'r13': 'R13',
         'r22': 'R22',
         'r15': 'R15',
+        'r17': 'R17',
         'r30': 'R30',
         
         // 複線レール
@@ -4876,6 +5079,13 @@ function addRailByType(railType, options = {}) {
             const r13Type = options.type || 'A';
             const r13Dir = options.direction || 'right';
             rail = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, r13Type, r13Dir);
+            break;
+
+        // ===== R17ポイント =====
+        case 'r17':
+            const r17Type = options.type || 'A';
+            const r17Dir = options.direction || 'right';
+            rail = new R17ThreewayRail(lastEndpoint.x, lastEndpoint.y, id, r17Type, r17Dir);
             break;
             
         // ===== R22 Y字ポイント =====
@@ -5042,18 +5252,20 @@ function saveLayout() {
         
         // 必要なプロパティのみ追加
         if (rail.direction) parts.push(rail.direction);
-        else if (rail.slide !== undefined || rail.height || rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        else if (rail.slide !== undefined || rail.height || rail.radius || rail.pointType || rail.ThreewayType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
         
         if (rail.slide !== undefined) parts.push(rail.slide.toFixed(1));
-        else if (rail.height || rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        else if (rail.height || rail.radius || rail.pointType || rail.ThreewayType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
         
         if (rail.height) parts.push(rail.height.toFixed(1));
-        else if (rail.radius || rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        else if (rail.radius || rail.pointType || rail.ThreewayType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
         
         if (rail.radius && rail.radius !== RAIL_LENGTH) parts.push(rail.radius.toFixed(1));
-        else if (rail.pointType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
+        else if (rail.pointType || rail.ThreewayType || rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
         
+        // pointTypeまたはThreewayType（R17用）を保存
         if (rail.pointType) parts.push(rail.pointType);
+        else if (rail.ThreewayType) parts.push(rail.ThreewayType);
         else if (rail.turnoutType || rail.startType || rail.endType || rail.isReversed) parts.push('');
         
         if (rail.turnoutType) parts.push(rail.turnoutType);
@@ -5102,6 +5314,8 @@ function loadLayout() {
             rail = new TurnoutRail(+x, +y, id, turnoutType || 'R', direction);
         } else if (type === 'R13PointRail') {
             rail = new R13PointRail(+x, +y, id, pointType || 'B', direction);
+        } else if (type === 'R17ThreewayRail') {
+            rail = new R17ThreewayRail(+x, +y, id, pointType || 'B', direction);
         } else if (type === 'R22YPointRail') {
             rail = new R22YPointRail(+x, +y, id, pointType || 'A', isReversed === '1');
         } else if (type === 'R15WidePointRail') {
@@ -5431,6 +5645,10 @@ function countRails() {
             // R15（タイプで判別）
             const type = rail.pointType || 'A';
             key = `R-15 (${type}型)`;
+        } else if (className === 'R17ThreewayRail') {
+            // R-17三方向ポイント（タイプで判別）
+            const type = rail.ThreewayType || 'B';
+            key = `R-17三方向 (${type}型)`;
         } else if (className === 'R30TrianglePointRail') {
             key = 'R-30三角';
         } else if (className === 'DoubleTrackRail') {
@@ -5440,9 +5658,10 @@ function countRails() {
         } else if (className === 'DoubleTrackCrossoverRail') {
             key = '複線渡り';
         } else if (className === 'DoubleTrackTurnoutRail') {
-            // 複線ターンアウト（方向で判別）
+            // 複線ターンアウト（単線→複線分岐）
             const dir = rail.direction || 'left';
-            key = `複線T.O. (${dir === 'left' ? '左' : '右'})`;
+            const rev = rail.isReversed ? '裏' : '表';
+            key = `複線T.O. (${dir === 'left' ? '左' : '右'}${rev})`;
         } else {
             key = 'その他';
         }
@@ -5467,7 +5686,7 @@ function displayRailCounter() {
             'スライド',
             'Uターン',
             'ターンアウト', '8の字', '十字ポイント',
-            'R-13', 'R-22', 'R-15', 'R-30三角',
+            'R-13', 'R-22', 'R-15','R-17', 'R-30三角',
             '複線直線', '複線カーブ', '複線渡り', '複線T.O.',
             '1/4', '1/6'
         ];
