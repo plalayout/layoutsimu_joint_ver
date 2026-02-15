@@ -40,12 +40,11 @@
         canvas {
             display: block;
             touch-action: none;
-            /* コンテナに収まる最大サイズで、16:9を維持 */
+            /* コンテナに収まる最大サイズで、キャンバス実寸比を維持 */
             max-width: 100%;
             max-height: 100%;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+            width: auto;
+            height: auto;
         }
         
         .controls {
@@ -524,9 +523,9 @@ const scaleFactor = 1.1;
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
             
-            // キャンバスの内部解像度は固定 (800x600)
+            // キャンバスの内部解像度は固定
             // 表示サイズのみCSSで調整
-            const aspectRatio = 800 / 600; // 4:3
+            const aspectRatio = canvas.width / canvas.height; // 2400x1350 (16:9)
             
             let displayWidth = containerWidth;
             let displayHeight = displayWidth / aspectRatio;
