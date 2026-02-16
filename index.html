@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v46.4</title>
+    <title>プラレールレイアウトシミュレータ v46.5</title>
     <style>
         * {
             box-sizing: border-box;
@@ -449,6 +449,19 @@
         </div>
 
         <div class="section-title">レイアウト保存/読込</div>
+        
+        <!-- ショートカット入力 -->
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666;">ショートカット入力:</label>
+            <textarea id="shortcutInput" placeholder="例: SRL または RRRRRRRR" style="height: 40px;"></textarea>
+            <div class="button-group">
+                <button id="executeShortcut">実行</button>
+                <button id="clearShortcut">クリア</button>
+            </div>
+            <div style="font-size: 11px; color: #888; margin-top: 3px;">
+                S=直線, R=右カーブ, L=左カーブ, J=ジョイント(自動), H=1/2直線
+            </div>
+        </div>
         
         <!-- テキスト保存 -->
         <div style="margin-bottom: 10px;">
@@ -5748,6 +5761,373 @@ document.getElementById('toggleDetailMode').addEventListener('click', () => {
     btn.textContent = useDetailedEndpoints ? '表示モード: 詳細' : '表示モード: 簡易';
     drawAll();
 });
+
+// ========================================
+// キーボードショートカットシステム
+// ========================================
+
+// ショートカット定義（ジョイント・1/4は凸凹を区別）
+const railShortcuts = {
+    // 基本レール（1文字）
+    'S': { type: 'straight' },
+    'R': { type: 'curve', options: { direction: 'right' } },
+    'L': { type: 'curve', options: { direction: 'left' } },
+    'H': { type: 'halfStraight' },
+    
+    // S字レール
+    'Zr': { type: 'slide', options: { reversed: true } },
+    'Zl': { type: 'slide', options: { reversed: false } },
+    
+    // 外カーブ
+    'Or': { type: 'outerCurve', options: { direction: 'right' } },
+    'Ol': { type: 'outerCurve', options: { direction: 'left' } },
+    
+    // 倍長レール
+    'BS': { type: 'doubleStraight' },
+    'Br': { type: 'doubleLengthCurve', options: { direction: 'right' } },
+    'Bl': { type: 'doubleLengthCurve', options: { direction: 'left' } },
+    
+    // 1/4レール（凸凸と凹凹を区別）
+    'Qv': { type: 'quarterConvex' },
+    'Qc': { type: 'quarterConcave' },
+    
+    // ジョイント（ユーザー入力はJのみ、Jv/Jcは保存データ用）
+    'J': { type: 'joint' }, // 入力時に自動判定
+    // 'Jv': { type: 'jointConvex' },  // 保存データ読込専用
+    // 'Jc': { type: 'jointConcave' }, // 保存データ読込専用
+    
+    // 複線系
+    'DS': { type: 'doubleTrack' },
+    'Dr': { type: 'doubleCurve', options: { direction: 'right' } },
+    'Dl': { type: 'doubleCurve', options: { direction: 'left' } },
+    'DC.': { type: 'doubleCrossover', options: { reversed: false } },
+    'DCv': { type: 'doubleCrossover', options: { reversed: true } },
+    
+    // 複線ターンアウト
+    'DOl.': { type: 'doubleTurnout', options: { direction: 'left', reversed: false } },
+    'DOlv': { type: 'doubleTurnout', options: { direction: 'left', reversed: true } },
+    'DOr.': { type: 'doubleTurnout', options: { direction: 'right', reversed: false } },
+    'DOrv': { type: 'doubleTurnout', options: { direction: 'right', reversed: true } },
+    
+    // ポイント系 - ターンアウト
+    'POl.': { type: 'turnout', options: { direction: 'left', type: 'R' } },
+    'POlv': { type: 'turnout', options: { direction: 'left', type: 'L' } },
+    'POr.': { type: 'turnout', options: { direction: 'right', type: 'R' } },
+    'POrv': { type: 'turnout', options: { direction: 'right', type: 'L' } },
+    
+    // ポイント系 - 8の字
+    'PEr.': { type: 'figure8', options: { type: 'R', reversed: false } },
+    'PErv': { type: 'figure8', options: { type: 'R', reversed: true } },
+    'PEl.': { type: 'figure8', options: { type: 'L', reversed: false } },
+    'PElv': { type: 'figure8', options: { type: 'L', reversed: true } },
+    
+    // ポイント系 - 三角・十字・Uターン
+    'PT.': { type: 'r30', options: { reversed: false } },
+    'PTv': { type: 'r30', options: { reversed: true } },
+    'PC.': { type: 'crossPoint', options: { reversed: false } },
+    'PCv': { type: 'crossPoint', options: { reversed: true } },
+    'PUu': { type: 'uturn', options: { type: 'U' } },
+    'PUv': { type: 'uturn', options: { type: 'V' } },
+    
+    // ポイント系 - R-13単複
+    'P3a.': { type: 'r13', options: { type: 'A', direction: 'right' } },
+    'P3al': { type: 'r13', options: { type: 'A', direction: 'left' } },
+    'P3b.': { type: 'r13', options: { type: 'B', direction: 'right' } },
+    'P3bl': { type: 'r13', options: { type: 'B', direction: 'left' } },
+    
+    // ポイント系 - R-22 Y字
+    'P2a.': { type: 'r22', options: { type: 'A', reversed: false } },
+    'P2av': { type: 'r22', options: { type: 'A', reversed: true } },
+    'P2b.': { type: 'r22', options: { type: 'B', reversed: false } },
+    'P2bv': { type: 'r22', options: { type: 'B', reversed: true } },
+    
+    // ポイント系 - R-15複線幅広
+    'P5a.': { type: 'r15', options: { type: 'A', reversed: false } },
+    'P5av': { type: 'r15', options: { type: 'A', reversed: true } },
+    'P5b.': { type: 'r15', options: { type: 'B', reversed: false } },
+    'P5bv': { type: 'r15', options: { type: 'B', reversed: true } },
+    
+    // ポイント系 - R-17三方向
+    'P7al': { type: 'r17', options: { type: 'A', direction: 'left' } },
+    'P7ar': { type: 'r17', options: { type: 'A', direction: 'right' } },
+    'P7bl': { type: 'r17', options: { type: 'B', direction: 'left' } },
+    'P7br': { type: 'r17', options: { type: 'B', direction: 'right' } }
+};
+
+// ショートカット入力バッファ
+let shortcutBuffer = '';
+let shortcutTimeout = null;
+
+// キーボードイベントリスナー
+document.addEventListener('keydown', (e) => {
+    // 入力フィールドやテキストエリアでは無効化
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+    }
+    
+    // Ctrl/Cmd + その他のキーは無視
+    if (e.ctrlKey || e.metaKey) {
+        return;
+    }
+    
+    // Enterキー: バッファを実行
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (shortcutBuffer.length > 0) {
+            executeShortcutBuffer(shortcutBuffer);
+            shortcutBuffer = '';
+            updateShortcutDisplay();
+        }
+        return;
+    }
+    
+    // Escapeキー: バッファをクリア
+    if (e.key === 'Escape') {
+        e.preventDefault();
+        shortcutBuffer = '';
+        updateShortcutDisplay();
+        return;
+    }
+    
+    // Backspaceキー: 最後の文字を削除
+    if (e.key === 'Backspace') {
+        e.preventDefault();
+        shortcutBuffer = shortcutBuffer.slice(0, -1);
+        updateShortcutDisplay();
+        return;
+    }
+    
+    // 通常の文字入力
+    if (e.key.length === 1) {
+        e.preventDefault();
+        shortcutBuffer += e.key;
+        updateShortcutDisplay();
+        
+        // タイムアウトをリセット（3秒後に自動クリア）
+        clearTimeout(shortcutTimeout);
+        shortcutTimeout = setTimeout(() => {
+            if (shortcutBuffer.length > 0) {
+                shortcutBuffer = '';
+                updateShortcutDisplay();
+            }
+        }, 3000);
+    }
+});
+
+// ショートカット実行
+function executeShortcutBuffer(input) {
+    let i = 0;
+    
+    while (i < input.length) {
+        let matched = false;
+        
+        // 最長マッチを試す（5文字から1文字まで）
+        for (let len = Math.min(5, input.length - i); len >= 1; len--) {
+            const candidate = input.substring(i, i + len);
+            
+            if (railShortcuts[candidate]) {
+                const sc = railShortcuts[candidate];
+                
+                // 特殊処理: Jは自動判定
+                if (candidate === 'J') {
+                    // railProgression.isReversedを見て自動的にJv/Jcを選択
+                    const actualType = railProgression.isReversed ? 'jointConcave' : 'jointConvex';
+                    addRailByTypeSimple(actualType, {});
+                } else {
+                    addRailByTypeSimple(sc.type, sc.options || {});
+                }
+                
+                i += len;
+                matched = true;
+                break;
+            }
+        }
+        
+        if (!matched) {
+            console.warn(`未知のショートカット: ${input[i]}`);
+            i++;
+        }
+    }
+    
+    drawAll();
+}
+
+// シンプルなレール追加（ボタンクリックと同じ動作）
+function addRailByTypeSimple(railType, options = {}) {
+    // 既存のボタンと同じロジックを使用
+    switch(railType) {
+        case 'straight':
+            document.getElementById('addStraight').click();
+            break;
+        case 'curve':
+            if (options.direction === 'right') {
+                document.getElementById('addRightCurve').click();
+            } else {
+                document.getElementById('addLeftCurve').click();
+            }
+            break;
+        case 'halfStraight':
+            document.getElementById('addHalfStraight').click();
+            break;
+        case 'doubleStraight':
+            document.getElementById('addDoubleStraight').click();
+            break;
+        case 'slide':
+            if (options.reversed) {
+                document.getElementById('addSlideRight').click();
+            } else {
+                document.getElementById('addSlideLeft').click();
+            }
+            break;
+        case 'outerCurve':
+            if (options.direction === 'right') {
+                document.getElementById('addRightOuterCurve').click();
+            } else {
+                document.getElementById('addLeftOuterCurve').click();
+            }
+            break;
+        case 'doubleLengthCurve':
+            if (options.direction === 'right') {
+                document.getElementById('addDoubleLengthCurveRight').click();
+            } else {
+                document.getElementById('addDoubleLengthCurveLeft').click();
+            }
+            break;
+        case 'quarterConvex':
+            document.getElementById('addQuarterV').click();
+            break;
+        case 'quarterConcave':
+            document.getElementById('addQuarterC').click();
+            break;
+        case 'jointConvex':
+        case 'jointConcave':
+            // ジョイントは直接追加
+            addJointRail(railProgression.isReversed);
+            break;
+        case 'doubleTrack':
+            document.getElementById('addDoubleTrack').click();
+            break;
+        case 'doubleCurve':
+            if (options.direction === 'right') {
+                document.getElementById('addDoubleCurveRight').click();
+            } else {
+                document.getElementById('addDoubleCurveLeft').click();
+            }
+            break;
+        case 'doubleCrossover':
+            if (options.reversed) {
+                document.getElementById('addDoubleTrackCrossoverRev').click();
+            } else {
+                document.getElementById('addDoubleTrackCrossover').click();
+            }
+            break;
+        case 'doubleTurnout':
+            const dtId = `addDoubleTrackTurnout${options.direction === 'left' ? 'Left' : 'Right'}${options.reversed ? 'Rev' : ''}`;
+            document.getElementById(dtId).click();
+            break;
+        case 'turnout':
+            const toId = `addTurnout${options.direction === 'left' ? 'Left' : 'Right'}${options.type}`;
+            document.getElementById(toId).click();
+            break;
+        case 'figure8':
+            const f8Id = `addFigure8${options.type}${options.reversed ? 'Rev' : ''}`;
+            document.getElementById(f8Id).click();
+            break;
+        case 'r30':
+            if (options.reversed) {
+                document.getElementById('addR30TrianglePointRev').click();
+            } else {
+                document.getElementById('addR30TrianglePoint').click();
+            }
+            break;
+        case 'crossPoint':
+            if (options.reversed) {
+                document.getElementById('addCrossPointRev').click();
+            } else {
+                document.getElementById('addCrossPoint').click();
+            }
+            break;
+        case 'uturn':
+            if (options.type === 'U') {
+                document.getElementById('addUTurnRailU').click();
+            } else {
+                document.getElementById('addUTurnRailV').click();
+            }
+            break;
+        case 'r13':
+            const r13Id = `addR13Point${options.type}${options.direction === 'left' ? 'Left' : ''}`;
+            document.getElementById(r13Id).click();
+            break;
+        case 'r22':
+            const r22Id = `addR22${options.type}${options.reversed ? 'Rev' : ''}`;
+            document.getElementById(r22Id).click();
+            break;
+        case 'r15':
+            const r15Id = `addR15Wide${options.type}${options.reversed ? 'Rev' : ''}`;
+            document.getElementById(r15Id).click();
+            break;
+        case 'r17':
+            const r17Id = `addR17ThreewayPoint${options.type}${options.direction === 'left' ? 'Left' : 'Right'}`;
+            document.getElementById(r17Id).click();
+            break;
+        default:
+            console.warn('Unknown rail type:', railType);
+    }
+}
+
+// ショートカット表示エリアの更新
+function updateShortcutDisplay() {
+    let display = document.getElementById('shortcutDisplay');
+    if (!display) {
+        // 表示エリアを作成
+        display = document.createElement('div');
+        display.id = 'shortcutDisplay';
+        display.style.position = 'fixed';
+        display.style.bottom = '10px';
+        display.style.right = '10px';
+        display.style.background = 'rgba(0, 0, 0, 0.8)';
+        display.style.color = 'white';
+        display.style.padding = '10px 15px';
+        display.style.borderRadius = '5px';
+        display.style.fontFamily = 'monospace';
+        display.style.fontSize = '16px';
+        display.style.zIndex = '10000';
+        display.style.display = 'none';
+        document.body.appendChild(display);
+    }
+    
+    if (shortcutBuffer.length > 0) {
+        display.textContent = `入力: ${shortcutBuffer}_ (Enter: 実行 / Esc: クリア)`;
+        display.style.display = 'block';
+    } else {
+        display.style.display = 'none';
+    }
+}
+
+console.log('キーボードショートカットシステム初期化完了');
+console.log('使い方: S, R, L などを入力してEnterキーで配置');
+
+// テキストボックスからのショートカット実行
+document.getElementById('executeShortcut').addEventListener('click', () => {
+    const input = document.getElementById('shortcutInput').value.trim();
+    if (input) {
+        executeShortcutBuffer(input);
+    }
+});
+
+// テキストボックスのクリア
+document.getElementById('clearShortcut').addEventListener('click', () => {
+    document.getElementById('shortcutInput').value = '';
+});
+
+// テキストボックスでEnterキーを押したら実行
+document.getElementById('shortcutInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('executeShortcut').click();
+    }
+});
+
     </script>
 </body>
 
