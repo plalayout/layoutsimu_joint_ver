@@ -40,9 +40,6 @@
         canvas {
             display: block;
             touch-action: none;
-            /* コンテナに収まる最大サイズで、16:9を維持 */
-            max-width: 100%;
-            max-height: 100%;
             width: 100%;
             height: 100%;
             object-fit: contain;
@@ -508,7 +505,7 @@
 	let LastselectedShape = null;
 	let selectedEndpoint = null; // 選択された端点（赤丸表示用）
 
-let scale = 3.0;  // Canvas解像度を2400×1350（16:9）に拡大したため、初期スケールを3倍に調整
+let scale = 3.0;  // 初期拡大率
 const scaleFactor = 1.1;
 
     let canvasOffsetX = canvW/2;
@@ -524,9 +521,9 @@ const scaleFactor = 1.1;
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
             
-            // キャンバスの内部解像度は固定 (800x600)
+            // キャンバスの内部解像度は固定
             // 表示サイズのみCSSで調整
-            const aspectRatio = 800 / 600; // 4:3
+            const aspectRatio = canvas.width / canvas.height; // 現在のキャンバス比率
             
             let displayWidth = containerWidth;
             let displayHeight = displayWidth / aspectRatio;
@@ -623,17 +620,39 @@ const scaleFactor = 1.1;
          * @param {number} screenY - canvas上のY座標 (e.offsetY)
          * @returns {{x: number, y: number}} ワールド座標
          */
-        function screenToWorld(screenX, screenY) {
-            // キャンバスの表示サイズと内部解像度の比率を計算
-            const canvas = document.getElementById('canvas');
+        function getCanvasDisplayMetrics() {
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            // 表示座標を内部座標に変換
-            const canvasX = screenX * scaleX;
-            const canvasY = screenY * scaleY;
-            
+            const canvasAspect = canvas.width / canvas.height;
+            const rectAspect = rect.width / rect.height;
+
+            let displayWidth = rect.width;
+            let displayHeight = rect.height;
+            let offsetX = 0;
+            let offsetY = 0;
+
+            if (rectAspect > canvasAspect) {
+                displayWidth = rect.height * canvasAspect;
+                offsetX = (rect.width - displayWidth) / 2;
+            } else {
+                displayHeight = rect.width / canvasAspect;
+                offsetY = (rect.height - displayHeight) / 2;
+            }
+
+            return {
+                scaleX: canvas.width / displayWidth,
+                scaleY: canvas.height / displayHeight,
+                offsetX,
+                offsetY
+            };
+        }
+
+        function screenToWorld(screenX, screenY) {
+            const metrics = getCanvasDisplayMetrics();
+
+            // レターボックス分のオフセットを除去して内部座標へ変換
+            const canvasX = (screenX - metrics.offsetX) * metrics.scaleX;
+            const canvasY = (screenY - metrics.offsetY) * metrics.scaleY;
+
             // スクリーン座標系: 左上が原点、Y軸下向き
             // ワールド座標系: 中央が原点、Y軸上向き
             const worldX = (canvasX - canvasOffsetX) / scale;
@@ -3538,13 +3557,11 @@ function snapToClosestEndpoint(shape) {
             drawAll();
         } else if (isPanning) {
             // Canvas表示サイズと内部解像度の比率を取得
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
+            const metrics = getCanvasDisplayMetrics();
             
-            // offsetXを内部座標に変換してから差分を計算
-            const dx = (e.offsetX - startX) * scaleX;
-            const dy = (e.offsetY - startY) * scaleY;
+            // レターボックスを加味して内部座標の差分を計算
+            const dx = (e.offsetX - startX) * metrics.scaleX;
+            const dy = (e.offsetY - startY) * metrics.scaleY;
             
             canvasOffsetX += dx;
             canvasOffsetY -= dy;
@@ -3704,13 +3721,11 @@ function snapToClosestEndpoint(shape) {
                 drawAll();
             } else if (isPanning) {
                 // Canvas表示サイズと内部解像度の比率を取得
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
+                const metrics = getCanvasDisplayMetrics();
                 
-                // touchPosを内部座標に変換してから差分を計算
-                const dx = (touch.x - startX) * scaleX;
-                const dy = (touch.y - startY) * scaleY;
+                // レターボックスを加味して内部座標の差分を計算
+                const dx = (touch.x - startX) * metrics.scaleX;
+                const dy = (touch.y - startY) * metrics.scaleY;
                 
                 canvasOffsetX += dx;
                 canvasOffsetY -= dy;
