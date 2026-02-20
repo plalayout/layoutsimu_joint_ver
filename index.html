@@ -5033,8 +5033,25 @@ function addRailByType(railType, options = {}) {
     // レール追加時は選択端点をクリア
     selectedEndpoint = null;
     
-    const lastEndpoint = getLastEndpoint();
-    if (!lastEndpoint) return;
+    // 座標指定モード（options.x, options.y, options.angleが指定されている場合）
+    const isPositionMode = options.x !== undefined && options.y !== undefined && options.angle !== undefined;
+    
+    let lastEndpoint;
+    if (isPositionMode) {
+        // 座標指定モード: 指定された座標・角度を使用
+        lastEndpoint = {
+            x: options.x,
+            y: options.y,
+            angle: options.angle,
+            type: 'convex',
+            placeFromEnd: false
+        };
+        console.log('addRailByType (座標指定モード):', { x: options.x, y: options.y, angle: options.angle, railType });
+    } else {
+        // 通常モード: 最後の端点から配置
+        lastEndpoint = getLastEndpoint();
+        if (!lastEndpoint) return;
+    }
     
     const id = generateRailId(railType);
     let rail = null;
@@ -5165,7 +5182,13 @@ function addRailByType(railType, options = {}) {
             
         // ===== 1/4レール =====
         case 'quarterV':
-            if (lastEndpoint.placeFromEnd) {
+        case 'quarterConvex':
+            if (isPositionMode) {
+                // 座標指定モード: 凸凸を作成
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'convex', endType: 'convex' });
+                rail.railType = 'QuarterVV';
+            } else if (lastEndpoint.placeFromEnd) {
                 rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
                     { startType: 'convex', endType: 'convex' });
                 rail.railType = 'QuarterVV';
@@ -5177,7 +5200,13 @@ function addRailByType(railType, options = {}) {
             break;
             
         case 'quarterC':
-            if (lastEndpoint.placeFromEnd) {
+        case 'quarterConcave':
+            if (isPositionMode) {
+                // 座標指定モード: 凹凹を作成
+                rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
+                    { startType: 'concave', endType: 'concave' });
+                rail.railType = 'QuarterCC';
+            } else if (lastEndpoint.placeFromEnd) {
                 rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25,
                     { startType: 'concave', endType: 'convex' });
             } else {
@@ -5190,7 +5219,25 @@ function addRailByType(railType, options = {}) {
             
         // ===== 1/6ジョイント =====
         case 'joint':
-            return addJointRail(lastEndpoint.placeFromEnd);
+        case 'jointConvex':
+        case 'jointConcave':
+            if (isPositionMode) {
+                // 座標指定モード: railTypeに応じて凸凸または凹凹を作成
+                const isConvex = (railType === 'jointConvex' || railType === 'joint');
+                if (isConvex) {
+                    rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6,
+                        { startType: 'convex', endType: 'convex' });
+                    rail.railType = 'SixthVV';
+                } else {
+                    rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH / 6,
+                        { startType: 'concave', endType: 'concave' });
+                    rail.railType = 'SixthCC';
+                }
+                rail.color = 'lightgray';
+                break;
+            } else {
+                return addJointRail(lastEndpoint.placeFromEnd);
+            }
             
         default:
             console.error('Unknown rail type:', railType);
@@ -5198,7 +5245,57 @@ function addRailByType(railType, options = {}) {
     }
     
     if (rail) {
-        addRailCommon(rail, lastEndpoint);
+        // ポイントレール系は_syncを呼ぶ
+        if (typeof rail._sync === 'function') {
+            rail._sync();
+        }
+        
+        if (isPositionMode) {
+            // 座標指定モード: 直接角度を設定
+            rail.angle = options.angle;
+            
+            // _syncをもう一度呼ぶ（角度変更後）
+            if (typeof rail._sync === 'function') {
+                rail._sync();
+            }
+            
+            rails.push(rail);
+            
+            // railProgressionを更新
+            updateProgressionAfterAdd(rail, false);
+            
+            // 凹進行フラグ
+            if (options.isReversed) {
+                railProgression.isReversed = true;
+                railProgression.endpointIndex = 0;
+            }
+            
+            // 配置履歴に記録
+            railPlacementHistory.push({ 
+                id: rail.id, 
+                connectedFrom: null, 
+                isReversed: options.isReversed || false
+            });
+            
+            // selectedEndpointを更新
+            const endpoints = rail.getEndpoints();
+            for (let ep of endpoints) {
+                if (ep.type === 'convex') {
+                    selectedEndpoint = { ...ep, placeFromEnd: false };
+                    break;
+                }
+            }
+            
+            drawAll();
+            console.log('addRailByType (座標指定) 完了:', rail.id);
+        } else {
+            // 通常モード
+            addRailCommon(rail, lastEndpoint);
+        }
+    } else {
+        if (isPositionMode) {
+            console.error('addRailByType: レール生成失敗:', railType, options);
+        }
     }
 }
 
@@ -6069,7 +6166,15 @@ function executeShortcutBuffer(input) {
                     if (railShortcuts[candidate]) {
                         const sc = railShortcuts[candidate];
                         if (firstInGroup) {
-                            addRailAtPosition(x, y, angle, sc.type, sc.options || {}, isReversed);
+                            // 座標指定でレール配置
+                            const railOptions = {
+                                ...sc.options,
+                                x: x,
+                                y: y,
+                                angle: angle,
+                                isReversed: isReversed
+                            };
+                            addRailByType(sc.type, railOptions);
                             firstInGroup = false;
                         } else {
                             placeRailWithEps(candidate, sc, epsIndex);
@@ -6148,67 +6253,7 @@ function placeRailWithEps(candidate, sc, epsIndex) {
     }
 }
 
-// 座標指定でレールを配置
-function addRailAtPosition(x, y, angle, railType, options, isReversed = false) {
-    // レールを生成
-    const id = `${railType[0].toUpperCase()}${rails.length + 1}`;
-    let rail = null;
-    
-    // railTypeに応じてレールを生成（簡略版）
-    switch(railType) {
-        case 'straight':
-            rail = new StraightRail(x, y, id);
-            break;
-        case 'curve':
-            rail = new Curve(x, y, id, options.direction || 'right');
-            break;
-        case 'turnout':
-            rail = new TurnoutRail(x, y, id, options.type || 'R', options.direction || 'left');
-            break;
-        // 他のレールタイプも追加可能
-        default:
-            console.warn('addRailAtPosition: 未対応のレールタイプ:', railType);
-            // フォールバック: ボタンをクリック
-            addRailByTypeSimple(railType, options);
-            return;
-    }
-    
-    if (rail) {
-        rail.angle = angle;
-        
-        rails.push(rail);
-        
-        // railProgressionを更新（これがrailProgression.railを設定する）
-        updateProgressionAfterAdd(rail, false);
-        
-        // 凹進行フラグがある場合、updateの後に再設定
-        if (isReversed) {
-            railProgression.isReversed = true;
-            // 凹進行は起点（eps0）から次のレールを配置
-            const endpoints = rail.getEndpoints();
-            railProgression.endpointIndex = 0;
-            console.log('座標指定（凹進行）:', rail.id, 'isReversed=true, endpointIndex=0');
-        }
-        
-        // updateProgressionAfterAddの後に配置履歴記録
-        railPlacementHistory.push({ 
-            id: rail.id, 
-            connectedFrom: null, 
-            isReversed: isReversed
-        });
-        
-        // selectedEndpointを更新
-        const endpoints = rail.getEndpoints();
-        for (let ep of endpoints) {
-            if (ep.type === 'convex') {
-                selectedEndpoint = { ...ep, placeFromEnd: false };
-                break;
-            }
-        }
-    }
-}
-
-// シンプルなレール追加（ボタンクリックと同じ動作）
+// 座標指定でレールを配置（全レールタイプ対応）
 function addRailByTypeSimple(railType, options = {}) {
     // 既存のボタンと同じロジックを使用
     switch(railType) {
