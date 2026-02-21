@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v46.5</title>
+    <title>プラレールレイアウトシミュレータ v48.1</title>
     <style>
         * {
             box-sizing: border-box;
@@ -18,7 +18,87 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            height: 100dvh; /* 動的なビューポート高さ（iOS対応） */
+            height: 100dvh;
+        }
+        
+        /* 横長画面（landscape）でサイドバー表示 */
+        @media (orientation: landscape) and (min-width: 1024px) and (min-height: 600px) {
+            body {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            
+            #canvas-container {
+                flex: 1 1 calc(100% - 350px);
+                max-height: calc(100vh - 60px);
+                max-height: calc(100dvh - 60px);
+                border-bottom: none;
+                border-right: 2px solid #333;
+            }
+            
+            .controls {
+                width: 350px;
+                height: calc(100vh - 60px) !important;
+                height: calc(100dvh - 60px) !important;
+                max-height: none !important;
+                min-height: auto !important;
+                overflow-y: auto;
+                flex-shrink: 0;
+                padding: 15px;
+            }
+            
+            .color-legend {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: calc(100% - 350px);
+                margin: 0;
+                border-radius: 0;
+                border-top: 2px solid #333;
+                z-index: 100;
+            }
+            
+            /* ボタンを大きく、使いやすく */
+            button {
+                padding: 14px 10px;
+                font-size: 15px;
+                min-width: 90px;
+            }
+            
+            .button-group {
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            
+            .slot-btn {
+                padding: 10px 5px !important;
+                font-size: 13px !important;
+            }
+            
+            .section-title {
+                margin-top: 15px;
+                margin-bottom: 8px;
+            }
+        }
+        
+        /* さらに広い画面ではサイドバーを広く */
+        @media (orientation: landscape) and (min-width: 1600px) {
+            .controls {
+                width: 380px;
+            }
+            
+            #canvas-container {
+                flex: 1 1 calc(100% - 380px);
+            }
+            
+            .color-legend {
+                width: calc(100% - 380px);
+            }
+            
+            button {
+                padding: 16px 12px;
+                font-size: 16px;
+            }
         }
         
         #canvas-container {
@@ -320,10 +400,18 @@
             </div>
         </div>
         
+        <!-- 上部ボタン群 -->
         <div class="button-group" style="margin-bottom: 10px;">
             <button id="toggleCounter">レール数表示</button>
             <button id="toggleDetailMode">表示モード: 詳細</button>
         </div>
+        
+        <div class="button-group" style="margin-bottom: 10px;">
+            <button id="groupMoveToggle" style="flex: 2;">まとめ移動: OFF</button>
+            <button id="allclear" style="background: #ffcccc;">全クリア</button>
+            <button id="canvasreset">原尺</button>
+        </div>
+        
         <div class="section-title">基本レール</div>
         <div class="button-group rail-buttons">
             <button id="addStraight">直線</button>
@@ -333,22 +421,21 @@
         
         <div class="button-group">
             <button id="addHalfStraight">1/2直線</button>
-            <button id="addDoubleStraight">2倍直線</button>
-            <button id="addDoubleLengthCurveRight">倍曲線(右)</button>
-            <button id="addDoubleLengthCurveLeft">倍曲線(左)</button>
+            <button id="addDoubleStraight">倍直線</button>
+            <button id="addDoubleLengthCurveRight">倍曲右</button>
+            <button id="addDoubleLengthCurveLeft">倍曲左</button>
         </div>
 		<div class="button-group">		
 			<button id="addQuarterV">1/4 (to凸)</button>  <!-- 終点が凸 -->
 			<button id="addQuarterC">1/4 (to凹)</button>  <!-- 終点が凹 -->
-		</div>
-		<div class="button-group">
+		
             <button id="addJoint">1/6</button>
         </div>
       
 
         <div class="section-title">ポイント</div>
         <div class="button-group">
-            <button id="addTurnoutLeft">ターンアウト (R)</button>
+            <button id="addTurnoutLeft">T.O(R)</button>
             <button id="addTurnoutRight">(R裏)</button>
             <button id="addTurnoutLeftL">(L)</button>
             <button id="addTurnoutRightL">(L裏)</button>
@@ -356,13 +443,13 @@
 
         
         <div class="button-group">
-            <button id="addFigure8Point">8の字 R(左)</button>
+            <button id="addFigure8Point">8P R(左)</button>
             <button id="addFigure8PointRRev">R(右)</button>
             <button id="addFigure8PointL">L(左)</button>
             <button id="addFigure8PointLRev">L(右)</button>
         </div>
 <div class="button-group">
-            <button id="addCrossPoint">十字ポイント</button>  
+            <button id="addCrossPoint">十字P</button>  
             <button id="addCrossPointRev">十字(転）</button>  
             <button id="addR30TrianglePoint">R-30三角</button>
             <button id="addR30TrianglePointRev">(裏)</button>
@@ -372,7 +459,7 @@
 
         <div class="section-title">複線・複曲線レール</div>
         <div class="button-group">
-            <button id="addDoubleTrack">複線直線</button>
+            <button id="addDoubleTrack">複直線</button>
             <button id="addDoubleCurveLeft">複曲線(左)</button>
             <button id="addDoubleCurveRight">複曲線(右)</button>
         </div>
@@ -383,10 +470,10 @@
 
 
          <div class="button-group">
-            <button id="addUTurnRailU">Uターン(U)</button>
-            <button id="addUTurnRailV">Uターン(V)</button>
-            <button id="addDoubleTrackCrossover">複線渡り(表)</button>
-            <button id="addDoubleTrackCrossoverRev">複線渡り(裏)</button>
+            <button id="addUTurnRailU">Uターン</button>
+            <button id="addUTurnRailV">U(逆)</button>
+            <button id="addDoubleTrackCrossover">複線渡り</button>
+            <button id="addDoubleTrackCrossoverRev">複渡(裏)</button>
         </div>
          <div class="section-title">複線ターンアウト/R-15複線幅広/R-17三方向</div>
          <div class="button-group">
@@ -394,14 +481,14 @@
             <button id="addDoubleTrackTurnoutLeftRev">(左裏)</button>
             <button id="addDoubleTrackTurnoutRight">(右)</button>
             <button id="addDoubleTrackTurnoutRightRev">(右裏)</button>
-             <button id="addR15WideA">R-15 (A)</button>
+             <button id="addR15WideA">幅広(A)</button>
             <button id="addR15WideARev">(A裏)</button>
             <button id="addR15WideB">(B)</button>
             <button id="addR15WideBRev">(B裏)</button>
-             <button id="addR17ThreewayPointALeft">R-17 (A左)</button>
-            <button id="addR17ThreewayPointARight">R-17 (A右)</button>
-            <button id="addR17ThreewayPointBLeft">R-17 (B左)</button>
-            <button id="addR17ThreewayPointBRight">R-17 (B右)</button>
+             <button id="addR17ThreewayPointALeft">3分岐(A)</button>
+            <button id="addR17ThreewayPointARight"> (A右)</button>
+            <button id="addR17ThreewayPointBLeft"> (B左)</button>
+            <button id="addR17ThreewayPointBRight">(B右)</button>
 
  </div>         
 
@@ -414,10 +501,10 @@
             <button id="addR13PointBLeft">（B左)</button>
             <button id="addR13PointARight">(A右)</button>
             <button id="addR13PointALeft">(A左)</button>
+            <button id="addR22YPointB">Y字(B)</button>
+            <button id="addR22YPointBRev">(B裏)</button>
             <button id="addR22YPointA">Y字(A)</button>
             <button id="addR22YPointARev">(A裏)</button>
-            <button id="addR22YPointB">(B)</button>
-            <button id="addR22YPointBRev">(B裏)</button>
         </div>
         
 
@@ -436,19 +523,7 @@
             <button id="addRails">追加</button>
         </div>
 
-        <div class="section-title">表示操作</div>
-        <div class="button-group">
-            <button id="canvasreset">表示リセット</button>
-            <button id="allclear">全クリア</button>
-        </div>
-        <div style="margin: 10px 0; padding: 8px; background: #f0f0f0; border-radius: 5px;">
-            <label style="display: flex; align-items: center; cursor: pointer;">
-                <input type="checkbox" id="groupMoveMode" style="width: 18px; height: 18px; margin-right: 8px;">
-                <span style="font-size: 14px;">接続レールをまとめて移動</span>
-            </label>
-        </div>
-
-        <div class="section-title">レイアウト保存/読込</div>
+         <div class="section-title">レイアウト保存/読込</div>
         
         <!-- ショートカット入力 -->
         <div style="margin-bottom: 10px;">
@@ -696,12 +771,12 @@ const scaleFactor = 1.1;
 		function reversedegAngle(deg) {
 		return normalizedegAngle(deg + 180);
 		}
-		function rotatedegAngle(deg, delta) {
+function rotatedegAngle(deg, delta) {
 		return normalizedegAngle(deg + delta);
-		}
+}
 
 
-        class StraightRail {
+class StraightRail {
             constructor(x, y, id, length = RAIL_LENGTH, options = {}) {
                 this.x = x;
                 this.y = y;
@@ -775,10 +850,10 @@ const scaleFactor = 1.1;
             	   { x: x1, y: y1, angle: angle1, id: `${this.id}-1`, type: this.startType },
             	   { x: x2, y: y2, angle: angle2, id: `${this.id}-2`, type: this.endType }		];
             }
-        }
+}
 
 
-        class Slide {
+class Slide {
             constructor(x, y, id, slide, length = RAIL_LENGTH) {
                 this.x = x;
                 this.y = y;
@@ -842,7 +917,7 @@ const scaleFactor = 1.1;
             	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1`, type: 'concave' },
             	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2`, type: 'convex' }		];
             }
-        }
+}
 
 
 
@@ -3974,7 +4049,7 @@ function snapToClosestEndpoint(shape) {
         }
     }, {passive: false});
 
-        canvas.addEventListener('dblclick', (e) => {
+    canvas.addEventListener('dblclick', (e) => {
         const world = screenToWorld(e.offsetX, e.offsetY);
 
             rails.forEach((rect, index) => {
@@ -4575,7 +4650,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     }
     
     // ポイントレール: 常にendpoints[1]（ID-2の主要終点）を使用
-    if (addedRail.constructor.name === 'TurnoutRail' ||
+/*    if (addedRail.constructor.name === 'TurnoutRail' ||
         addedRail.constructor.name === 'R13PointRail' ||
         addedRail.constructor.name === 'R22YPointRail' ||
         addedRail.constructor.name === 'R15WidePointRail' ||
@@ -4611,7 +4686,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
             console.log('→ Figure8 L-type: endpoint 1 (ID-2), reversed=false');
         }
         return;
-    }
+    }*/
     
     // Uターンレール: 両端が凹なので特殊処理
     if (addedRail.constructor.name === 'UTurnRail') {
@@ -4628,7 +4703,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
         }
         return;
     }
-    
+/*    
     // 複線レール（4端点）: 凹進行時と通常時で異なる処理
     if (addedRail.isDoubleTrack && endpoints.length === 4) {
         if (wasPlacedFromEnd) {
@@ -4643,7 +4718,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
             console.log('→ Double track rail: endpoint 1 (ID-2, outer convex), reversed=false');
         }
         return;
-    }
+    }*/
     
     // 【原則】通常レール: endpoint 1（ID-2）を使用
     if (endpoints.length >= 2) {
@@ -5020,6 +5095,7 @@ function generateRailId(railType) {
         'doubleTurnout': 'DTT',
         
         // 1/4・1/6レール
+        'quarter': 'Q',
         'quarterV': 'QV',
         'quarterC': 'QC',
         'joint': 'J'
@@ -5181,6 +5257,11 @@ function addRailByType(railType, options = {}) {
             break;
             
         // ===== 1/4レール =====
+        case 'quarter':
+        case 'quarterStraight':
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
+            rail.color = 'skyblue';
+            break;
         case 'quarterV':
         case 'quarterConvex':
             if (isPositionMode) {
@@ -5515,6 +5596,8 @@ function loadFromURL() {
 document.getElementById('saveLayout').addEventListener('click', saveLayout);
 document.getElementById('loadLayout').addEventListener('click', loadLayout);
 
+
+
 // スロット保存/読込
 for (let i = 1; i <= 5; i++) {
     document.getElementById(`saveSlot${i}`).addEventListener('click', () => saveToSlot(i));
@@ -5529,8 +5612,12 @@ document.getElementById('shareTwitter').addEventListener('click', shareToTwitter
 window.addEventListener('DOMContentLoaded', loadFromURL);
 
 // グループ移動モードのチェックボックス
-document.getElementById('groupMoveMode').addEventListener('change', (e) => {
-    groupMoveEnabled = e.target.checked;
+// 接続まとめて移動ボタン
+document.getElementById('groupMoveToggle').addEventListener('click', () => {
+    groupMoveEnabled = !groupMoveEnabled;
+    const btn = document.getElementById('groupMoveToggle');
+    btn.textContent = `まとめ移動: ${groupMoveEnabled ? 'ON' : 'OFF'}`;
+    btn.style.background = groupMoveEnabled ? '#cfc' : '#fff';
 });
 
 
@@ -5987,6 +6074,7 @@ const railShortcuts = {
     'Bl': { type: 'doubleLengthCurve', options: { direction: 'left' } },
     
     // 1/4レール（凸凸と凹凹を区別）
+    'Q.': { type: 'quarterStraight' },
     'Qv': { type: 'quarterConvex' },
     'Qc': { type: 'quarterConcave' },
     
@@ -6015,10 +6103,10 @@ const railShortcuts = {
     'POrv': { type: 'turnout', options: { direction: 'right', type: 'L' } },
     
     // ポイント系 - 8の字
-    'PEr.': { type: 'figure8', options: { type: 'R', reversed: false } },
-    'PErv': { type: 'figure8', options: { type: 'R', reversed: true } },
-    'PEl.': { type: 'figure8', options: { type: 'L', reversed: false } },
-    'PElv': { type: 'figure8', options: { type: 'L', reversed: true } },
+    'PEr.': { type: 'figure8', options: { type: 'R', direction: 'left' } },
+    'PErv': { type: 'figure8', options: { type: 'R', direction: 'right'} },
+    'PEl.': { type: 'figure8', options: { type: 'L', direction: 'left'} },
+    'PElv': { type: 'figure8', options: { type: 'L', direction: 'right' } },
     
     // ポイント系 - 三角・十字・Uターン
     'PT.': { type: 'r30', options: { reversed: false } },
@@ -6236,7 +6324,7 @@ function placeRailWithEps(candidate, sc, epsIndex) {
         } else if (candidate === 'Jc') {
             addJointRail(false); // Jc → 凹凹
         } else {
-            addRailByTypeSimple(sc.type, sc.options || {});
+            addRailByType(sc.type, sc.options || {});
         }
         
         railProgression.endpointIndex = savedIndex;
@@ -6248,7 +6336,7 @@ function placeRailWithEps(candidate, sc, epsIndex) {
         } else if (candidate === 'Jc') {
             addJointRail(false); // Jc → 凹凹
         } else {
-            addRailByTypeSimple(sc.type, sc.options || {});
+            addRailByType(sc.type, sc.options || {});
         }
     }
 }
@@ -6449,14 +6537,24 @@ function railToShortcut(rail) {
             if (rail.length === RAIL_LENGTH * 2) return 'BS';
             if (rail.length === RAIL_LENGTH * 0.5) return 'H';
             if (rail.length === RAIL_LENGTH * 0.25) {
+                // railTypeプロパティを優先
+                if (rail.railType === 'QuarterVV') return 'Qv';
+                if (rail.railType === 'QuarterCC') return 'Qc';
+                // startType/endTypeで判定
                 if (rail.startType === 'convex' && rail.endType === 'convex') return 'Qv';
                 if (rail.startType === 'concave' && rail.endType === 'concave') return 'Qc';
-                return 'Qv'; // フォールバック
+                // 通常は凹→凸なのでQvをフォールバック
+                return 'Q.';
             }
             if (rail.length === RAIL_LENGTH / 6) {
+                // railTypeプロパティを優先
+                if (rail.railType === 'SixthVV') return 'Jv';
+                if (rail.railType === 'SixthCC') return 'Jc';
+                // startType/endTypeで判定
                 if (rail.startType === 'convex' && rail.endType === 'convex') return 'Jv';
                 if (rail.startType === 'concave' && rail.endType === 'concave') return 'Jc';
-                return 'Jv'; // フォールバック
+                // フォールバック
+                return 'Jv';
             }
             return 'S';
             
@@ -6782,7 +6880,8 @@ function findUnconnectedEndpoints(cluster) {
     for (let rail of cluster) {
         const eps = rail.getEndpoints();
         
-        for (let i = 0; i < eps.length; i++) {
+ //       for (let i = 0; i < eps.length; i++) {
+        for (let i = 0; i < 2; i++) {//eps[0],eps[1]以外は無視
             const ep = eps[i];
             
             // この端点に接続可能な全てのレールを見つける
