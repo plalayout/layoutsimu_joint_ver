@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v48.1</title>
+    <title>プラレールレイアウトシミュレータ v49.1</title>
     <style>
         * {
             box-sizing: border-box;
@@ -98,6 +98,23 @@
             button {
                 padding: 16px 12px;
                 font-size: 16px;
+            }
+        }
+        
+        /* スマホ縦持ち: Canvas固定、Controls最大化 */
+        @media (orientation: portrait) and (max-width: 768px) {
+            #canvas-container {
+                height: 400px;
+                max-height: 400px;
+                min-height: 400px;
+                flex: none;  /* flexを解除 */
+            }
+            
+            .controls {
+                flex: 1;  /* 残り全部 */
+                height: auto;
+                min-height: 0;
+                max-height: none;
             }
         }
         
@@ -3023,9 +3040,9 @@ class Figure8PointRail {
         this.highlightColor = COLORS.FIGURE8.highlight;
         
         // 端点構造の説明（実在製品に合わせた定義）:
-        // L型: 起点(凹) → 1本目終点(凸) + 2本目終点(凹)
+        // R型: 起点(凹) → 1本目終点(凸) + 2本目終点(凹)
         //      起点から左右に分岐。1本目は接続元、2本目は接続先
-        // R型: 起点(凹) → 1本目終点(凸) → 2本目終点(凸)
+        // L型: 起点(凹) → 1本目終点(凸) → 2本目終点(凸)
         //      1本目終点から180度反転して2本目。両方とも接続元
     }
 
@@ -3039,8 +3056,8 @@ class Figure8PointRail {
         const dir = this.direction;
 		const oppDir = (dir === 'left') ? 'right' : 'left';
 
-        /* ===== L 系：起点共有・左右分岐（実在製品のL型） ===== */
-        if (this.pointType === 'L') {
+        /* ===== R 系：起点共有・左右分岐（実在製品のR型） ===== */
+        if (this.pointType === 'R') {
 
             // 左（または右）カーブ：凸
             const c1 = new Curve(this.x, this.y, this.id + '-A', dir);
@@ -3058,7 +3075,7 @@ class Figure8PointRail {
             this.curves.push(c1, c2);
         }
 
-        /* ===== R 系：1本目終点から折り返し（実在製品のR型） ===== */
+        /* ===== L 系：1本目終点から折り返し（実在製品のL型） ===== */
         else {
 
             // 1本目：通常カーブ
@@ -3128,8 +3145,8 @@ class Figure8PointRail {
             type: 'concave'
         });
 
-        // L型の場合：起点共有・左右分岐（実在製品のL型）
-        if (this.pointType === 'L') {
+        // R型の場合：起点共有・左右分岐（実在製品のR型）
+        if (this.pointType === 'R') {
             // 1本目終点（凸）
             eps.push({
                 ...this.curves[0].getEndpoints()[1],
@@ -3147,7 +3164,7 @@ class Figure8PointRail {
                 type: 'concave'
             });
         }
-        // R型の場合：1本目終点から折り返し（実在製品のR型）
+        // L型の場合：1本目終点から折り返し（実在製品のR型）
         else {
             // 1本目終点（凸）
             eps.push({
@@ -5455,40 +5472,6 @@ function saveLayout() {
 // ショートカット形式の保存/読込
 // ========================================
 
-// 連続判定（シンプル版）
-function isConnectedToAnyEndpoint(prevRail, currRail) {
-    if (!prevRail) return false;
-    
-    try {
-        const prevEps = prevRail.getEndpoints();
-        const currEps = currRail.getEndpoints();
-        
-        const tolerance = 0.5;
-        
-        // すべての端点ペアをチェック
-        for (let prevEp of prevEps) {
-            for (let currEp of currEps) {
-                const dx = Math.abs(prevEp.x - currEp.x);
-                const dy = Math.abs(prevEp.y - currEp.y);
-                
-                // 角度の差（0度付近で一致）
-                let da = Math.abs(prevEp.angle - currEp.angle);
-                da = Math.min(da, 360 - da);
-                
-                // 座標と角度が一致
-                if (dx < tolerance && dy < tolerance && da < 5) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    } catch (error) {
-        console.warn('連続判定エラー:', error);
-        return false;
-    }
-}
-
 // ショートカット形式で保存
 function loadLayout() {
     const layoutData = document.getElementById('layoutData').value.trim();
@@ -5923,129 +5906,6 @@ document.getElementById('toggleDetailMode').addEventListener('click', () => {
 // ========================================
 
 // レールをショートカット文字列に変換
-function railToShortcut(rail) {
-    const className = rail.constructor.name;
-    const dir = rail.direction;
-    const rev = rail.isReversed;
-    const type = rail.pointType || rail.ThreewayType;
-    const turnoutType = rail.turnoutType;
-    
-    switch(className) {
-        case 'StraightRail':
-            if (rail.length === RAIL_LENGTH * 2) return 'BS';
-            if (rail.length === RAIL_LENGTH * 0.5) return 'H';
-            if (rail.length === RAIL_LENGTH * 0.25) {
-                if (rail.startType === 'convex' && rail.endType === 'convex') return 'Qv';
-                if (rail.startType === 'concave' && rail.endType === 'concave') return 'Qc';
-                return 'Q.';
-            }
-            if (rail.length === RAIL_LENGTH / 6) {
-                if (rail.startType === 'convex' && rail.endType === 'convex') return 'Jv';
-                if (rail.startType === 'concave' && rail.endType === 'concave') return 'Jc';
-                return 'Jv'; // フォールバック
-            }
-            return 'S';
-            
-        case 'Curve':
-            if (rail.radius > RAIL_LENGTH + 10) {
-                return dir === 'right' ? 'Or' : 'Ol';
-            }
-            return dir === 'right' ? 'R' : 'L';
-            
-        case 'DoubleLengthCurve':
-            return dir === 'right' ? 'Br' : 'Bl';
-            
-        case 'Slide':
-            return rail.slide > 0 ? 'Zr' : 'Zl';
-            
-        case 'DoubleTrackRail':
-            return 'DS';
-            
-        case 'DoubleCurveRail':
-            return dir === 'right' ? 'Dr' : 'Dl';
-            
-        case 'DoubleTrackCrossoverRail':
-            return rev ? 'DCv' : 'DC.';
-            
-        case 'DoubleTrackTurnoutRail':
-            if (dir === 'left') return rev ? 'DOlv' : 'DOl.';
-            return rev ? 'DOrv' : 'DOr.';
-            
-        case 'TurnoutRail':
-            if (dir === 'left') return turnoutType === 'L' ? 'POlv' : 'POl.';
-            return turnoutType === 'L' ? 'POrv' : 'POr.';
-            
-        case 'Figure8PointRail':
-            // pointType: 'R' or 'L', direction: 'left' or 'right'
-            const isRType = type === 'R';
-            const isReversed = dir === 'right';
-            
-            if (isRType) {
-                return isReversed ? 'PErv' : 'PEr.';
-            } else {
-                return isReversed ? 'PElv' : 'PEl.';
-            }
-            
-        case 'R30TrianglePointRail':
-            return rev ? 'PTv' : 'PT.';
-            
-        case 'CrossPointRail':
-            return rev ? 'PCv' : 'PC.';
-            
-        case 'UTurnRail':
-            return type === 'U' ? 'PUu' : 'PUv';
-            
-        case 'R13PointRail':
-            if (type === 'A') return dir === 'left' ? 'P3al' : 'P3a.';
-            return dir === 'left' ? 'P3bl' : 'P3b.';
-            
-        case 'R22YPointRail':
-            if (type === 'A') return rev ? 'P2av' : 'P2a.';
-            return rev ? 'P2bv' : 'P2b.';
-            
-        case 'R15WidePointRail':
-            if (type === 'A') return rev ? 'P5av' : 'P5a.';
-            return rev ? 'P5bv' : 'P5b.';
-            
-        case 'R17ThreewayRail':
-            if (type === 'A') return dir === 'left' ? 'P7al' : 'P7ar';
-            return dir === 'left' ? 'P7bl' : 'P7br';
-            
-        default:
-            return '?';
-    }
-}
-
-// レールが接続されているか判定（シンプル版：全端点をチェック）
-function isConnectedToAnyEndpoint(prevRail, currRail) {
-    if (!prevRail || !currRail) return false;
-    
-    try {
-        const prevEps = prevRail.getEndpoints();
-        const currEps = currRail.getEndpoints();
-        
-        const tolerance = 0.5;
-        
-        for (let prevEp of prevEps) {
-            for (let currEp of currEps) {
-                const dx = Math.abs(prevEp.x - currEp.x);
-                const dy = Math.abs(prevEp.y - currEp.y);
-                let da = Math.abs(prevEp.angle - currEp.angle);
-                da = Math.min(da, 360 - da);
-                
-                // 座標が一致 かつ 角度が一致
-                if (dx < tolerance && dy < tolerance && da < 5) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    } catch (error) {
-        console.warn('接続判定エラー:', error);
-        return false;
-    }
-}
 
 // レイアウトをショートカット形式で保存
 // ========================================
@@ -6342,151 +6202,6 @@ function placeRailWithEps(candidate, sc, epsIndex) {
 }
 
 // 座標指定でレールを配置（全レールタイプ対応）
-function addRailByTypeSimple(railType, options = {}) {
-    // 既存のボタンと同じロジックを使用
-    switch(railType) {
-        case 'straight':
-            document.getElementById('addStraight').click();
-            break;
-        case 'curve':
-            if (options.direction === 'right') {
-                document.getElementById('addRightCurve').click();
-            } else {
-                document.getElementById('addLeftCurve').click();
-            }
-            break;
-        case 'halfStraight':
-            document.getElementById('addHalfStraight').click();
-            break;
-        case 'doubleStraight':
-            document.getElementById('addDoubleStraight').click();
-            break;
-        case 'slide':
-            addRailByType('slide', { reversed: !!options.reversed });
-            break;
-        case 'outerCurve':
-            if (options.direction === 'right') {
-                document.getElementById('addRightOuterCurve').click();
-            } else {
-                document.getElementById('addLeftOuterCurve').click();
-            }
-            break;
-        case 'doubleLengthCurve':
-            if (options.direction === 'right') {
-                document.getElementById('addDoubleLengthCurveRight').click();
-            } else {
-                document.getElementById('addDoubleLengthCurveLeft').click();
-            }
-            break;
-        case 'quarterConvex':
-            document.getElementById('addQuarterV').click();
-            break;
-        case 'quarterConcave':
-            document.getElementById('addQuarterC').click();
-            break;
-        case 'jointConvex':
-            // Jv: 凸凸ジョイント（凹進行を停止）
-            addJointRail(true); // isConcaveProgression=true → 凸凸を配置
-            break;
-        case 'jointConcave':
-            // Jc: 凹凹ジョイント（凹進行を開始）
-            addJointRail(false); // isConcaveProgression=false → 凹凹を配置
-            break;
-        case 'doubleTrack':
-            document.getElementById('addDoubleTrack').click();
-            break;
-        case 'doubleCurve':
-            if (options.direction === 'right') {
-                document.getElementById('addDoubleCurveRight').click();
-            } else {
-                document.getElementById('addDoubleCurveLeft').click();
-            }
-            break;
-        case 'doubleCrossover':
-            if (options.reversed) {
-                document.getElementById('addDoubleTrackCrossoverRev').click();
-            } else {
-                document.getElementById('addDoubleTrackCrossover').click();
-            }
-            break;
-        case 'doubleTurnout':
-            const dtId = `addDoubleTrackTurnout${options.direction === 'left' ? 'Left' : 'Right'}${options.reversed ? 'Rev' : ''}`;
-            document.getElementById(dtId).click();
-            break;
-        case 'turnout':
-            let toId;
-            if (options.type === 'L') {
-                // L型
-                toId = `addTurnout${options.direction === 'left' ? 'Left' : 'Right'}L`;
-            } else {
-                // R型
-                toId = `addTurnout${options.direction === 'left' ? 'Left' : 'Right'}`;
-            }
-            console.log('Turnout:', options, '→ Button ID:', toId);
-            const toButton = document.getElementById(toId);
-            if (!toButton) {
-                console.error('ボタンが見つかりません:', toId);
-                return;
-            }
-            toButton.click();
-            break;
-        case 'figure8':
-            // ボタンID対応:
-            // PEr.(type:R, reversed:false) → addFigure8Point
-            // PErv(type:R, reversed:true)  → addFigure8PointRRev
-            // PEl.(type:L, reversed:false) → addFigure8PointL
-            // PElv(type:L, reversed:true)  → addFigure8PointLRev
-            let f8Id;
-            if (options.type === 'R') {
-                f8Id = options.reversed ? 'addFigure8PointRRev' : 'addFigure8Point';
-            } else {
-                f8Id = options.reversed ? 'addFigure8PointLRev' : 'addFigure8PointL';
-            }
-            document.getElementById(f8Id).click();
-            break;
-        case 'r30':
-            if (options.reversed) {
-                document.getElementById('addR30TrianglePointRev').click();
-            } else {
-                document.getElementById('addR30TrianglePoint').click();
-            }
-            break;
-        case 'crossPoint':
-            if (options.reversed) {
-                document.getElementById('addCrossPointRev').click();
-            } else {
-                document.getElementById('addCrossPoint').click();
-            }
-            break;
-        case 'uturn':
-            if (options.type === 'U') {
-                document.getElementById('addUTurnRailU').click();
-            } else {
-                document.getElementById('addUTurnRailV').click();
-            }
-            break;
-        case 'r13':
-            // addR13PointBRight, addR13PointBLeft, addR13PointARight, addR13PointALeft
-            const r13Id = `addR13Point${options.type}${options.direction === 'left' ? 'Left' : 'Right'}`;
-            document.getElementById(r13Id).click();
-            break;
-        case 'r22':
-            // addR22YPointA, addR22YPointARev, addR22YPointB, addR22YPointBRev
-            const r22Id = `addR22YPoint${options.type}${options.reversed ? 'Rev' : ''}`;
-            document.getElementById(r22Id).click();
-            break;
-        case 'r15':
-            const r15Id = `addR15Wide${options.type}${options.reversed ? 'Rev' : ''}`;
-            document.getElementById(r15Id).click();
-            break;
-        case 'r17':
-            const r17Id = `addR17ThreewayPoint${options.type}${options.direction === 'left' ? 'Left' : 'Right'}`;
-            document.getElementById(r17Id).click();
-            break;
-        default:
-            console.warn('Unknown rail type:', railType);
-    }
-}
 
 // ショートカット表示エリアの更新
 function updateShortcutDisplay() {
@@ -6629,36 +6344,6 @@ function railToShortcut(rail) {
 }
 
 // 連続判定（シンプル版）
-function isConnectedToAnyEndpoint(prevRail, currRail) {
-    if (!prevRail || !currRail) return false;
-    
-    try {
-        const prevEps = prevRail.getEndpoints();
-        const currEps = currRail.getEndpoints();
-        
-        const tolerance = 0.5;
-        
-        for (let prevEp of prevEps) {
-            for (let currEp of currEps) {
-                const dx = Math.abs(prevEp.x - currEp.x);
-                const dy = Math.abs(prevEp.y - currEp.y);
-                let da = Math.abs(prevEp.angle - currEp.angle);
-                da = Math.min(da, 360 - da); // 角度差の最小値
-                
-                if (dx < tolerance && dy < tolerance && da < 5) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    } catch (error) {
-        console.warn('連続判定エラー:', error);
-        return false;
-    }
-}
-
-// ショートカット形式で保存
 // ショートカット形式で保存（接続状態ベース）
 // ========================================
 // メイン保存関数
@@ -7102,189 +6787,7 @@ function findNextConnectionExcluding(currentRail, cluster, visited, excludeEpsIn
 }
 
 // 現在のレールから次の接続を探す（旧版・互換性のため残す）
-function findNextConnection(currentRail, cluster, visited) {
-    const eps = currentRail.getEndpoints();
-    
-    for (let i = 0; i < eps.length; i++) {
-        const ep = eps[i];
-        
-        for (let otherRail of cluster) {
-            if (visited.has(otherRail.id)) continue;
-            
-            const otherEps = otherRail.getEndpoints();
-            for (let j = 0; j < otherEps.length; j++) {
-                if (isEndpointsConnected(ep, otherEps[j], currentRail, otherRail, cluster)) {
-                    return { rail: otherRail, epsIndex: j };
-                }
-            }
-        }
-    }
-    
-    return null;
-}
-function buildCluster(startRail, excludeSet) {
-    const cluster = [startRail];
-    const visited = new Set([startRail.id]);
-    const queue = [startRail];
-    
-    while (queue.length > 0) {
-        const rail = queue.shift();
-        const eps = rail.getEndpoints();
-        
-        // 各端点から接続されているレールを探す
-        for (let ep of eps) {
-            for (let otherRail of rails) {
-                if (visited.has(otherRail.id) || excludeSet.has(otherRail.id)) continue;
-                
-                const otherEps = otherRail.getEndpoints();
-                for (let otherEp of otherEps) {
-                    if (isEndpointsConnected(ep, otherEp)) {
-                        cluster.push(otherRail);
-                        visited.add(otherRail.id);
-                        queue.push(otherRail);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    
-    return cluster;
-}
 
-// 2つの端点が接続しているか
-function isEndpointsConnected(ep1, ep2) {
-    const dx = Math.abs(ep1.x - ep2.x);
-    const dy = Math.abs(ep1.y - ep2.y);
-    let da = Math.abs(ep1.angle - ep2.angle);
-    da = Math.min(da, 360 - da);
-    
-    return dx < 0.5 && dy < 0.5 && da < 5;
-}
-
-// クラスタの開始点を探す
-function findClusterStart(cluster) {
-    // 凹端点（未接続）を探す
-    for (let rail of cluster) {
-        const eps = rail.getEndpoints();
-        for (let i = 0; i < eps.length; i++) {
-            const ep = eps[i];
-            if (ep.type !== 'concave') continue;
-            
-            // この端点が他のレールと接続していないか確認
-            let isConnected = false;
-            for (let otherRail of cluster) {
-                if (otherRail.id === rail.id) continue;
-                const otherEps = otherRail.getEndpoints();
-                for (let otherEp of otherEps) {
-                    if (isEndpointsConnected(ep, otherEp)) {
-                        isConnected = true;
-                        break;
-                    }
-                }
-                if (isConnected) break;
-            }
-            
-            if (!isConnected) {
-                return { rail, epsIndex: i, isReversed: true };
-            }
-        }
-    }
-    
-    // 凸端点（未接続）を探す
-    for (let rail of cluster) {
-        const eps = rail.getEndpoints();
-        for (let i = 0; i < eps.length; i++) {
-            const ep = eps[i];
-            if (ep.type !== 'convex') continue;
-            
-            let isConnected = false;
-            for (let otherRail of cluster) {
-                if (otherRail.id === rail.id) continue;
-                const otherEps = otherRail.getEndpoints();
-                for (let otherEp of otherEps) {
-                    if (isEndpointsConnected(ep, otherEp)) {
-                        isConnected = true;
-                        break;
-                    }
-                }
-                if (isConnected) break;
-            }
-            
-            if (!isConnected) {
-                return { rail, epsIndex: i, isReversed: false };
-            }
-        }
-    }
-    
-    // 全て接続済み（ループ）の場合、最初のレールから
-    return { rail: cluster[0], epsIndex: 1, isReversed: false };
-}
-
-// クラスタを文字列化
-function serializeCluster(startPoint, savedSet) {
-    let result = '';
-    let currentRail = startPoint.rail;
-    let currentEpsIndex = startPoint.epsIndex;
-    
-    // 座標指定で開始
-    const x = currentRail.x.toFixed(1);
-    const y = currentRail.y.toFixed(1);
-    const angle = currentRail.angle.toFixed(0);
-    const revFlag = startPoint.isReversed ? 'v' : '';
-    const shortcut = railToShortcut(currentRail);
-    result += `@${x},${y},${angle}${revFlag}:${shortcut}`;
-    savedSet.add(currentRail.id);
-    
-    // 連続配置を辿る
-    const visited = new Set([currentRail.id]);
-    
-    while (true) {
-        const eps = currentRail.getEndpoints();
-        
-        // 現在のレールの各端点から、未訪問の接続レールを探す
-        let nextRail = null;
-        let nextEpsIndex = -1;
-        let usedCurrentEpsIndex = -1;
-        
-        for (let i = 0; i < eps.length; i++) {
-            const currentEp = eps[i];
-            
-            for (let otherRail of rails) {
-                if (visited.has(otherRail.id)) continue;
-                
-                const otherEps = otherRail.getEndpoints();
-                for (let j = 0; j < otherEps.length; j++) {
-                    if (isEndpointsConnected(currentEp, otherEps[j])) {
-                        nextRail = otherRail;
-                        nextEpsIndex = j;
-                        usedCurrentEpsIndex = i;
-                        break;
-                    }
-                }
-                if (nextRail) break;
-            }
-            if (nextRail) break;
-        }
-        
-        if (!nextRail) break;
-        
-        // 次のレールを追加
-        const nextShortcut = railToShortcut(nextRail);
-        if (nextEpsIndex === 1) {
-            result += nextShortcut; // 通常接続
-        } else {
-            result += `[${nextEpsIndex}]${nextShortcut}`; // 分岐接続
-        }
-        
-        savedSet.add(nextRail.id);
-        visited.add(nextRail.id);
-        
-        currentRail = nextRail;
-    }
-    
-    return result;
-}
 
 // テキストボックスからのショートカット実行
 document.getElementById('executeShortcut').addEventListener('click', () => {
