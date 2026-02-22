@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v49.1</title>
+    <title>プラレールレイアウトシミュレータ v49.0</title>
     <style>
         * {
             box-sizing: border-box;
@@ -867,6 +867,42 @@ class StraightRail {
             	   { x: x1, y: y1, angle: angle1, id: `${this.id}-1`, type: this.startType },
             	   { x: x2, y: y2, angle: angle2, id: `${this.id}-2`, type: this.endType }		];
             }
+            
+            // ========== 新規追加メソッド ==========
+            
+            toShortcut() {
+                if (this.length === RAIL_LENGTH ) return 'S';	
+                if (this.length === RAIL_LENGTH * 2) return 'BS';
+                if (this.length === RAIL_LENGTH * 0.5) return 'H';
+
+                if (this.length === RAIL_LENGTH * 0.25) {
+
+				// 端点の凹凸を見て確実に判定
+					if (this.startType === 'convex' && this.endType === 'convex') return 'Qv';
+					if (this.startType === 'concave' && this.endType === 'concave') return 'Qc';
+					if (this.startType === 'concave' && this.endType === 'convex') return 'Q.';
+				// 異常パターン
+						return 'xQ';  // unknown quarter
+                }
+                if (this.length === RAIL_LENGTH / 6) {
+                    if (this.startType === 'convex' && this.endType === 'convex') return 'Jv';
+                    if (this.startType === 'concave' && this.endType === 'concave') return 'Jc';
+                    return 'xJ';
+                }
+                return 'xS';
+            }
+            
+            getRailType() {
+                return 'straight';
+            }
+            
+            toggleType() {
+                // 直線レールはタイプ変換なし
+            }
+            
+            toggleReverse() {
+                // 直線レールは表裏なし
+            }
 }
 
 
@@ -934,6 +970,20 @@ class Slide {
             	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1`, type: 'concave' },
             	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2`, type: 'convex' }		];
             }
+            
+            // ========== 新規追加メソッド ==========
+            
+            toShortcut() {
+                return this.slide > 0 ? 'Zr' : 'Zl';
+            }
+            
+            getRailType() {
+                return 'slide';
+            }
+            
+            toggleType() {}
+            
+            toggleReverse() {}
 }
 
 
@@ -1044,6 +1094,30 @@ class Curve {
             { x: x1, y: y1, angle:  this.angle  , id: `${this.id}-1`, type: 'concave' },
             { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + this.turnAngle : this.angle -this.turnAngle, id: `${this.id}-2`, type: 'convex' }
         ];
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+		if(this.turnAngle === 45){
+			if (this.radius === RAIL_LENGTH ) return this.direction === 'right' ? 'R' : 'L';
+			if (this.radius === RAIL_LENGTH + D_TRACK_WIDTH) return this.direction === 'right' ? 'Or' : 'Ol';
+        }else if(this.turnAngle === 90){
+			if (this.radius === RAIL_LENGTH ) return this.direction === 'right' ? 'Br' : 'Bl';
+		}
+        return this.direction === 'right' ? 'xR' : 'xL';
+    }
+    
+    getRailType() {
+        return 'curve';
+    }
+    
+    toggleType() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+    }
+    
+    toggleReverse() {
+        // カーブはdirectionのみ
     }
 }
 
@@ -1199,6 +1273,29 @@ class TurnoutRail {
         }
 
         return eps;
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.direction === 'left') {
+            return this.turnoutType === 'L' ? 'POlv' : 'POl.';
+        }
+        return this.turnoutType === 'L' ? 'POrv' : 'POr.';
+    }
+    
+    getRailType() {
+        return 'turnout';
+    }
+    
+    toggleType() {
+        this.turnoutType = (this.turnoutType === 'R') ? 'L' : 'R';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+        this._sync();
     }
 }
 
@@ -1387,6 +1484,29 @@ class R17ThreewayRail {
 
         return eps;
     }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.ThreewayType === 'A') {
+            return this.direction === 'left' ? 'P7al' : 'P7ar';
+        }
+        return this.direction === 'left' ? 'P7bl' : 'P7br';
+    }
+    
+    getRailType() {
+        return 'r17';
+    }
+    
+    toggleType() {
+        this.ThreewayType = (this.ThreewayType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
 }
 
 
@@ -1543,6 +1663,29 @@ class R13PointRail {
         }
 
         return eps;
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.direction === 'left' ? 'P3al' : 'P3a.';
+        }
+        return this.direction === 'left' ? 'P3bl' : 'P3b.';
+    }
+    
+    getRailType() {
+        return 'r13';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+        this._sync();
     }
 }
 
@@ -1702,7 +1845,30 @@ class R22YPointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.isReversed ? 'P2av' : 'P2a.';
+        }
+        return this.isReversed ? 'P2bv' : 'P2b.';
     }
+    
+    getRailType() {
+        return 'r22';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class R15WidePointRail {
@@ -1910,7 +2076,30 @@ class R15WidePointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.isReversed ? 'P5av' : 'P5a.';
+        }
+        return this.isReversed ? 'P5bv' : 'P5b.';
     }
+    
+    getRailType() {
+        return 'r15';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class R30TrianglePointRail {
@@ -2047,7 +2236,24 @@ class R30TrianglePointRail {
         });
             
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'PTv' : 'PT.';
     }
+    
+    getRailType() {
+        return 'r30';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class CrossPointRail {
@@ -2214,7 +2420,24 @@ class CrossPointRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'PCv' : 'PC.';
     }
+    
+    getRailType() {
+        return 'crossPoint';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackCrossoverRail {
@@ -2342,7 +2565,24 @@ class DoubleTrackCrossoverRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'DCv' : 'DC.';
     }
+    
+    getRailType() {
+        return 'doubleCrossover';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackTurnoutRail {
@@ -2551,7 +2791,27 @@ class DoubleTrackTurnoutRail {
 		}
 	
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.direction === 'left') {
+            return this.isReversed ? 'DOlv' : 'DOl.';
+        }
+        return this.isReversed ? 'DOrv' : 'DOr.';
     }
+    
+    getRailType() {
+        return 'doubleTurnout';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackRail {
@@ -2658,7 +2918,21 @@ class DoubleTrackRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return 'DS';
     }
+    
+    getRailType() {
+        return 'doubleTrack';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {}
+
 }
 
 class DoubleCurveRail {
@@ -2774,7 +3048,23 @@ class DoubleCurveRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.direction === 'right' ? 'Dr' : 'Dl';
     }
+    
+    getRailType() {
+        return 'doubleCurve';
+    }
+    
+    toggleType() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+    }
+    
+    toggleReverse() {}
+
 }
 
 class DoubleLengthCurve {
@@ -3182,7 +3472,64 @@ class Figure8PointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        const isRType = this.pointType === 'R';
+        const isReversed = this.direction === 'right';
+        
+        if (isRType) {
+            return isReversed ? 'PErv' : 'PEr.';
+        } else {
+            return isReversed ? 'PElv' : 'PEl.';
+        }
     }
+    
+    getRailType() {
+        return 'figure8';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'R') ? 'L' : 'R';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.type === 'U' ? 'PUu' : 'PUv';
+    }
+    
+    getRailType() {
+        return 'uturn';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {}
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.direction === 'right' ? 'Br' : 'Bl';
+    }
+    
+    getRailType() {
+        return 'doubleLengthCurve';
+    }
+    
+    toggleType() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+    }
+    
+    toggleReverse() {}
+
 }
 
     // ==========================================
