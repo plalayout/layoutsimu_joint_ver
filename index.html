@@ -983,7 +983,11 @@ class Slide {
             
             toggleType() {}
             
-            toggleReverse() {}
+            toggleReverse() {
+			
+			this.slide = -selectedShape.slide;
+			
+			}
 }
 
 
@@ -1113,11 +1117,10 @@ class Curve {
     }
     
     toggleType() {
-        this.direction = (this.direction === 'right') ? 'left' : 'right';
     }
     
     toggleReverse() {
-        // カーブはdirectionのみ
+         this.direction = (this.direction === 'right') ? 'left' : 'right';
     }
 }
 
@@ -2805,7 +2808,9 @@ class DoubleTrackTurnoutRail {
         return 'doubleTurnout';
     }
     
-    toggleType() {}
+    toggleType() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+	}
     
     toggleReverse() {
         this.isReversed = !this.isReversed;
@@ -3175,6 +3180,27 @@ class DoubleLengthCurve {
             { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 90 : this.angle - 90, id: `${this.id}-2`, type: 'convex' }
         ];
     }
+	
+	    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.direction === 'right' ? 'Br' : 'Bl';
+    }
+    
+    getRailType() {
+        return 'doubleLengthCurve';
+    }
+    
+    toggleType() {
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
+	
+	
+	
 }
 
 class UTurnRail {
@@ -3314,6 +3340,25 @@ class UTurnRail {
             { x: this.x + track1OffsetX, y: this.y + track1OffsetY, angle: this.angle , id: `${this.id}-3`, type: 'concave' }
         ];
     }
+
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.type === 'U' ? 'PUu' : 'PUv';
+    }
+    
+    getRailType() {
+        return 'uturn';
+    }
+    
+     toggleType() {
+        this.pointType = (this.pointType === 'U') ? 'V' : 'U';
+        this._sync();
+    }
+    
+    
+    toggleReverse() {}
+
 }
 
 
@@ -3500,35 +3545,9 @@ class Figure8PointRail {
         this._sync();
     }
     
-    // ========== 新規追加メソッド ==========
+
     
-    toShortcut() {
-        return this.type === 'U' ? 'PUu' : 'PUv';
-    }
-    
-    getRailType() {
-        return 'uturn';
-    }
-    
-    toggleType() {}
-    
-    toggleReverse() {}
-    
-    // ========== 新規追加メソッド ==========
-    
-    toShortcut() {
-        return this.direction === 'right' ? 'Br' : 'Bl';
-    }
-    
-    getRailType() {
-        return 'doubleLengthCurve';
-    }
-    
-    toggleType() {
-        this.direction = (this.direction === 'right') ? 'left' : 'right';
-    }
-    
-    toggleReverse() {}
+
 
 }
 
