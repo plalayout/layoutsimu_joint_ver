@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v49.1</title>
+    <title>プラレールレイアウトシミュレータ v49.0</title>
     <style>
         * {
             box-sizing: border-box;
@@ -599,8 +599,7 @@
         <div id="rotateRight">右回転 (45°)</div>
         <div id="rotateLeft">左回転 (45°)</div>
         <div id="toggleType">タイプ切替 (R/L, A/B)</div>
-        <div id="toggleDirection">方向反転 (裏/表)</div>
-        <div id="toggleEndpoints">端点切替</div>
+        <div id="toggleReverse">裏/表</div>
         <div id="duplicate">複製</div>
         <div id="delete">削除</div>
     </div>
@@ -867,6 +866,60 @@ class StraightRail {
             	   { x: x1, y: y1, angle: angle1, id: `${this.id}-1`, type: this.startType },
             	   { x: x2, y: y2, angle: angle2, id: `${this.id}-2`, type: this.endType }		];
             }
+            
+            // ========== 新規追加メソッド ==========
+            
+            toShortcut() {
+                if (this.length === RAIL_LENGTH ) return 'S';	
+                if (this.length === RAIL_LENGTH * 2) return 'BS';
+                if (this.length === RAIL_LENGTH * 0.5) return 'H';
+
+                if (this.length === RAIL_LENGTH * 0.25) {
+
+				// 端点の凹凸を見て確実に判定
+					if (this.startType === 'convex' && this.endType === 'convex') return 'Qv';
+					if (this.startType === 'concave' && this.endType === 'concave') return 'Qc';
+					if (this.startType === 'concave' && this.endType === 'convex') return 'Q.';
+				// 異常パターン
+						return 'xQ';  // unknown quarter
+                }
+                if (this.length === RAIL_LENGTH / 6) {
+                    if (this.startType === 'convex' && this.endType === 'convex') return 'Jv';
+                    if (this.startType === 'concave' && this.endType === 'concave') return 'Jc';
+                    return 'xJ';
+                }
+                return 'xS';
+            }
+            
+            getRailType() {
+                return 'straight';
+            }
+            
+            toggleType() {
+				
+                // 直線レールはタイプ変換なし
+				if(this.length === RAIL_LENGTH * 0.25){
+	            const current = `${this.startType}-${this.endType}`;
+                
+                // 凹凸 → 凹凹 → 凸凸 → 凹凸 の順で切り替え
+                if (current === 'concave-convex') {
+                    this.startType = 'concave';
+                    this.endType = 'concave';
+                } else if (current === 'concave-concave') {
+                    this.startType = 'convex';
+                    this.endType = 'convex';
+                } else {
+                    this.startType = 'concave';
+                    this.endType = 'convex';
+                }		
+				}
+			
+			
+			}
+            
+            toggleReverse() {
+                // 直線レールは表裏なし
+            }
 }
 
 
@@ -934,6 +987,24 @@ class Slide {
             	   { x: x1, y: y1, angle: this.angle, id: `${this.id}-1`, type: 'concave' },
             	   { x: x2, y: y2, angle: this.angle, id: `${this.id}-2`, type: 'convex' }		];
             }
+            
+            // ========== 新規追加メソッド ==========
+            
+            toShortcut() {
+                return this.slide > 0 ? 'Zr' : 'Zl';
+            }
+            
+            getRailType() {
+                return 'slide';
+            }
+            
+            toggleType() {}
+            
+            toggleReverse() {
+			
+			this.slide = -this.slide;
+			
+			}
 }
 
 
@@ -1044,6 +1115,29 @@ class Curve {
             { x: x1, y: y1, angle:  this.angle  , id: `${this.id}-1`, type: 'concave' },
             { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + this.turnAngle : this.angle -this.turnAngle, id: `${this.id}-2`, type: 'convex' }
         ];
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+		if(this.turnAngle === 45){
+			if (this.radius === RAIL_LENGTH ) return this.direction === 'right' ? 'R' : 'L';
+			if (this.radius === RAIL_LENGTH + D_TRACK_WIDTH) return this.direction === 'right' ? 'Or' : 'Ol';
+        }else if(this.turnAngle === 90){
+			if (this.radius === RAIL_LENGTH ) return this.direction === 'right' ? 'Br' : 'Bl';
+		}
+        return this.direction === 'right' ? 'xR' : 'xL';
+    }
+    
+    getRailType() {
+        return 'curve';
+    }
+    
+    toggleType() {
+    }
+    
+    toggleReverse() {
+         this.direction = (this.direction === 'right') ? 'left' : 'right';
     }
 }
 
@@ -1199,6 +1293,29 @@ class TurnoutRail {
         }
 
         return eps;
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.direction === 'left') {
+            return this.turnoutType === 'L' ? 'POlv' : 'POl.';
+        }
+        return this.turnoutType === 'L' ? 'POrv' : 'POr.';
+    }
+    
+    getRailType() {
+        return 'turnout';
+    }
+    
+    toggleType() {
+        this.turnoutType = (this.turnoutType === 'R') ? 'L' : 'R';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+        this._sync();
     }
 }
 
@@ -1387,6 +1504,29 @@ class R17ThreewayRail {
 
         return eps;
     }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.ThreewayType === 'A') {
+            return this.direction === 'left' ? 'P7al' : 'P7ar';
+        }
+        return this.direction === 'left' ? 'P7bl' : 'P7br';
+    }
+    
+    getRailType() {
+        return 'r17';
+    }
+    
+    toggleType() {
+        this.ThreewayType = (this.ThreewayType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
 }
 
 
@@ -1543,6 +1683,29 @@ class R13PointRail {
         }
 
         return eps;
+    }
+    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.direction === 'left' ? 'P3al' : 'P3a.';
+        }
+        return this.direction === 'left' ? 'P3bl' : 'P3b.';
+    }
+    
+    getRailType() {
+        return 'r13';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+        this._sync();
     }
 }
 
@@ -1702,7 +1865,30 @@ class R22YPointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.isReversed ? 'P2av' : 'P2a.';
+        }
+        return this.isReversed ? 'P2bv' : 'P2b.';
     }
+    
+    getRailType() {
+        return 'r22';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class R15WidePointRail {
@@ -1910,7 +2096,30 @@ class R15WidePointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.pointType === 'A') {
+            return this.isReversed ? 'P5av' : 'P5a.';
+        }
+        return this.isReversed ? 'P5bv' : 'P5b.';
     }
+    
+    getRailType() {
+        return 'r15';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class R30TrianglePointRail {
@@ -2047,7 +2256,24 @@ class R30TrianglePointRail {
         });
             
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'PTv' : 'PT.';
     }
+    
+    getRailType() {
+        return 'r30';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class CrossPointRail {
@@ -2214,7 +2440,24 @@ class CrossPointRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'PCv' : 'PC.';
     }
+    
+    getRailType() {
+        return 'crossPoint';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackCrossoverRail {
@@ -2342,7 +2585,24 @@ class DoubleTrackCrossoverRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.isReversed ? 'DCv' : 'DC.';
     }
+    
+    getRailType() {
+        return 'doubleCrossover';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackTurnoutRail {
@@ -2551,7 +2811,29 @@ class DoubleTrackTurnoutRail {
 		}
 	
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        if (this.direction === 'left') {
+            return this.isReversed ? 'DOlv' : 'DOl.';
+        }
+        return this.isReversed ? 'DOrv' : 'DOr.';
     }
+    
+    getRailType() {
+        return 'doubleTurnout';
+    }
+    
+    toggleType() {
+        this.direction = (this.direction === 'right') ? 'left' : 'right';
+	}
+    
+    toggleReverse() {
+        this.isReversed = !this.isReversed;
+        this._sync();
+    }
+
 }
 
 class DoubleTrackRail {
@@ -2658,7 +2940,21 @@ class DoubleTrackRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return 'DS';
     }
+    
+    getRailType() {
+        return 'doubleTrack';
+    }
+    
+    toggleType() {}
+    
+    toggleReverse() {}
+
 }
 
 class DoubleCurveRail {
@@ -2774,7 +3070,25 @@ class DoubleCurveRail {
         });
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.direction === 'right' ? 'Dr' : 'Dl';
     }
+    
+    getRailType() {
+        return 'doubleCurve';
+    }
+    
+    toggleType() {
+        
+    }
+    
+    toggleReverse() {
+	this.direction = (this.direction === 'right') ? 'left' : 'right';
+	}
+
 }
 
 class DoubleLengthCurve {
@@ -2885,6 +3199,27 @@ class DoubleLengthCurve {
             { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 90 : this.angle - 90, id: `${this.id}-2`, type: 'convex' }
         ];
     }
+	
+	    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.direction === 'right' ? 'Br' : 'Bl';
+    }
+    
+    getRailType() {
+        return 'doubleLengthCurve';
+    }
+    
+    toggleType() {
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
+	
+	
+	
 }
 
 class UTurnRail {
@@ -3024,6 +3359,27 @@ class UTurnRail {
             { x: this.x + track1OffsetX, y: this.y + track1OffsetY, angle: this.angle , id: `${this.id}-3`, type: 'concave' }
         ];
     }
+
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        return this.type === 'U' ? 'PUu' : 'PUv';
+    }
+    
+    getRailType() {
+        return 'uturn';
+    }
+    
+     toggleType() {
+
+    }
+    
+    
+    toggleReverse() {
+		this.type = (this.type === 'U') ? 'V' : 'U';
+        this._sync();
+	}
+
 }
 
 
@@ -3182,7 +3538,38 @@ class Figure8PointRail {
         }
 
         return eps;
+    }    
+    // ========== 新規追加メソッド ==========
+    
+    toShortcut() {
+        const isRType = this.pointType === 'R';
+        const isReversed = this.direction === 'right';
+        
+        if (isRType) {
+            return isReversed ? 'PErv' : 'PEr.';
+        } else {
+            return isReversed ? 'PElv' : 'PEl.';
+        }
     }
+    
+    getRailType() {
+        return 'figure8';
+    }
+    
+    toggleType() {
+        this.pointType = (this.pointType === 'R') ? 'L' : 'R';
+        this._sync();
+    }
+    
+    toggleReverse() {
+        this.direction = (this.direction === 'left') ? 'right' : 'left';
+        this._sync();
+    }
+    
+
+    
+
+
 }
 
     // ==========================================
@@ -4307,84 +4694,23 @@ document.getElementById('delete').addEventListener('click', () => {
     }
 });
         // タイプ切替 (R/L, A/B)
-        document.getElementById('toggleType').addEventListener('click', () => {
+document.getElementById('toggleType').addEventListener('click', () => {
             if (selectedShape) {
-                // ターンアウトのR/L切替
-                if (selectedShape.turnoutType) {
-                    selectedShape.turnoutType = selectedShape.turnoutType === 'R' ? 'L' : 'R';
-                }
-                // R-13ポイントのA/B切替
-                else if (selectedShape.pointType && selectedShape.constructor.name === 'R13PointRail') {
-                    selectedShape.pointType = selectedShape.pointType === 'A' ? 'B' : 'A';
-                }
-                // R-22 Y字ポイントのA/B切替
-                else if (selectedShape.pointType && selectedShape.constructor.name === 'R22YPointRail') {
-                    selectedShape.pointType = selectedShape.pointType === 'A' ? 'B' : 'A';
-                }
-                // R-15複線幅広ポイントのA/B切替
-                else if (selectedShape.pointType && selectedShape.constructor.name === 'R15WidePointRail') {
-                    selectedShape.pointType = selectedShape.pointType === 'A' ? 'B' : 'A';
-                }
-                // R-17三方向ポイントのA/B切替
-                else if (selectedShape.ThreewayType && selectedShape.constructor.name === 'R17ThreewayRail') {
-                    selectedShape.ThreewayType = selectedShape.ThreewayType === 'A' ? 'B' : 'A';
-                }
-                // 8の字ポイントのR/L切替
-                else if (selectedShape.pointType && selectedShape.constructor.name === 'Figure8PointRail') {
-                    if (selectedShape.pointType === 'R') selectedShape.pointType = 'L';
-                    else if (selectedShape.pointType === 'L') selectedShape.pointType = 'R';
-                    else if (selectedShape.pointType === 'R_REV') selectedShape.pointType = 'L_REV';
-                    else if (selectedShape.pointType === 'L_REV') selectedShape.pointType = 'R_REV';
-                }
+				selectedShape.toggleType();
                 drawAll();
                 document.getElementById('contextMenu').style.display = 'none';
             }
         });
 
         // 方向反転 (裏/表、左/右)
-        document.getElementById('toggleDirection').addEventListener('click', () => {
+        document.getElementById('toggleReverse').addEventListener('click', () => {
             if (selectedShape) {
-                if (selectedShape.direction) {
-                    selectedShape.direction = selectedShape.direction === 'left' ? 'right' : 'left';
-                }
-                // スライドレールの方向反転
-                if (selectedShape.slide !== undefined) {
-                    selectedShape.slide = -selectedShape.slide;
-                }
-                // R-15複線幅広ポイントの裏タイプ切替
-                if (selectedShape.isReversed !== undefined) {
-                    selectedShape.isReversed = !selectedShape.isReversed;
-                }
+				selectedShape.toggleReverse();
                 drawAll();
                 document.getElementById('contextMenu').style.display = 'none';
             }
         });
 
-        // 端点切替 (凹凸/凸凸/凹凹)
-        document.getElementById('toggleEndpoints').addEventListener('click', () => {
-            if (selectedShape && selectedShape.constructor.name === 'StraightRail') {
-                // 現在の状態を判定
-                const current = `${selectedShape.startType}-${selectedShape.endType}`;
-                
-                // 凹凸 → 凹凹 → 凸凸 → 凹凸 の順で切り替え
-                if (current === 'concave-convex') {
-                    selectedShape.startType = 'concave';
-                    selectedShape.endType = 'concave';
-                } else if (current === 'concave-concave') {
-                    selectedShape.startType = 'convex';
-                    selectedShape.endType = 'convex';
-                } else {
-                    selectedShape.startType = 'concave';
-                    selectedShape.endType = 'convex';
-                }
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
-
-        document.addEventListener('click', () => {
-            document.getElementById('contextMenu').style.display = 'none';
-        });
 
 
 // 最後に置いたレールの端点を取得する関数
@@ -6241,106 +6567,7 @@ console.log('使い方: S, R, L などを入力してEnterキーで配置');
 
 // レールをショートカットに変換
 function railToShortcut(rail) {
-    const className = rail.constructor.name;
-    const dir = rail.direction;
-    const rev = rail.isReversed;
-    const type = rail.pointType || rail.ThreewayType || rail.type; // UTurnRail対応
-    const turnoutType = rail.turnoutType;
-    
-    switch(className) {
-        case 'StraightRail':
-            if (rail.length === RAIL_LENGTH * 2) return 'BS';
-            if (rail.length === RAIL_LENGTH * 0.5) return 'H';
-            if (rail.length === RAIL_LENGTH * 0.25) {
-                // railTypeプロパティを優先
-                if (rail.railType === 'QuarterVV') return 'Qv';
-                if (rail.railType === 'QuarterCC') return 'Qc';
-                // startType/endTypeで判定
-                if (rail.startType === 'convex' && rail.endType === 'convex') return 'Qv';
-                if (rail.startType === 'concave' && rail.endType === 'concave') return 'Qc';
-                // 通常は凹→凸なのでQvをフォールバック
-                return 'Q.';
-            }
-            if (rail.length === RAIL_LENGTH / 6) {
-                // railTypeプロパティを優先
-                if (rail.railType === 'SixthVV') return 'Jv';
-                if (rail.railType === 'SixthCC') return 'Jc';
-                // startType/endTypeで判定
-                if (rail.startType === 'convex' && rail.endType === 'convex') return 'Jv';
-                if (rail.startType === 'concave' && rail.endType === 'concave') return 'Jc';
-                // フォールバック
-                return 'Jv';
-            }
-            return 'S';
-            
-        case 'Curve':
-            if (rail.radius > RAIL_LENGTH + 10) {
-                return dir === 'right' ? 'Or' : 'Ol';
-            }
-            return dir === 'right' ? 'R' : 'L';
-            
-        case 'DoubleLengthCurve':
-            return dir === 'right' ? 'Br' : 'Bl';
-            
-        case 'Slide':
-            return rail.slide > 0 ? 'Zr' : 'Zl';
-            
-        case 'DoubleTrackRail':
-            return 'DS';
-            
-        case 'DoubleCurveRail':
-            return dir === 'right' ? 'Dr' : 'Dl';
-            
-        case 'DoubleTrackCrossoverRail':
-            return rev ? 'DCv' : 'DC.';
-            
-        case 'DoubleTrackTurnoutRail':
-            if (dir === 'left') return rev ? 'DOlv' : 'DOl.';
-            return rev ? 'DOrv' : 'DOr.';
-            
-        case 'TurnoutRail':
-            if (dir === 'left') return turnoutType === 'L' ? 'POlv' : 'POl.';
-            return turnoutType === 'L' ? 'POrv' : 'POr.';
-            
-        case 'Figure8PointRail':
-            // pointType: 'R' or 'L', direction: 'left' or 'right'
-            const isRType = type === 'R';
-            const isReversed = dir === 'right';
-            
-            if (isRType) {
-                return isReversed ? 'PErv' : 'PEr.';
-            } else {
-                return isReversed ? 'PElv' : 'PEl.';
-            }
-            
-        case 'R30TrianglePointRail':
-            return rev ? 'PTv' : 'PT.';
-            
-        case 'CrossPointRail':
-            return rev ? 'PCv' : 'PC.';
-            
-        case 'UTurnRail':
-            return type === 'U' ? 'PUu' : 'PUv';
-            
-        case 'R13PointRail':
-            if (type === 'A') return dir === 'left' ? 'P3al' : 'P3a.';
-            return dir === 'left' ? 'P3bl' : 'P3b.';
-            
-        case 'R22YPointRail':
-            if (type === 'A') return rev ? 'P2av' : 'P2a.';
-            return rev ? 'P2bv' : 'P2b.';
-            
-        case 'R15WidePointRail':
-            if (type === 'A') return rev ? 'P5av' : 'P5a.';
-            return rev ? 'P5bv' : 'P5b.';
-            
-        case 'R17ThreewayRail':
-            if (type === 'A') return dir === 'left' ? 'P7al' : 'P7ar';
-            return dir === 'left' ? 'P7bl' : 'P7br';
-            
-        default:
-            return '?';
-    }
+	return rail.toShortcut();
 }
 
 // 連続判定（シンプル版）
@@ -6683,7 +6910,7 @@ function serializeOneSegment(cluster) {
     const y = startRail.y.toFixed(1);
     const angle = startRail.angle.toFixed(0);
     const vFlag = isReversed ? 'v' : '';
-    const shortcut = railToShortcut(startRail);
+    const shortcut = startRail.toShortcut();
     
     let result = `@${x},${y},${angle}${vFlag}:${shortcut}`;
     console.log(`    開始: ${startRail.id}[${startEpsIndex}から] → ${result}`);
@@ -6714,7 +6941,7 @@ function serializeOneSegment(cluster) {
     }
     
     // 最初のレールを追加
-    const firstShortcut = railToShortcut(firstRail);
+    const firstShortcut = firstRail.toShortcut();
     const firstText = firstEpsIndex === 0 ? firstShortcut : `[${firstEpsIndex}]${firstShortcut}`;
     result += firstText;
     console.log(`      [${++stepCount}] ${currentRail.id} → ${firstRail.id}[${firstEpsIndex}] : ${firstText}`);
@@ -6744,7 +6971,7 @@ function serializeOneSegment(cluster) {
             continue;
         }
         
-        const nextShortcut = railToShortcut(nextRail);
+        const nextShortcut = nextRail.toShortcut();
         // 通常接続: eps[0]（凹）から入る場合
         // 分岐接続: eps[1]以降から入る場合
         const addText = nextEpsIndex === 0 ? nextShortcut : `[${nextEpsIndex}]${nextShortcut}`;
