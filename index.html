@@ -1816,7 +1816,7 @@ class R13PointRail {
 	
 	getRailOptions() {
         return {
-            pointType: this.pointType,
+            type: this.pointType,
             direction: this.direction
         };
     }
@@ -2008,8 +2008,8 @@ class R22YPointRail {
 	
 	getRailOptions() {
         return {
-            pointType: this.pointType,
-            isReversed: this.isReversed
+            type: this.pointType,
+            reversed: this.isReversed
         };
     }
 
@@ -5796,8 +5796,9 @@ function addRailByType(railType, options = {}) {
             rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, length, options);
             
             // 色の設定（後方互換性）
-            if (railType === 'halfStraight') rail.color = 'lightblue';
-            if (railType === 'doubleStraight') rail.color = 'navy';
+            if (railType === 'quater'||railType === 'quaterVV'||railType === 'quaterVV') rail.color = COLORS.QUARTER.base;
+            if (railType === 'halfStraight') rail.color = COLORS.HALF_STRAIGHT.base;
+            if (railType === 'doubleStraight') rail.color = COLORS.DOUBLE_STRAIGHT.base;
             break;
             
         // ===== 基本曲線（統合） =====
@@ -5810,7 +5811,8 @@ function addRailByType(railType, options = {}) {
             rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction, radius, turnAngle);
             
             // 色の設定（後方互換性）
-            if (railType === 'outerCurve') rail.color = 'purple';
+            if (railType === 'outerCurve') rail.color = COLORS.OUTER_CURVE.base;
+            if (railType === 'doubleLengthCurve') rail.color = COLORS.DOUBLE_CURVE.base;
             break;
             
         // ===== スライドレール =====
