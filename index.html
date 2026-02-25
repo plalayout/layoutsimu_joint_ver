@@ -794,7 +794,39 @@ class StraightRail {
                 // 端点タイプ（デフォルトは凹凸）
                 this.startType = options.startType || 'concave';
                 this.endType = options.endType || 'convex';
-           }
+           
+		       // railTypeを自動設定
+				if (options.railType) {
+					this.railType = options.railType;
+				} else if (length === RAIL_LENGTH) {
+					this.railType = 'straight';
+				} else if (length === RAIL_LENGTH * 2) {
+					this.railType = 'doubleStraight';
+				} else if (length === RAIL_LENGTH * 0.5) {
+					this.railType = 'halfStraight';
+				} else if (length === RAIL_LENGTH * 0.25) {
+			// 端点タイプで区別
+					if (this.startType === 'convex' && this.endType === 'convex') {
+						this.railType = 'quarterVV';
+					} else if (this.startType === 'concave' && this.endType === 'concave') {
+						this.railType = 'quarterCC';
+					} else {
+						this.railType = 'quarter';
+					}
+				} else if (length === RAIL_LENGTH / 6) {
+				// 端点タイプで区別
+					if (this.startType === 'convex' && this.endType === 'convex') {
+						this.railType = 'sixthVV';
+					} else if (this.startType === 'concave' && this.endType === 'concave') {
+						this.railType = 'sixthCC';
+					} else {
+						this.railType = 'sixth';
+					}
+				} else {
+		           this.railType = 'customStraight';
+				}
+		   
+		   }
 
             draw() {
                 if (useRealisticRendering) {
@@ -907,6 +939,18 @@ class StraightRail {
             toggleReverse() {
                 // 直線レールは表裏なし
             }
+			
+			getRailOptions() {
+                const opts = { length: this.length };
+                // 1/4直線または1/6直線の場合は端点タイプも含める
+                if (this.length === RAIL_LENGTH * 0.25 || this.length === RAIL_LENGTH / 6) {
+                    opts.startType = this.startType;
+                    opts.endType = this.endType;
+                    opts.railType = this.railType;
+                }
+                return opts;
+            }
+			
 }
 
 
@@ -921,6 +965,7 @@ class Slide {
 				this.color = COLORS.SLIDE.base;
 				this.highlightColor = COLORS.SLIDE.highlight;
                 this.slide = slide;
+				this.isReversed = (this.slide <0 )?true:false;
            }
 
             draw() {
@@ -992,13 +1037,20 @@ class Slide {
 			this.slide = -this.slide;
 			
 			}
+			
+			getRailOptions() {
+				return {reversed: this.isReversed
+				};
+			}
+			
+			
 }
 
 
 
 
 class Curve {
-    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH) {
+    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH,turnAngle=45) {
         this.x = x;
         this.y = y;
         this.width = RAIL_WIDTH;
@@ -1008,7 +1060,24 @@ class Curve {
 		this.color = COLORS.CURVE.base;
 		this.highlightColor = COLORS.CURVE.highlight;
         this.direction = direction; // 'left' or 'right'
-		this.turnAngle = 45;
+		this.turnAngle = turnAngle;
+
+        // railTypeを自動設定
+        if (turnAngle === 45 && radius === RAIL_LENGTH) {
+            this.railType = 'curve';
+			this.color = COLORS.CURVE.base;
+			this.highlightColor = COLORS.CURVE.highlight;
+        } else if (turnAngle === 45 && radius === RAIL_LENGTH + D_TRACK_WIDTH) {
+            this.railType = 'outerCurve';
+        } else if (turnAngle === 90 && radius === RAIL_LENGTH) {
+		    this.color = COLORS.DOUBLE_CURVE.base;
+			this.highlightColor = COLORS.DOUBLE_CURVE.highlight;
+            this.railType = 'doubleLengthCurve';
+        } else {
+            this.railType = 'customCurve';
+        }
+
+
     }
 
      draw() {
@@ -1126,6 +1195,19 @@ class Curve {
     toggleReverse() {
          this.direction = (this.direction === 'right') ? 'left' : 'right';
     }
+		 
+    getRailOptions() {
+        return {
+            direction: this.direction,
+            radius: this.radius,
+            turnAngle: this.turnAngle
+        };
+    }
+	
+	
+	
+	
+	
 }
 
 
@@ -1310,6 +1392,16 @@ class TurnoutRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            type: this.turnoutType,
+            direction: this.direction
+        };
+    }
+	
+	
+	
 }
 
 
@@ -1526,6 +1618,15 @@ class R17ThreewayRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            ThreewayType: this.ThreewayType,
+            direction: this.direction
+        };
+    }
+	
+	
 }
 
 
@@ -1712,6 +1813,14 @@ class R13PointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            pointType: this.pointType,
+            direction: this.direction
+        };
+    }
+	
 }
 
 class R22YPointRail {
@@ -1895,6 +2004,13 @@ class R22YPointRail {
         this.isReversed = !this.isReversed;
         this._dirty = true;
         this._sync();
+    }
+	
+	getRailOptions() {
+        return {
+            pointType: this.pointType,
+            isReversed: this.isReversed
+        };
     }
 
 }
@@ -2133,6 +2249,13 @@ class R15WidePointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            reversed: this.isReversed
+        };
+    }
 
 }
 
@@ -2291,6 +2414,12 @@ class R30TrianglePointRail {
         this.isReversed = !this.isReversed;
         this._dirty = true;
         this._sync();
+    }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
     }
 
 }
@@ -2481,6 +2610,12 @@ class CrossPointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
+    }
 
 }
 
@@ -2630,6 +2765,12 @@ class DoubleTrackCrossoverRail {
         this.isReversed = !this.isReversed;
         this._dirty = true;
         this._sync();
+    }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
     }
 
 }
@@ -2867,6 +3008,13 @@ class DoubleTrackTurnoutRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            direction: this.direction,
+            reversed: this.isReversed
+        };
+    }
 
 }
 
@@ -2991,6 +3139,10 @@ class DoubleTrackRail {
     toggleType() {}
     
     toggleReverse() {}
+	
+	getRailOptions() {
+        return {};
+    }
 
 }
 
@@ -3128,10 +3280,16 @@ class DoubleCurveRail {
     toggleReverse() {
 	this.direction = (this.direction === 'right') ? 'left' : 'right';
 	}
+	
+	getRailOptions() {
+        return {
+            direction: this.direction
+        };
+    }
 
 }
 
-class DoubleLengthCurve {
+/* class DoubleLengthCurve {
     constructor(x, y, id, direction = DIRECTION_LEFT) {
         this.x = x;
         this.y = y;
@@ -3153,7 +3311,7 @@ class DoubleLengthCurve {
     /* =========================
        描画
     ========================= */
-    draw() {
+  /*  draw() {
         if (useRealisticRendering) {
             // リアル描画（4層）
             this.drawWithWidth(14, 'black');
@@ -3190,7 +3348,7 @@ class DoubleLengthCurve {
     /* =========================
        当たり判定
     ========================= */
-    contains(mx, my) {
+   /* contains(mx, my) {
         const angleRad = this.angle * Math.PI / 180;
         const cos = Math.cos(angleRad);
         const sin = Math.sin(angleRad);
@@ -3218,7 +3376,7 @@ class DoubleLengthCurve {
     /* =========================
        endpoint
     ========================= */
-    getEndpoints() {
+   /* getEndpoints() {
         const angleRad = this.angle * Math.PI / 180;
         const cos = Math.cos(angleRad);
         const sin = Math.sin(angleRad);
@@ -3262,7 +3420,7 @@ class DoubleLengthCurve {
 	
 	
 	
-}
+} */
 
 class UTurnRail {
     constructor(x, y, id, type = 'U') {
@@ -3426,6 +3584,12 @@ class UTurnRail {
         this._dirty = true;
         this._sync();
 	}
+	
+	getRailOptions() {
+        return {
+            type: this.type
+        };
+    }
 
 }
 
@@ -3615,12 +3779,16 @@ class Figure8PointRail {
         this._dirty = true;
         this._sync();
     }
-    
-
-    
-
-
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            direction: this.direction
+        };
+    }
 }
+
+//
 
     // ==========================================
     // ジョイント描画関数
@@ -4757,19 +4925,25 @@ document.getElementById('rotateLeft').addEventListener('click', () => {
 });
 
 document.getElementById('duplicate').addEventListener('click', () => {
-    if (selectedShape) {
-        if (selectedShape instanceof Rect) {
-            const newRect = new Rect(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
-            newRect.angle = selectedShape.angle;
-            rails.push(newRect);
-        } else if (selectedShape instanceof Curve) {
-            const newRect = new Curve(selectedShape.x + 100, selectedShape.y + 100, `L${rails.length + 1}`);
-            newRect.angle = selectedShape.angle;
-            rails.push(newRect);
+
+ if (selectedShape && typeof selectedShape.getRailType === 'function') {
+        const railType = selectedShape.getRailType();
+        const options = {
+            x: selectedShape.x + 100,
+            y: selectedShape.y + 100,
+            angle: selectedShape.angle
+        };
+        
+        // レール固有のオプションを取得
+        if (typeof selectedShape.getRailOptions === 'function') {
+            Object.assign(options, selectedShape.getRailOptions());
         }
+        
+        addRailByType(railType, options);
         drawAll();
         closeContextMenu();
     }
+
 });
 
 document.getElementById('delete').addEventListener('click', () => {
@@ -4967,8 +5141,8 @@ function adjustRailPlacement(rail, lastEndpoint) {
     const dy = lastEndpoint.y - endPoint.y;
     rail.x += dx;
     rail.y += dy;
-    console.log('Step 3: Translated by dx=', dx.toFixed(2), 'dy=', dy.toFixed(2));
-    console.log('        New rail position (', rail.x.toFixed(1), ',', rail.y.toFixed(1), ')');
+   // console.log('Step 3: Translated by dx=', dx.toFixed(2), 'dy=', dy.toFixed(2));
+   // console.log('        New rail position (', rail.x.toFixed(1), ',', rail.y.toFixed(1), ')');
     
     // Step 4: 終点の角度を目標角度に合わせる
     railEndpoints = rail.getEndpoints();
@@ -4990,18 +5164,18 @@ function adjustRailPlacement(rail, lastEndpoint) {
     while (angleDiff > 180) angleDiff -= 360;
     while (angleDiff < -180) angleDiff += 360;
     
-    console.log('Step 4: Target end angle=', targetEndAngle, 'Current end angle=', currentEndAngle);
-    console.log('        Angle difference=', angleDiff.toFixed(2), 'degrees');
+    //console.log('Step 4: Target end angle=', targetEndAngle, 'Current end angle=', currentEndAngle);
+    //console.log('        Angle difference=', angleDiff.toFixed(2), 'degrees');
     
     if (Math.abs(angleDiff) > 0.1) {
-        console.log('        Rotating around (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ')');
+     //   console.log('        Rotating around (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ')');
         rotateRailAroundPoint(rail, lastEndpoint.x, lastEndpoint.y, angleDiff);
         
         // 回転後の角度を正規化
         rail.angle = ((rail.angle % 360) + 360) % 360;
 
         if (rail._dirty !== undefined) rail._dirty = true;
-        console.log('        Rotated. New rail angle=', rail.angle);
+        //console.log('        Rotated. New rail angle=', rail.angle);
     }
     
     // 検証
@@ -5024,8 +5198,8 @@ function adjustRailPlacement(rail, lastEndpoint) {
     let finalAngleDiff = Math.abs(normalizedAngle - finalEndAngle);
     if (finalAngleDiff > 180) finalAngleDiff = 360 - finalAngleDiff;
     
-    console.log('Verification: Final distance=', finalDistance.toFixed(3), 'px, angle diff=', finalAngleDiff.toFixed(2), 'deg');
-    console.log('=== Adjustment complete ===');
+   // console.log('Verification: Final distance=', finalDistance.toFixed(3), 'px, angle diff=', finalAngleDiff.toFixed(2), 'deg');
+   // console.log('=== Adjustment complete ===');
 }
 
 // レール追加後の進行方向更新
@@ -5036,9 +5210,9 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     // レールタイプによって進行方向を自動調整
     const endpoints = addedRail.getEndpoints();
     
-    console.log('updateProgression: rail=', addedRail.id, 'type=', addedRail.constructor.name, 
-                'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
-                'wasPlacedFromEnd=', wasPlacedFromEnd);
+    //console.log('updateProgression: rail=', addedRail.id, 'type=', addedRail.constructor.name, 
+    //            'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
+     //           'wasPlacedFromEnd=', wasPlacedFromEnd);
     
     // 【最優先】1/4凸凸・1/6凸凸（ジョイント凸凸）: 凹進行を停止
     if (addedRail.railType === 'QuarterVV' ||
@@ -5051,7 +5225,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
             // 凹から配置された凸凸レール: 起点(凸)が次の接続点、凹進行停止
             railProgression.endpointIndex = 0; // 起点(凸)
             railProgression.isReversed = false; // ❗ 凹進行停止
-            console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false (stop concave progression)');
+            //console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false (stop concave progression)');
         } else {
             // 通常配置された凸凸レール: 終点(凸)が次の接続点
             railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凸)
@@ -5160,7 +5334,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     if (endpoints.length >= 2) {
         railProgression.endpointIndex = 1; // eps[1] (ID-2)
         railProgression.isReversed = false;
-        console.log('→ Normal rail: endpoint 1 (ID-2), reversed=false');
+        //console.log('→ Normal rail: endpoint 1 (ID-2), reversed=false');
     } else {
         // 端点が1つしかない場合（通常ありえない）
         railProgression.endpointIndex = 0;
@@ -5542,6 +5716,43 @@ function generateRailId(railType) {
     return `${prefix}${rails.length + 1}`;
 }
 
+// レールタイプから長さを取得
+function getLengthFromRailType(railType) {
+    switch(railType) {
+        case 'straight': return RAIL_LENGTH;
+        case 'halfStraight': return RAIL_LENGTH * 0.5;
+        case 'doubleStraight': return RAIL_LENGTH * 2;
+        case 'quarter':
+        case 'quarterVV':
+        case 'quarterCC':
+            return RAIL_LENGTH * 0.25;
+        case 'sixth':
+        case 'sixthVV':
+        case 'sixthCC':
+            return RAIL_LENGTH / 6;
+        default: return RAIL_LENGTH;
+    }
+}
+
+// レールタイプから半径を取得
+function getRadiusFromRailType(railType) {
+    switch(railType) {
+        case 'curve':
+        case 'doubleLengthCurve':
+            return RAIL_LENGTH;
+        case 'outerCurve':
+            return RAIL_LENGTH + D_TRACK_WIDTH;
+        default:
+            return RAIL_LENGTH;
+    }
+}
+
+// レールタイプから角度を取得
+function getAngleFromRailType(railType) {
+    return railType === 'doubleLengthCurve' ? 90 : 45;
+}
+
+
 // 統一レール追加関数
 function addRailByType(railType, options = {}) {
     // レール追加時は選択端点をクリア
@@ -5560,7 +5771,7 @@ function addRailByType(railType, options = {}) {
             type: 'convex',
             placeFromEnd: false
         };
-        console.log('addRailByType (座標指定モード):', { x: options.x, y: options.y, angle: options.angle, railType });
+        //console.log('addRailByType (座標指定モード):', { x: options.x, y: options.y, angle: options.angle, railType });
     } else {
         // 通常モード: 最後の端点から配置
         lastEndpoint = getLastEndpoint();
@@ -5571,37 +5782,35 @@ function addRailByType(railType, options = {}) {
     let rail = null;
     
     switch(railType) {
-        // ===== 基本直線 =====
+        // ===== 基本直線（統合） =====
         case 'straight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-            break;
-            
         case 'halfStraight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
-            rail.color = 'lightblue';
-            break;
-            
         case 'doubleStraight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
-            rail.color = 'navy';
+        case 'quarter':
+        case 'quarterVV':
+        case 'quarterCC':
+        case 'sixth':
+        case 'sixthVV':
+        case 'sixthCC':
+            const length = options.length || getLengthFromRailType(railType);
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, length, options);
+            
+            // 色の設定（後方互換性）
+            if (railType === 'halfStraight') rail.color = 'lightblue';
+            if (railType === 'doubleStraight') rail.color = 'navy';
             break;
             
-        // ===== 基本曲線 =====
+        // ===== 基本曲線（統合） =====
         case 'curve':
-            const direction = options.direction || 'right';
-            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction);
-            break;
-            
         case 'outerCurve':
-            const outerDir = options.direction || 'right';
-            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, outerDir);
-            rail.radius = RAIL_LENGTH + D_TRACK_WIDTH;
-            rail.color = 'purple';
-            break;
-            
         case 'doubleLengthCurve':
-            const dlDir = options.direction || 'right';
-            rail = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, dlDir);
+            const direction = options.direction || 'right';
+            const radius = options.radius || getRadiusFromRailType(railType);
+            const turnAngle = options.turnAngle || getAngleFromRailType(railType);
+            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction, radius, turnAngle);
+            
+            // 色の設定（後方互換性）
+            if (railType === 'outerCurve') rail.color = 'purple';
             break;
             
         // ===== スライドレール =====
@@ -5640,6 +5849,7 @@ function addRailByType(railType, options = {}) {
         case 'r13':
             const r13Type = options.type || 'A';
             const r13Dir = options.direction || 'right';
+			console.log(options);
             rail = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, r13Type, r13Dir);
             break;
 
