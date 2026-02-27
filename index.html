@@ -660,7 +660,8 @@ const scaleFactor = 1.1;
         // ========================================
         // リアル描画モード設定
         // ========================================
-        let useRealisticRendering = true; // リアル描画モード（初期値: true = 詳細）
+        let useRealisticRendering = false; // リアル描画モード（初期値: true = 詳細）
+        let useRealisticRendering2 = true; // リアル描画モード(溝考慮）（初期値: true = 詳細）
 
         // ========================================
         // レール色定義（ベース色 + ハイライト色）
@@ -779,6 +780,149 @@ function rotatedegAngle(deg, delta) {
 }
 
 
+// ========================================
+// 複合レール基底クラス
+// ========================================
+
+/**
+ * 複合レール（components配列を持つレール）の基底クラス
+ * 共通の描画ロジック、同期処理、トグル操作を提供
+ */
+class ComplexRail {
+    constructor() {
+        this.components = [];
+        this._dirty = true;
+        this.x = 0;
+        this.y = 0;
+        this.angle = 0;
+        this.id = '';
+        this.color = 'gray';
+        this.highlightColor = 'lightgray';
+    }
+    
+    // ========== 描画 ==========
+    
+    /**
+     * 標準描画
+     */
+    draw() {
+        this._sync();
+        this.drawParts(this.components);
+    }
+    
+    /**
+     * パーツ配列の描画
+     * @param {Array} parts - 描画するパーツ配列
+     */
+    drawParts(parts) {
+        if (useRealisticRendering) {
+            parts.forEach(c => c.drawWithWidth(14, 'black'));
+            parts.forEach(c => c.drawWithWidth(12, this.color));
+            parts.forEach(c => c.drawWithWidth(6, this.highlightColor));
+            parts.forEach(c => c.drawWithWidth(4, this.color));
+        } else if (useRealisticRendering2) {
+            parts.forEach(c => c.drawWithWidth(5, this.color, 4));
+            parts.forEach(c => c.drawWithDoubleLine(2, 'black', 6));
+            parts.forEach(c => c.drawWithDoubleLine(3, 'black', 3.5));
+            parts.forEach(c => c.drawWithDoubleLine(3, this.color, 4.5));
+        } else {
+            parts.forEach(c => c.draw());
+        }
+    }
+    
+    // ========== 同期 ==========
+    
+    /**
+     * ダーティフラグによる同期
+     */
+    _sync() {
+        if (!this._dirty) return;
+        this._buildComponents();
+        this._dirty = false;
+    }
+    
+    /**
+     * コンポーネント構築（子クラスで実装必須）
+     */
+    _buildComponents() {
+        throw new Error('_buildComponents() must be implemented by subclass');
+    }
+    
+    // ========== 当たり判定 ==========
+    
+    /**
+     * 標準当たり判定
+     */
+    contains(mx, my) {
+        this._sync();
+        return this.components.some(c => c.contains(mx, my));
+    }
+    
+    // ========== 端点取得 ==========
+    
+    /**
+     * 端点取得（子クラスで実装必須）
+     */
+    getEndpoints() {
+        throw new Error('getEndpoints() must be implemented by subclass');
+    }
+    
+    // ========== トグル操作 ==========
+    
+    /**
+     * タイプ切替（子クラスでオーバーライド）
+     */
+    toggleType() {
+        // デフォルトは何もしない
+    }
+    
+    /**
+     * 表裏/方向反転（子クラスでオーバーライド）
+     */
+    toggleReverse() {
+        // デフォルトは何もしない
+    }
+    
+    // ========== トグル操作ヘルパー ==========
+    
+    /**
+     * 2値プロパティの切替
+     * @param {string} propName - プロパティ名
+     * @param {*} value1 - 値1
+     * @param {*} value2 - 値2
+     */
+    _toggleProperty(propName, value1, value2) {
+        this[propName] = (this[propName] === value1) ? value2 : value1;
+        this._dirty = true;
+        this._sync();
+    }
+    
+    /**
+     * 真偽値プロパティの切替
+     * @param {string} propName - プロパティ名
+     */
+    _toggleBoolean(propName) {
+        this[propName] = !this[propName];
+        this._dirty = true;
+        this._sync();
+    }
+    
+    // ========== 情報取得（子クラスで実装必須） ==========
+    
+    getRailType() {
+        throw new Error('getRailType() must be implemented by subclass');
+    }
+    
+    toShortcut() {
+        throw new Error('toShortcut() must be implemented by subclass');
+    }
+    
+    getRailOptions() {
+        throw new Error('getRailOptions() must be implemented by subclass');
+    }
+}
+
+
 class StraightRail {
             constructor(x, y, id, length = RAIL_LENGTH, options = {}) {
                 this.x = x;
@@ -794,7 +938,39 @@ class StraightRail {
                 // 端点タイプ（デフォルトは凹凸）
                 this.startType = options.startType || 'concave';
                 this.endType = options.endType || 'convex';
-           }
+           
+		       // railTypeを自動設定
+				if (options.railType) {
+					this.railType = options.railType;
+				} else if (length === RAIL_LENGTH) {
+					this.railType = 'straight';
+				} else if (length === RAIL_LENGTH * 2) {
+					this.railType = 'doubleStraight';
+				} else if (length === RAIL_LENGTH * 0.5) {
+					this.railType = 'halfStraight';
+				} else if (length === RAIL_LENGTH * 0.25) {
+			// 端点タイプで区別
+					if (this.startType === 'convex' && this.endType === 'convex') {
+						this.railType = 'quarterVV';
+					} else if (this.startType === 'concave' && this.endType === 'concave') {
+						this.railType = 'quarterCC';
+					} else {
+						this.railType = 'quarter';
+					}
+				} else if (length === RAIL_LENGTH / 6) {
+				// 端点タイプで区別
+					if (this.startType === 'convex' && this.endType === 'convex') {
+						this.railType = 'sixthVV';
+					} else if (this.startType === 'concave' && this.endType === 'concave') {
+						this.railType = 'sixthCC';
+					} else {
+						this.railType = 'sixth';
+					}
+				} else {
+		           this.railType = 'customStraight';
+				}
+		   
+		   }
 
             draw() {
                 if (useRealisticRendering) {
@@ -803,20 +979,38 @@ class StraightRail {
                     this.drawWithWidth(12, this.color);
                     this.drawWithWidth(6, this.highlightColor);
                     this.drawWithWidth(4, this.color);
-                } else {
+                } else if (useRealisticRendering2) {
+                    // リアル描画（4層）
+                    this.drawWithDoubleLine(2, 'black',6);
+                    this.drawWithWidth(5, this.color,4);
+                    this.drawWithDoubleLine(3, this.highlightColor,3.5);
+                    this.drawWithDoubleLine(3, this.color,4.5);
+                } else{
                     // シンプル描画（1層）
                     this.drawWithWidth(this.width, this.color);
                 }
             }
             
-            drawWithWidth(width, color) {
+            drawWithWidth(width, color,offset=0) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle * Math.PI / 180);
                 ctx.fillStyle = color;
-                ctx.fillRect(-width / 2, 0, width, this.length);
+                ctx.fillRect(-width / 2, offset, width, this.length-offset * 2);
 				ctx.restore();
             }
+			
+            drawWithDoubleLine(width, color,offset) {
+                ctx.save();
+				ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * Math.PI / 180);
+                ctx.fillStyle = color;
+                ctx.fillRect(-width / 2+offset, 0, width, this.length);
+				ctx.fillRect(-width / 2-offset, 0, width, this.length);
+		
+				ctx.restore();
+            }
+
 
             contains(mx, my) {
  
@@ -907,6 +1101,20 @@ class StraightRail {
             toggleReverse() {
                 // 直線レールは表裏なし
             }
+			
+			getRailOptions() {
+                const opts = { 
+                    length: this.length,
+                    railType: this.railType  // ✅ 常にrailTypeを含める
+                };
+                // 1/4直線または1/6直線の場合は端点タイプも含める
+                if (this.length === RAIL_LENGTH * 0.25 || this.length === RAIL_LENGTH / 6) {
+                    opts.startType = this.startType;
+                    opts.endType = this.endType;
+                }
+                return opts;
+            }
+			
 }
 
 
@@ -921,6 +1129,7 @@ class Slide {
 				this.color = COLORS.SLIDE.base;
 				this.highlightColor = COLORS.SLIDE.highlight;
                 this.slide = slide;
+				this.isReversed = (this.slide <0 )?true:false;
            }
 
             draw() {
@@ -930,13 +1139,20 @@ class Slide {
                     this.drawWithWidth(12, this.color);
                     this.drawWithWidth(6, this.highlightColor);
                     this.drawWithWidth(4, this.color);
+                } else　if (useRealisticRendering2) {
+                    // リアル描画(溝考慮）（4層）                    
+					this.drawWithDoubleLine(2, 'black',6);
+                    this.drawWithWidth(6, this.color,4);
+					this.drawWithDoubleLine(3, this.highlightColor,3.5);
+                    this.drawWithDoubleLine(3, this.color,4.5);
+                 
                 } else {
                     // シンプル描画（1層）
                     this.drawWithWidth(this.width, this.color);
                 }
             }
             
-            drawWithWidth(width, color) {
+            drawWithWidth(width, color,offset=0) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle * Math.PI / 180);
@@ -945,9 +1161,28 @@ class Slide {
                 ctx.lineCap = 'butt';
 
 				ctx.beginPath();
-				ctx.moveTo(0, 0);
-				ctx.bezierCurveTo(0, this.length * 0.5, this.slide, this.length * 0.5, this.slide, this.length);
+				ctx.moveTo(0, offset);
+				ctx.bezierCurveTo(0, this.length * 0.5, this.slide, this.length * 0.5, this.slide, this.length-offset);
 				ctx.stroke();
+				ctx.restore();
+            }
+			
+			drawWithDoubleLine(width, color,offset=0) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * Math.PI / 180);
+
+				const p0 = { x: 0,  		y:0 };
+				const p1 = { x: 0, 		y:this.length * 0.5 };
+				const p2 = { x: this.slide, 	y:this.length * 0.5 };
+				const p3 = { x: this.slide, 	y:this.length };
+				ctx.strokeStyle = color;
+				ctx.lineWidth = width;
+                ctx.lineCap = 'butt';
+
+				ctx.beginPath();
+				drawOffsetBezier(ctx, p0, p1, p2, p3,  offset);
+				drawOffsetBezier(ctx, p0, p1, p2, p3, -offset);
 				ctx.restore();
             }
 
@@ -992,13 +1227,71 @@ class Slide {
 			this.slide = -this.slide;
 			
 			}
+			
+			getRailOptions() {
+				return {reversed: this.isReversed
+				};
+			}
+			
+			
+}
+
+// オフセット曲線を描画(スライドレール描写補助）
+//
+// 使用例 p0,p1,p2,p3:{x: y:}の座標　
+
+function drawOffsetBezier(ctx, p0, p1, p2, p3, offset, steps = 16) {
+    ctx.beginPath();
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const pt = cubicBezierPoint(t, p0, p1, p2, p3);
+        const tan = cubicBezierTangent(t, p0, p1, p2, p3);
+        const n = normalVector(tan);
+        const offPt = { x: pt.x + n.x * offset, y: pt.y + n.y * offset };
+        if (i === 0) ctx.moveTo(offPt.x, offPt.y);
+        else ctx.lineTo(offPt.x, offPt.y);
+    }
+    ctx.stroke();
+}
+
+
+// 3次ベジェ曲線の点を計算
+function cubicBezierPoint(t, p0, p1, p2, p3) {
+    const mt = 1 - t;
+    const x = mt**3 * p0.x +
+              3 * mt**2 * t * p1.x +
+              3 * mt * t**2 * p2.x +
+              t**3 * p3.x;
+    const y = mt**3 * p0.y +
+              3 * mt**2 * t * p1.y +
+              3 * mt * t**2 * p2.y +
+              t**3 * p3.y;
+    return { x, y };
+}
+
+// 接線ベクトル
+function cubicBezierTangent(t, p0, p1, p2, p3) {
+    const mt = 1 - t;
+    const x = 3 * mt**2 * (p1.x - p0.x) +
+              6 * mt * t * (p2.x - p1.x) +
+              3 * t**2 * (p3.x - p2.x);
+    const y = 3 * mt**2 * (p1.y - p0.y) +
+              6 * mt * t * (p2.y - p1.y) +
+              3 * t**2 * (p3.y - p2.y);
+    return { x, y };
+}
+
+// 法線ベクトル（正規化）
+function normalVector(tangent) {
+    const len = Math.hypot(tangent.x, tangent.y);
+    if (len === 0) return { x: 0, y: 0 };
+    return { x: -tangent.y / len, y: tangent.x / len };
 }
 
 
 
-
 class Curve {
-    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH) {
+    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH,turnAngle=45) {
         this.x = x;
         this.y = y;
         this.width = RAIL_WIDTH;
@@ -1008,7 +1301,24 @@ class Curve {
 		this.color = COLORS.CURVE.base;
 		this.highlightColor = COLORS.CURVE.highlight;
         this.direction = direction; // 'left' or 'right'
-		this.turnAngle = 45;
+		this.turnAngle = turnAngle;
+
+        // railTypeを自動設定
+        if (turnAngle === 45 && radius === RAIL_LENGTH) {
+            this.railType = 'curve';
+			this.color = COLORS.CURVE.base;
+			this.highlightColor = COLORS.CURVE.highlight;
+        } else if (turnAngle === 45 && radius === RAIL_LENGTH + D_TRACK_WIDTH) {
+            this.railType = 'outerCurve';
+        } else if (turnAngle === 90 && radius === RAIL_LENGTH) {
+		    this.color = COLORS.DOUBLE_CURVE.base;
+			this.highlightColor = COLORS.DOUBLE_CURVE.highlight;
+            this.railType = 'doubleLengthCurve';
+        } else {
+            this.railType = 'customCurve';
+        }
+
+
     }
 
      draw() {
@@ -1018,13 +1328,41 @@ class Curve {
             this.drawWithWidth(12, this.color);
             this.drawWithWidth(6, this.highlightColor);
             this.drawWithWidth(4, this.color);
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（溝考慮）（4層）
+            this.drawWithDoubleLine(2, 'black',6);
+            this.drawWithWidth(5, this.color,4);
+            this.drawWithDoubleLine(3, this.highlightColor,3.5);
+            this.drawWithDoubleLine(3, this.color,4.5);
+        } else{
             // シンプル描画（1層）
             this.drawWithWidth(this.width, this.color);
         }
     }
     
-    drawWithWidth(width, color) {
+    drawWithWidth(width, color,offset=0) {//
+		const turnRad = this.turnAngle/180 * Math.PI;
+		const angleoffset = Math.asin(offset/this.radius);
+	 
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle * Math.PI / 180);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        if (this.direction === DIRECTION_LEFT) {
+            ctx.arc(-this.radius, 0, this.radius, 0+angleoffset, turnRad-angleoffset);
+        } else if (this.direction === DIRECTION_RIGHT) {
+            ctx.arc(this.radius, 0, this.radius, Math.PI -turnRad + angleoffset, Math.PI-angleoffset);
+        } else {
+            throw new Error(`Invalid direction: ${this.direction}`);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+	
+	drawWithDoubleLine(width, color,offset=0) {
 		const turnRad = this.turnAngle/180 * Math.PI;
 	 
         ctx.save();
@@ -1035,9 +1373,15 @@ class Curve {
         ctx.lineCap = 'butt';
         ctx.beginPath();
         if (this.direction === DIRECTION_LEFT) {
-            ctx.arc(-this.radius, 0, this.radius, 0, turnRad);
+            ctx.arc(-this.radius, 0, this.radius + offset, 0, turnRad);ctx.stroke();ctx.beginPath();
+
+            ctx.arc(-this.radius, 0, this.radius - offset, 0, turnRad);
+
         } else if (this.direction === DIRECTION_RIGHT) {
-            ctx.arc(this.radius, 0, this.radius, Math.PI -turnRad, Math.PI);
+            ctx.arc(this.radius, 0, this.radius + offset, Math.PI -turnRad, Math.PI);ctx.stroke();ctx.beginPath();
+
+            ctx.arc(this.radius, 0, this.radius - offset, Math.PI -turnRad, Math.PI);
+
         } else {
             throw new Error(`Invalid direction: ${this.direction}`);
         }
@@ -1126,20 +1470,32 @@ class Curve {
     toggleReverse() {
          this.direction = (this.direction === 'right') ? 'left' : 'right';
     }
+		 
+    getRailOptions() {
+        return {
+            direction: this.direction,
+            radius: this.radius,
+            turnAngle: this.turnAngle
+        };
+    }
+	
+	
+	
+	
+	
 }
 
 
 
-class TurnoutRail {
+class TurnoutRail extends ComplexRail {
     constructor(x, y, id, turnoutType = 'R', direction = 'left') {
+        super();
         this.x = x;
         this.y = y;
         this.id = id;
         this.angle = 0;
         this.turnoutType = turnoutType;   // 'R' or 'L'
         this.direction = direction;       // 'left' or 'right'
-        this.components = [];
-        this._dirty = true;  // ダーティフラグ
         this.color = COLORS.TURNOUT.base;
         this.highlightColor = COLORS.TURNOUT.highlight;
         this._sync();  // 初期構築
@@ -1196,40 +1552,7 @@ class TurnoutRail {
         }
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
-
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
-            // シンプル描画
-            this.components.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
+    // ========== draw(), _sync(), contains()は基底クラスから継承 ==========
 
     /* =========================
        endpoint
@@ -1299,22 +1622,32 @@ class TurnoutRail {
         return 'turnout';
     }
     
+    // ✅ ヘルパー使用で簡略化
     toggleType() {
-        this.turnoutType = (this.turnoutType === 'R') ? 'L' : 'R';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('turnoutType', 'R', 'L');
     }
     
+    // ✅ ヘルパー使用で簡略化
     toggleReverse() {
-        this.direction = (this.direction === 'right') ? 'left' : 'right';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('direction', 'left', 'right');
     }
+	
+	getRailOptions() {
+        return {
+            type: this.turnoutType,
+            direction: this.direction
+        };
+    }
+	
+	
+
 }
 
 
 class R17ThreewayRail {
     constructor(x, y, id, ThreewayType = 'B', direction = 'left') {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -1415,7 +1748,14 @@ class R17ThreewayRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             // シンプル描画
             this.components.forEach(c => c.draw());
         }
@@ -1522,23 +1862,29 @@ class R17ThreewayRail {
     }
     
     toggleReverse() {
-        this.direction = (this.direction === 'left') ? 'right' : 'left';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('direction', 'left', 'right');
     }
+	
+	getRailOptions() {
+        return {
+            ThreewayType: this.ThreewayType,
+            direction: this.direction
+        };
+    }
+	
+	
 }
 
 
-class R13PointRail {
+class R13PointRail extends ComplexRail {
     constructor(x, y, id, pointType = 'B', direction = 'right') {
+        super();
         this.x = x;
         this.y = y;
         this.id = id;
         this.angle = 0;
         this.pointType = pointType;   // 'B' or 'A'
         this.direction = direction;   // 'right' or 'left' (スライドの方向)
-        this.components = [];
-        this._dirty = true;  // ダーティフラグ
         this.color = COLORS.R13.base;
         this.highlightColor = COLORS.R13.highlight;
         this._sync();  // 初期構築
@@ -1619,7 +1965,14 @@ class R13PointRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             // シンプル描画
             this.components.forEach(c => c.draw());
         }
@@ -1702,16 +2055,20 @@ class R13PointRail {
     }
     
     toggleType() {
-        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('pointType', 'A', 'B');
     }
     
     toggleReverse() {
-        this.direction = (this.direction === 'right') ? 'left' : 'right';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('direction', 'left', 'right');
     }
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            direction: this.direction
+        };
+    }
+	
 }
 
 class R22YPointRail {
@@ -1723,6 +2080,7 @@ class R22YPointRail {
         this.pointType = pointType;   // 'A' or 'B'
         this.isReversed = isReversed; // 裏タイプ
         this.slides = [];
+        this._dirty = true;
         this.color = COLORS.R22.base;
         this.highlightColor = COLORS.R22.highlight;
         this._sync();  // 初期構築  // R-22 Y字ポイント専用の色
@@ -1796,7 +2154,14 @@ class R22YPointRail {
             this.slides.forEach(c => c.drawWithWidth(12, this.color));
             this.slides.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.slides.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.slides.forEach(c => c.drawWithWidth(5, this.color,4));
+            this.slides.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.slides.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.slides.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             // シンプル描画
             this.slides.forEach(c => c.draw());
         }    }
@@ -1886,9 +2251,7 @@ class R22YPointRail {
     }
     
     toggleType() {
-        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('pointType', 'A', 'B');
     }
     
     toggleReverse() {
@@ -1896,19 +2259,26 @@ class R22YPointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            reversed: this.isReversed
+        };
+    }
 
 }
 
-class R15WidePointRail {
+class R15WidePointRail extends ComplexRail {
     constructor(x, y, id, pointType = 'A', isReversed = false) {
+        super();
         this.x = x;
         this.y = y;
         this.id = id;
         this.angle = 0;
         this.pointType = pointType;   // 'A' or 'B'
         this.isReversed = isReversed; // 裏タイプ
-        this.components = [];
-        this._dirty = true;  // ダーティフラグ
+        // ダーティフラグ
         this.color = COLORS.R15.base;
         this.highlightColor = COLORS.R15.highlight;
         this._sync();  // 初期構築
@@ -2001,7 +2371,14 @@ class R15WidePointRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(7, this.color,4));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             this.components.forEach(c => c.draw());
         }
     }
@@ -2123,9 +2500,7 @@ class R15WidePointRail {
     }
     
     toggleType() {
-        this.pointType = (this.pointType === 'A') ? 'B' : 'A';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('pointType', 'A', 'B');
     }
     
     toggleReverse() {
@@ -2133,18 +2508,26 @@ class R15WidePointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            reversed: this.isReversed
+        };
+    }
 
 }
 
 class R30TrianglePointRail {
     constructor(x, y, id, isReversed = false) {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
         this.angle = 0;
         this.isReversed = isReversed; // 裏タイプ
-        this.components = [];
-        this._dirty = true;  // ダーティフラグ
+        // ダーティフラグ
         this.color = COLORS.R30.base;
         this.highlightColor = COLORS.R30.highlight;
         this._sync();  // 初期構築
@@ -2224,7 +2607,15 @@ class R30TrianglePointRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.slice(0,2).forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.slice(2).forEach(c => c.drawWithWidth(5, this.color,0));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             this.components.forEach(c => c.draw());
         }
     }
@@ -2292,11 +2683,19 @@ class R30TrianglePointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
+    }
 
 }
 
 class CrossPointRail {
     constructor(x, y, id, isReversed = false) {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -2402,7 +2801,17 @@ class CrossPointRail {
             this.components.slice(0, 4).forEach(c => c.drawWithWidth(12, this.color));
             this.components.slice(0, 4).forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.slice(0, 4).forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+			//走行路でないパーツ
+            this.components.slice(-2).forEach(c => c.drawWithWidth(14, 'black'));
+            this.components.slice(-2).forEach(c => c.drawWithWidth(12, this.color));
+            // リアル描画（層ごと全体）
+            this.components.slice(0, 4).forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             this.components.forEach(c => c.draw());
         }
 	}
@@ -2481,11 +2890,19 @@ class CrossPointRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
+    }
 
 }
 
 class DoubleTrackCrossoverRail {
     constructor(x, y, id, isReversed = false) {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -2555,7 +2972,14 @@ class DoubleTrackCrossoverRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             // シンプル描画
             this.components.forEach(c => c.draw());
         }    }
@@ -2631,11 +3055,19 @@ class DoubleTrackCrossoverRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            reversed: this.isReversed
+        };
+    }
 
 }
 
 class DoubleTrackTurnoutRail {
     constructor(x, y, id, direction = 'right', isReversed = false) {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -2736,7 +3168,14 @@ class DoubleTrackTurnoutRail {
             this.components.forEach(c => c.drawWithWidth(12, this.color));
             this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
+        } else if (useRealisticRendering2) {
+            // リアル描画（層ごと全体）
+            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
+            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
+            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
+            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
+
+        } else{
             // シンプル描画
             this.components.forEach(c => c.draw());
         }
@@ -2867,11 +3306,20 @@ class DoubleTrackTurnoutRail {
         this._dirty = true;
         this._sync();
     }
+	
+	getRailOptions() {
+        return {
+            direction: this.direction,
+            reversed: this.isReversed
+        };
+    }
 
 }
 
 class DoubleTrackRail {
     constructor(x, y, id) {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -2991,18 +3439,22 @@ class DoubleTrackRail {
     toggleType() {}
     
     toggleReverse() {}
+	
+	getRailOptions() {
+        return {};
+    }
 
 }
 
-class DoubleCurveRail {
+class DoubleCurveRail extends ComplexRail {
     constructor(x, y, id, direction = 'left') {
+        super();
         this.x = x;
         this.y = y;
         this.id = id;
         this.angle = 0;
         this.direction = direction;  // 'left' or 'right'
-        this.components = [];
-        this._dirty = true;  // ダーティフラグ
+        // ダーティフラグ
         this.color = 'lightcyan';  // 複曲線レール専用の色
         this.isDoubleTrack = true;  // 複線レールフラグ
         this.endpointPairs = [[1, 3], [2, 4]];  // 端点ペア
@@ -3128,144 +3580,21 @@ class DoubleCurveRail {
     toggleReverse() {
 	this.direction = (this.direction === 'right') ? 'left' : 'right';
 	}
+	
+	getRailOptions() {
+        return {
+            direction: this.direction
+        };
+    }
 
 }
 
-class DoubleLengthCurve {
-    constructor(x, y, id, direction = DIRECTION_LEFT) {
-        this.x = x;
-        this.y = y;
-        this.id = id;
-        this.angle = 0;
-		this.radius = RAIL_LENGTH;  // 通常カーブと同じ半径
-        this.direction = direction;  // 'left' or 'right'
-        this.color = COLORS.DOUBLE_CURVE.base;
-        this.highlightColor = COLORS.DOUBLE_CURVE.highlight;
-       // this._sync();  // 初期構築
-        
-        // 端点構造の説明（倍曲線）:
-        // 通常カーブ2本分で90度曲がる
-        // 半径: RAIL_LENGTH = 80（通常カーブと同じ）
-        // 角度: 90度（通常カーブの2倍）
-        // 起点(凹) → 終点(凸)
-    }
 
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        if (useRealisticRendering) {
-            // リアル描画（4層）
-            this.drawWithWidth(14, 'black');
-            this.drawWithWidth(12, this.color);
-            this.drawWithWidth(6, this.highlightColor);
-            this.drawWithWidth(4, this.color);
-        } else {
-            // シンプル描画（1層）
-            this.drawWithWidth(RAIL_WIDTH, this.color);
-        }
-    }
-    
-    drawWithWidth(width, color) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angle * Math.PI / 180);
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = width;
-        ctx.lineCap = 'butt';
-        ctx.beginPath();
-        
-        const radius = this.radius;
-        
-        if (this.direction === DIRECTION_LEFT) {
-            ctx.arc(-radius, 0, radius, 0, Math.PI / 2);  // 0度から90度
-        } else if (this.direction === DIRECTION_RIGHT) {
-            ctx.arc(radius, 0, radius, Math.PI / 2, Math.PI);  // 90度から180度
-        }
-        ctx.stroke();
-        ctx.restore();
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        const angleRad = this.angle * Math.PI / 180;
-        const cos = Math.cos(angleRad);
-        const sin = Math.sin(angleRad);
-  //      const radius = this.radius;  // 通常カーブと同じ半径
-
-        const x1 = this.direction === DIRECTION_LEFT ? this.x - this.radius * cos : this.x + this.radius * cos;
-        const y1 = this.direction === DIRECTION_LEFT ? this.y - this.radius * sin : this.y + this.radius * sin;
-
-        const dx = mx - x1;
-        const dy = my - y1;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        let angle = Math.atan2(dy, dx) - this.angle * Math.PI / 180;
-        angle = normalizeAngle(angle);
-
-        const withinArc = this.direction === DIRECTION_LEFT ? 
-            (angle >= 0 && angle <= Math.PI / 2) : 
-            (angle >= Math.PI / 2 && angle <= Math.PI);
-        
-        return distance >= this.radius - RAIL_WIDTH / 2 && 
-               distance <= this.radius + RAIL_WIDTH / 2 && 
-               withinArc;
-    }
-
-    /* =========================
-       endpoint
-    ========================= */
-    getEndpoints() {
-        const angleRad = this.angle * Math.PI / 180;
-        const cos = Math.cos(angleRad);
-        const sin = Math.sin(angleRad);
- //       const radius = RAIL_LENGTH;  // 通常カーブと同じ半径
-        
-        const x1 = this.x;
-        const y1 = this.y;
-        
-        // 90度（π/2）回転後の終点
-        const x2 = this.direction === DIRECTION_LEFT ? 
-            this.x - this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 2) : 
-            this.x + this.radius * cos + this.radius * Math.cos(angleRad + Math.PI / 2);
-        const y2 = this.direction === DIRECTION_LEFT ? 
-            this.y - this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 2) : 
-            this.y + this.radius * sin + this.radius * Math.sin(angleRad + Math.PI / 2);
-        
-        return [
-            { x: x1, y: y1, angle: this.angle, id: `${this.id}-1`, type: 'concave' },
-            { x: x2, y: y2, angle: this.direction === DIRECTION_LEFT ? this.angle + 90 : this.angle - 90, id: `${this.id}-2`, type: 'convex' }
-        ];
-    }
-	
-	    // ========== 新規追加メソッド ==========
-    
-    toShortcut() {
-        return this.direction === 'right' ? 'Br' : 'Bl';
-    }
-    
-    getRailType() {
-        return 'doubleLengthCurve';
-    }
-    
-    toggleType() {
-    }
-    
-    toggleReverse() {
-        this.direction = (this.direction === 'left') ? 'right' : 'left';
-        this._dirty = true;
-        this._sync();
-    }
-	
-	
-	
-}
 
 class UTurnRail {
     constructor(x, y, id, type = 'U') {
+        this.components = [];
+        this._dirty = true;
         this.x = x;
         this.y = y;
         this.id = id;
@@ -3426,12 +3755,19 @@ class UTurnRail {
         this._dirty = true;
         this._sync();
 	}
+	
+	getRailOptions() {
+        return {
+            type: this.type
+        };
+    }
 
 }
 
 
-class Figure8PointRail {
+class Figure8PointRail extends ComplexRail {
     constructor(x, y, id, pointType = 'R', direction = 'left') {
+        super();
         this.x = x;
         this.y = y;
         this.id = id;
@@ -3453,7 +3789,7 @@ class Figure8PointRail {
     /* =========================
        内部構築
     ========================= */
-    _buildCurves() {
+    _buildComponents() {
         this.curves.length = 0;
 
         const base = this.angle;
@@ -3499,39 +3835,17 @@ class Figure8PointRail {
             this.curves.push(c1, c2);
         }
     }
-
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        this._buildCurves();
+    
+    // curvesゲッター/セッター（基底クラスとの互換性）
+    get components() {
+        return this.curves;
+    }
+    
+    set components(value) {
+        this.curves = value;
     }
 
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.curves.forEach(c => c.drawWithWidth(14, 'black'));
-            this.curves.forEach(c => c.drawWithWidth(12, this.color));
-            this.curves.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.curves.forEach(c => c.drawWithWidth(4, this.color));
-        } else {
-            // シンプル描画
-            this.curves.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.curves.some(c => c.contains(mx, my));
-    }
+    // ========== draw(), _sync(), contains()は基底クラスから継承 ==========
 
     /* =========================
        endpoint
@@ -3611,16 +3925,18 @@ class Figure8PointRail {
     }
     
     toggleReverse() {
-        this.direction = (this.direction === 'left') ? 'right' : 'left';
-        this._dirty = true;
-        this._sync();
+        this._toggleProperty('direction', 'left', 'right');
     }
-    
-
-    
-
-
+	
+	getRailOptions() {
+        return {
+            type: this.pointType,
+            direction: this.direction
+        };
+    }
 }
+
+//
 
     // ==========================================
     // ジョイント描画関数
@@ -3634,13 +3950,17 @@ class Figure8PointRail {
         const deg_sin = Math.sin(adjustedAngle * Math.PI / 180.0);
         const deg_cos = Math.cos(adjustedAngle * Math.PI / 180.0);
         
-        if (head) {
+         if (head) {
             ctx.fillStyle = railColor;
             ctx.beginPath();
-            ctx.moveTo(x + JOINT_WIDTH * 0.5 * deg_cos, y + JOINT_WIDTH * 0.5 * deg_sin);
-            ctx.lineTo(x + JOINT_WIDTH * 0.5 * deg_cos + JOINT_LENGTH * deg_sin, y + JOINT_WIDTH * 0.5 * deg_sin - JOINT_LENGTH * deg_cos);
-            ctx.lineTo(x - JOINT_WIDTH * 0.5 * deg_cos + JOINT_LENGTH * deg_sin, y - JOINT_WIDTH * 0.5 * deg_sin - JOINT_LENGTH * deg_cos);
-            ctx.lineTo(x - JOINT_WIDTH * 0.5 * deg_cos, y - JOINT_WIDTH * 0.5 * deg_sin);
+            ctx.moveTo( x + JOINT_WIDTH * 0.5 * deg_cos - JOINT_LENGTH * deg_sin, 
+			y + JOINT_WIDTH * 0.5 * deg_sin + JOINT_LENGTH * deg_cos);
+            ctx.lineTo( x + JOINT_WIDTH * 0.5 * deg_cos + JOINT_LENGTH * deg_sin, 
+			y + JOINT_WIDTH * 0.5 * deg_sin - JOINT_LENGTH * deg_cos);
+            ctx.lineTo(	x - JOINT_WIDTH * 0.5 * deg_cos + JOINT_LENGTH * deg_sin,
+			y - JOINT_WIDTH * 0.5 * deg_sin - JOINT_LENGTH * deg_cos);
+            ctx.lineTo( x - JOINT_WIDTH * 0.5 * deg_cos - JOINT_LENGTH * deg_sin, 
+			y - JOINT_WIDTH * 0.5 * deg_sin + JOINT_LENGTH * deg_cos);
             ctx.fill();
         }
         
@@ -4757,19 +5077,25 @@ document.getElementById('rotateLeft').addEventListener('click', () => {
 });
 
 document.getElementById('duplicate').addEventListener('click', () => {
-    if (selectedShape) {
-        if (selectedShape instanceof Rect) {
-            const newRect = new Rect(selectedShape.x + 100, selectedShape.y + 100, `S${rails.length + 1}`);
-            newRect.angle = selectedShape.angle;
-            rails.push(newRect);
-        } else if (selectedShape instanceof Curve) {
-            const newRect = new Curve(selectedShape.x + 100, selectedShape.y + 100, `L${rails.length + 1}`);
-            newRect.angle = selectedShape.angle;
-            rails.push(newRect);
+
+ if (selectedShape && typeof selectedShape.getRailType === 'function') {
+        const railType = selectedShape.getRailType();
+        const options = {
+            x: selectedShape.x + 100,
+            y: selectedShape.y + 100,
+            angle: selectedShape.angle
+        };
+        
+        // レール固有のオプションを取得
+        if (typeof selectedShape.getRailOptions === 'function') {
+            Object.assign(options, selectedShape.getRailOptions());
         }
+        
+        addRailByType(railType, options);
         drawAll();
         closeContextMenu();
     }
+
 });
 
 document.getElementById('delete').addEventListener('click', () => {
@@ -4967,8 +5293,8 @@ function adjustRailPlacement(rail, lastEndpoint) {
     const dy = lastEndpoint.y - endPoint.y;
     rail.x += dx;
     rail.y += dy;
-    console.log('Step 3: Translated by dx=', dx.toFixed(2), 'dy=', dy.toFixed(2));
-    console.log('        New rail position (', rail.x.toFixed(1), ',', rail.y.toFixed(1), ')');
+   // console.log('Step 3: Translated by dx=', dx.toFixed(2), 'dy=', dy.toFixed(2));
+   // console.log('        New rail position (', rail.x.toFixed(1), ',', rail.y.toFixed(1), ')');
     
     // Step 4: 終点の角度を目標角度に合わせる
     railEndpoints = rail.getEndpoints();
@@ -4990,18 +5316,18 @@ function adjustRailPlacement(rail, lastEndpoint) {
     while (angleDiff > 180) angleDiff -= 360;
     while (angleDiff < -180) angleDiff += 360;
     
-    console.log('Step 4: Target end angle=', targetEndAngle, 'Current end angle=', currentEndAngle);
-    console.log('        Angle difference=', angleDiff.toFixed(2), 'degrees');
+    //console.log('Step 4: Target end angle=', targetEndAngle, 'Current end angle=', currentEndAngle);
+    //console.log('        Angle difference=', angleDiff.toFixed(2), 'degrees');
     
     if (Math.abs(angleDiff) > 0.1) {
-        console.log('        Rotating around (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ')');
+     //   console.log('        Rotating around (', lastEndpoint.x.toFixed(1), ',', lastEndpoint.y.toFixed(1), ')');
         rotateRailAroundPoint(rail, lastEndpoint.x, lastEndpoint.y, angleDiff);
         
         // 回転後の角度を正規化
         rail.angle = ((rail.angle % 360) + 360) % 360;
 
         if (rail._dirty !== undefined) rail._dirty = true;
-        console.log('        Rotated. New rail angle=', rail.angle);
+        //console.log('        Rotated. New rail angle=', rail.angle);
     }
     
     // 検証
@@ -5024,8 +5350,8 @@ function adjustRailPlacement(rail, lastEndpoint) {
     let finalAngleDiff = Math.abs(normalizedAngle - finalEndAngle);
     if (finalAngleDiff > 180) finalAngleDiff = 360 - finalAngleDiff;
     
-    console.log('Verification: Final distance=', finalDistance.toFixed(3), 'px, angle diff=', finalAngleDiff.toFixed(2), 'deg');
-    console.log('=== Adjustment complete ===');
+   // console.log('Verification: Final distance=', finalDistance.toFixed(3), 'px, angle diff=', finalAngleDiff.toFixed(2), 'deg');
+   // console.log('=== Adjustment complete ===');
 }
 
 // レール追加後の進行方向更新
@@ -5036,9 +5362,9 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     // レールタイプによって進行方向を自動調整
     const endpoints = addedRail.getEndpoints();
     
-    console.log('updateProgression: rail=', addedRail.id, 'type=', addedRail.constructor.name, 
-                'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
-                'wasPlacedFromEnd=', wasPlacedFromEnd);
+    //console.log('updateProgression: rail=', addedRail.id, 'type=', addedRail.constructor.name, 
+    //            'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
+     //           'wasPlacedFromEnd=', wasPlacedFromEnd);
     
     // 【最優先】1/4凸凸・1/6凸凸（ジョイント凸凸）: 凹進行を停止
     if (addedRail.railType === 'QuarterVV' ||
@@ -5051,7 +5377,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
             // 凹から配置された凸凸レール: 起点(凸)が次の接続点、凹進行停止
             railProgression.endpointIndex = 0; // 起点(凸)
             railProgression.isReversed = false; // ❗ 凹進行停止
-            console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false (stop concave progression)');
+            //console.log('→ VV rail (from concave): endpoint 0 (start, convex), reversed=false (stop concave progression)');
         } else {
             // 通常配置された凸凸レール: 終点(凸)が次の接続点
             railProgression.endpointIndex = endpoints.length - 1; // 最後の端点(凸)
@@ -5160,7 +5486,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     if (endpoints.length >= 2) {
         railProgression.endpointIndex = 1; // eps[1] (ID-2)
         railProgression.isReversed = false;
-        console.log('→ Normal rail: endpoint 1 (ID-2), reversed=false');
+        //console.log('→ Normal rail: endpoint 1 (ID-2), reversed=false');
     } else {
         // 端点が1つしかない場合（通常ありえない）
         railProgression.endpointIndex = 0;
@@ -5542,6 +5868,43 @@ function generateRailId(railType) {
     return `${prefix}${rails.length + 1}`;
 }
 
+// レールタイプから長さを取得
+function getLengthFromRailType(railType) {
+    switch(railType) {
+        case 'straight': return RAIL_LENGTH;
+        case 'halfStraight': return RAIL_LENGTH * 0.5;
+        case 'doubleStraight': return RAIL_LENGTH * 2;
+        case 'quarter':
+        case 'quarterVV':
+        case 'quarterCC':
+            return RAIL_LENGTH * 0.25;
+        case 'sixth':
+        case 'sixthVV':
+        case 'sixthCC':
+            return RAIL_LENGTH / 6;
+        default: return RAIL_LENGTH;
+    }
+}
+
+// レールタイプから半径を取得
+function getRadiusFromRailType(railType) {
+    switch(railType) {
+        case 'curve':
+        case 'doubleLengthCurve':
+            return RAIL_LENGTH;
+        case 'outerCurve':
+            return RAIL_LENGTH + D_TRACK_WIDTH;
+        default:
+            return RAIL_LENGTH;
+    }
+}
+
+// レールタイプから角度を取得
+function getAngleFromRailType(railType) {
+    return railType === 'doubleLengthCurve' ? 90 : 45;
+}
+
+
 // 統一レール追加関数
 function addRailByType(railType, options = {}) {
     // レール追加時は選択端点をクリア
@@ -5560,7 +5923,7 @@ function addRailByType(railType, options = {}) {
             type: 'convex',
             placeFromEnd: false
         };
-        console.log('addRailByType (座標指定モード):', { x: options.x, y: options.y, angle: options.angle, railType });
+        //console.log('addRailByType (座標指定モード):', { x: options.x, y: options.y, angle: options.angle, railType });
     } else {
         // 通常モード: 最後の端点から配置
         lastEndpoint = getLastEndpoint();
@@ -5571,37 +5934,46 @@ function addRailByType(railType, options = {}) {
     let rail = null;
     
     switch(railType) {
-        // ===== 基本直線 =====
+        // ===== 基本直線（統合） =====
         case 'straight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id);
-            break;
-            
         case 'halfStraight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.5);
-            rail.color = 'lightblue';
-            break;
-            
         case 'doubleStraight':
-            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 2);
-            rail.color = 'navy';
+        case 'quarter':
+        case 'quarterVV':
+        case 'quarterCC':
+        case 'sixth':
+        case 'sixthVV':
+        case 'sixthCC':
+            const length = options.length || getLengthFromRailType(railType);
+            rail = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, length, options);
+            
+            // 色の設定（options.railTypeを優先）
+            const actualRailType = options.railType || railType;
+            if (actualRailType === 'quarter' || actualRailType === 'quarterVV' || actualRailType === 'quarterCC') {
+                rail.color = COLORS.QUARTER.base;
+            } else if (actualRailType === 'halfStraight') {
+                rail.color = COLORS.HALF_STRAIGHT.base;
+            } else if (actualRailType === 'doubleStraight') {
+                rail.color = COLORS.DOUBLE_STRAIGHT.base;
+            }
             break;
             
-        // ===== 基本曲線 =====
+        // ===== 基本曲線（統合） =====
         case 'curve':
-            const direction = options.direction || 'right';
-            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction);
-            break;
-            
         case 'outerCurve':
-            const outerDir = options.direction || 'right';
-            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, outerDir);
-            rail.radius = RAIL_LENGTH + D_TRACK_WIDTH;
-            rail.color = 'purple';
-            break;
-            
         case 'doubleLengthCurve':
-            const dlDir = options.direction || 'right';
-            rail = new DoubleLengthCurve(lastEndpoint.x, lastEndpoint.y, id, dlDir);
+            const direction = options.direction || 'right';
+            const radius = options.radius || getRadiusFromRailType(railType);
+            const turnAngle = options.turnAngle || getAngleFromRailType(railType);
+            rail = new Curve(lastEndpoint.x, lastEndpoint.y, id, direction, radius, turnAngle);
+            
+            // 色の設定（options.railTypeを優先）
+            const actualCurveType = options.railType || railType;
+            if (actualCurveType === 'outerCurve') {
+                rail.color = COLORS.OUTER_CURVE.base;
+            } else if (actualCurveType === 'doubleLengthCurve') {
+                rail.color = COLORS.DOUBLE_CURVE.base;
+            }
             break;
             
         // ===== スライドレール =====
@@ -5640,6 +6012,7 @@ function addRailByType(railType, options = {}) {
         case 'r13':
             const r13Type = options.type || 'A';
             const r13Dir = options.direction || 'right';
+			console.log(options);
             rail = new R13PointRail(lastEndpoint.x, lastEndpoint.y, id, r13Type, r13Dir);
             break;
 
@@ -6316,8 +6689,17 @@ document.getElementById('closeCounter').addEventListener('click', () => {
 // 表示モード切替（端点表示 + レール描画を同時に切替）
 document.getElementById('toggleDetailMode').addEventListener('click', () => {
     // 両方を同時に切替
-    useDetailedEndpoints = !useDetailedEndpoints;
-    useRealisticRendering = !useRealisticRendering;
+    if(useRealisticRendering){
+	useRealisticRendering = false;
+	useRealisticRendering2 = true;//溝考慮モードへ
+	useDetailedEndpoints = true;
+	}else if(useRealisticRendering2){
+	useRealisticRendering2 = false;
+	useDetailedEndpoints = false;//簡易モードへ
+	
+	}else{
+	useDetailedEndpoints = true;//4層描画へ
+    useRealisticRendering = true;}
     
     const btn = document.getElementById('toggleDetailMode');
     btn.textContent = useDetailedEndpoints ? '表示モード: 詳細' : '表示モード: 簡易';
