@@ -788,21 +788,102 @@ function rotatedegAngle(deg, delta) {
  * 複合レール（components配列を持つレール）の基底クラス
  * 共通の描画ロジック、同期処理、トグル操作を提供
  */
-class ComplexRail {
+// ========================================
+// 全レール基底クラス
+// ========================================
+
+/**
+ * RailBase - 全レールの最上位基底クラス
+ * 
+ * 全てのレールに共通する基本的なプロパティとメソッドを提供します。
+ * - 位置情報（x, y, id, angle）
+ * - 色情報（color, highlightColor）
+ * - 基本メソッド（getEndpoints, getRailType, toShortcut等）
+ */
+class RailBase {
     constructor(x, y, id, options = {}) {
-        // ========== 位置情報（必須） ==========
+        // ========== 位置情報（全レール共通） ==========
         this.x = x;
         this.y = y;
         this.id = id;
-        this.angle = options.angle !== undefined ? options.angle : 0;  // デフォルト0
+        this.angle = options.angle !== undefined ? options.angle : 0;
+        
+        // ========== 色（全レール共通） ==========
+        this.color = options.color || 'gray';
+        this.highlightColor = options.highlightColor || 'lightgray';
+        
+        // ========== 幅（ほぼ全レール共通） ==========
+        this.width = options.width || RAIL_WIDTH;
+    }
+    
+    // ========== 基本メソッド（子クラスで実装必須） ==========
+    
+    /**
+     * 端点取得
+     */
+    getEndpoints() {
+        throw new Error('getEndpoints() must be implemented by subclass');
+    }
+    
+    /**
+     * レールタイプ取得
+     */
+    getRailType() {
+        throw new Error('getRailType() must be implemented by subclass');
+    }
+    
+    /**
+     * ショートカット文字列取得
+     */
+    toShortcut() {
+        throw new Error('toShortcut() must be implemented by subclass');
+    }
+    
+    /**
+     * レールオプション取得
+     */
+    getRailOptions() {
+        throw new Error('getRailOptions() must be implemented by subclass');
+    }
+    
+    // ========== トグル操作（デフォルト実装） ==========
+    
+    /**
+     * タイプ切替（子クラスでオーバーライド）
+     */
+    toggleType() {
+        // デフォルトは何もしない
+    }
+    
+    /**
+     * 表裏/方向切替（子クラスでオーバーライド）
+     */
+    toggleReverse() {
+        // デフォルトは何もしない
+    }
+}
+
+// ========================================
+// 複合レール基底クラス
+// ========================================
+
+/**
+ * ComplexRail - 複合レール（components配列を持つレール）の基底クラス
+ * 
+ * RailBaseを継承し、複合レール固有の機能を追加します。
+ * - components配列の管理
+ * - ダーティフラグによる同期
+ * - 共通描画ロジック
+ * - トグル操作ヘルパー
+ */
+class ComplexRail extends RailBase {
+    constructor(x, y, id, options = {}) {
+        // 基底クラスで位置・色を設定
+        super(x, y, id, options);
         
         // ========== 複合レール固有 ==========
         this.components = [];
         this._dirty = true;
-        
-        // ========== 色（クラスごとに異なる） ==========
-        this.color = options.color || 'gray';
-        this.highlightColor = options.highlightColor || 'lightgray';
         
         // ========== タイプ系（使わないクラスはundefined） ==========
         // turnoutType: R, L
@@ -834,6 +915,7 @@ class ComplexRail {
      */
     draw() {
         this._sync();
+		this.drawFacilities();//装飾パーツはレール下に描画
         this.drawParts(this.components);
     }
     
@@ -848,7 +930,7 @@ class ComplexRail {
             parts.forEach(c => c.drawWithWidth(6, this.highlightColor));
             parts.forEach(c => c.drawWithWidth(4, this.color));
         } else if (useRealisticRendering2) {
-            parts.forEach(c => c.drawWithWidth(5, this.color, 4));
+            parts.forEach(c => c.drawWithWidth(5, this.color, 4,4));
             parts.forEach(c => c.drawWithDoubleLine(2, 'black', 6));
             parts.forEach(c => c.drawWithDoubleLine(3, 'black', 3.5));
             parts.forEach(c => c.drawWithDoubleLine(3, this.color, 4.5));
@@ -856,7 +938,11 @@ class ComplexRail {
             parts.forEach(c => c.draw());
         }
     }
-    
+ 
+	drawFacilities(){
+	//走行部分以外のレール装飾パーツがある場合、各クラスでここに記載
+	}
+ 
     // ========== 同期 ==========
     
     /**
@@ -885,30 +971,7 @@ class ComplexRail {
         return this.components.some(c => c.contains(mx, my));
     }
     
-    // ========== 端点取得 ==========
-    
-    /**
-     * 端点取得（子クラスで実装必須）
-     */
-    getEndpoints() {
-        throw new Error('getEndpoints() must be implemented by subclass');
-    }
-    
-    // ========== トグル操作 ==========
-    
-    /**
-     * タイプ切替（子クラスでオーバーライド）
-     */
-    toggleType() {
-        // デフォルトは何もしない
-    }
-    
-    /**
-     * 表裏/方向反転（子クラスでオーバーライド）
-     */
-    toggleReverse() {
-        // デフォルトは何もしない
-    }
+    // ========== getEndpoints(), toggleType(), toggleReverse()はRailBaseから継承 ==========
     
     // ========== トグル操作ヘルパー ==========
     
@@ -934,39 +997,101 @@ class ComplexRail {
         this._sync();
     }
     
-    // ========== 情報取得（子クラスで実装必須） ==========
-    
-    getRailType() {
-        throw new Error('getRailType() must be implemented by subclass');
+    // ========== getRailType(), toShortcut(), getRailOptions()はRailBaseから継承 ==========
+}
+
+// ========================================
+// 単純レール基底クラス
+// ========================================
+
+/**
+ * SimpleRail - 単純レール（単一要素）の基底クラス
+ * 
+ * RailBaseを継承し、単純レール固有の機能を追加します。
+ * - 端点タイプ管理
+ * - 共通描画パターン
+ * - 座標変換による当たり判定
+ */
+class SimpleRail extends RailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        
+        // ========== 端点タイプ ==========
+        this.startType = options.startType || 'concave';
+        this.endType = options.endType || 'convex';
+        this.endpointIdCounter = 0;
     }
     
-    toShortcut() {
-        throw new Error('toShortcut() must be implemented by subclass');
+    // ========== 描画（単純レール共通パターン） ==========
+    
+    draw() {
+        if (useRealisticRendering) {
+           // リアル描画（4層）
+            this.drawWithWidth(14, 'black');
+            this.drawWithWidth(12, this.color);
+			this.drawWithWidth(6, this.highlightColor);
+            this.drawWithWidth(4, this.color);
+        } else if (useRealisticRendering2) {
+            // リアル描画（4層）
+            this.drawWithDoubleLine(2, 'black',6);
+            this.drawWithWidth(5, this.color,4);
+            this.drawWithDoubleLine(3, this.highlightColor,3.5);
+            this.drawWithDoubleLine(3, this.color,4.5);
+        } else{
+            // シンプル描画（1層）
+            this.drawWithWidth(this.width, this.color);
+        }
     }
     
-    getRailOptions() {
-        throw new Error('getRailOptions() must be implemented by subclass');
+    // ========== 描画メソッド（子クラスで実装） ==========
+    
+    drawWithWidth(width, color, s_offset = 0, e_offset=0) {
+        throw new Error('drawWithWidth() must be implemented by subclass');
+    }
+    
+    drawWithDoubleLine(width, color, offset = 0) {
+        throw new Error('drawWithDoubleLine() must be implemented by subclass');
+    }
+    
+    drawRealistic2() {
+        throw new Error('drawRealistic2() must be implemented by subclass');
+    }
+    
+    drawSimple() {
+        throw new Error('drawSimple() must be implemented by subclass');
+    }
+    
+    // ========== 当たり判定（単純レール共通パターン） ==========
+    
+    contains(mx, my) {
+        // 回転を考慮した座標変換
+        const angleRad = -this.angle * Math.PI / 180;
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        const localX = cos * (mx - this.x) - sin * (my - this.y);
+        const localY = sin * (mx - this.x) + cos * (my - this.y);
+        
+        return this.containsLocal(localX, localY);
+    }
+    
+    /**
+     * ローカル座標での当たり判定（子クラスで実装）
+     */
+    containsLocal(localX, localY) {
+        throw new Error('containsLocal() must be implemented by subclass');
     }
 }
 
 
-
-class StraightRail {
+class StraightRail extends SimpleRail {
             constructor(x, y, id, length = RAIL_LENGTH, options = {}) {
-                this.x = x;
-                this.y = y;
-                this.width = RAIL_WIDTH;
+                super(x, y, id, {
+                    ...options,
+                    color: options.color || COLORS.STRAIGHT.base,
+                    highlightColor: options.highlightColor || COLORS.STRAIGHT.highlight
+                });
                 this.length = length;  // height から length に変更
-                this.id = id;
-                this.angle = 0;
-				this.color = COLORS.STRAIGHT.base;
-				this.highlightColor = COLORS.STRAIGHT.highlight;
-				this.endpointIdCounter = 0;
                 
-                // 端点タイプ（デフォルトは凹凸）
-                this.startType = options.startType || 'concave';
-                this.endType = options.endType || 'convex';
-           
 		       // railTypeを自動設定
 				if (options.railType) {
 					this.railType = options.railType;
@@ -1000,31 +1125,23 @@ class StraightRail {
 		   
 		   }
 
-            draw() {
-                if (useRealisticRendering) {
-                    // リアル描画（4層）
-                    this.drawWithWidth(14, 'black');
-                    this.drawWithWidth(12, this.color);
-                    this.drawWithWidth(6, this.highlightColor);
-                    this.drawWithWidth(4, this.color);
-                } else if (useRealisticRendering2) {
-                    // リアル描画（4層）
-                    this.drawWithDoubleLine(2, 'black',6);
-                    this.drawWithWidth(5, this.color,4);
-                    this.drawWithDoubleLine(3, this.highlightColor,3.5);
-                    this.drawWithDoubleLine(3, this.color,4.5);
-                } else{
-                    // シンプル描画（1層）
-                    this.drawWithWidth(this.width, this.color);
-                }
+            // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
+            
+            drawRealistic2() {
+                // StraightRailはs_offset, e_offsetの両方を使う
+                this.drawWithDoubleLine(2, 'black', 6);
+                this.drawWithWidth(5, this.color, 4, 4);
+                this.drawWithDoubleLine(3, this.highlightColor, 3.5);
+                this.drawWithDoubleLine(3, this.color, 4.5);
             }
             
-            drawWithWidth(width, color,offset=0) {
+            
+            drawWithWidth(width, color,s_offset=0,e_offset=0) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle * Math.PI / 180);
                 ctx.fillStyle = color;
-                ctx.fillRect(-width / 2, offset, width, this.length-offset * 2);
+                ctx.fillRect(-width / 2, s_offset, width, this.length-(s_offset + e_offset));
 				ctx.restore();
             }
 			
@@ -1146,41 +1263,29 @@ class StraightRail {
 }
 
 
-class Slide {
+class Slide extends SimpleRail {
             constructor(x, y, id, slide, length = RAIL_LENGTH) {
-                this.x = x;
-                this.y = y;
-                this.width = RAIL_WIDTH;
+                super(x, y, id, {
+                    color: COLORS.SLIDE.base,
+                    highlightColor: COLORS.SLIDE.highlight
+                });
                 this.length = length;
-                this.id = id;
-                this.angle = 0;
-				this.color = COLORS.SLIDE.base;
-				this.highlightColor = COLORS.SLIDE.highlight;
                 this.slide = slide;
-				this.isReversed = (this.slide <0 )?true:false;
+                this.isReversed = (this.slide < 0) ? true : false;
+                this.railType = 'slide';
            }
 
-            draw() {
-                if (useRealisticRendering) {
-                    // リアル描画（4層）
-                    this.drawWithWidth(14, 'black');
-                    this.drawWithWidth(12, this.color);
-                    this.drawWithWidth(6, this.highlightColor);
-                    this.drawWithWidth(4, this.color);
-                } else　if (useRealisticRendering2) {
-                    // リアル描画(溝考慮）（4層）                    
-					this.drawWithDoubleLine(2, 'black',6);
-                    this.drawWithWidth(6, this.color,4);
-					this.drawWithDoubleLine(3, this.highlightColor,3.5);
-                    this.drawWithDoubleLine(3, this.color,4.5);
-                 
-                } else {
-                    // シンプル描画（1層）
-                    this.drawWithWidth(this.width, this.color);
-                }
+            // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
+            
+            drawRealistic2() {
+                // Slideは中央の線の幅が6（他は5）
+                this.drawWithDoubleLine(2, 'black', 6);
+                this.drawWithWidth(6, this.color, 4);
+                this.drawWithDoubleLine(3, this.highlightColor, 3.5);
+                this.drawWithDoubleLine(3, this.color, 4.5);
             }
             
-            drawWithWidth(width, color,offset=0) {
+            drawWithWidth(width, color, offset = 0) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle * Math.PI / 180);
@@ -1318,59 +1423,46 @@ function normalVector(tangent) {
 
 
 
-class Curve {
-    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH,turnAngle=45) {
-        this.x = x;
-        this.y = y;
-        this.width = RAIL_WIDTH;
+class Curve extends SimpleRail {
+    constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH, turnAngle = 45) {
+        super(x, y, id, {
+            color: COLORS.CURVE.base,
+            highlightColor: COLORS.CURVE.highlight
+        });
         this.radius = radius;
-        this.id = id;
-        this.angle = 0;
-		this.color = COLORS.CURVE.base;
-		this.highlightColor = COLORS.CURVE.highlight;
         this.direction = direction; // 'left' or 'right'
-		this.turnAngle = turnAngle;
+        this.turnAngle = turnAngle;
 
         // railTypeを自動設定
         if (turnAngle === 45 && radius === RAIL_LENGTH) {
             this.railType = 'curve';
-			this.color = COLORS.CURVE.base;
-			this.highlightColor = COLORS.CURVE.highlight;
+            this.color = COLORS.CURVE.base;
+            this.highlightColor = COLORS.CURVE.highlight;
         } else if (turnAngle === 45 && radius === RAIL_LENGTH + D_TRACK_WIDTH) {
             this.railType = 'outerCurve';
         } else if (turnAngle === 90 && radius === RAIL_LENGTH) {
-		    this.color = COLORS.DOUBLE_CURVE.base;
-			this.highlightColor = COLORS.DOUBLE_CURVE.highlight;
+            this.color = COLORS.DOUBLE_CURVE.base;
+            this.highlightColor = COLORS.DOUBLE_CURVE.highlight;
             this.railType = 'doubleLengthCurve';
         } else {
             this.railType = 'customCurve';
         }
-
-
     }
 
-     draw() {
-        if (useRealisticRendering) {
-            // リアル描画（4層）
-            this.drawWithWidth(14, 'black');
-            this.drawWithWidth(12, this.color);
-            this.drawWithWidth(6, this.highlightColor);
-            this.drawWithWidth(4, this.color);
-        } else if (useRealisticRendering2) {
-            // リアル描画（溝考慮）（4層）
-            this.drawWithDoubleLine(2, 'black',6);
-            this.drawWithWidth(5, this.color,4);
-            this.drawWithDoubleLine(3, this.highlightColor,3.5);
-            this.drawWithDoubleLine(3, this.color,4.5);
-        } else{
-            // シンプル描画（1層）
-            this.drawWithWidth(this.width, this.color);
-        }
-    }
+     // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
+     
+     drawRealistic2() {
+         // Curveはs_offset, e_offsetの両方を使う
+         this.drawWithDoubleLine(2, 'black', 6);
+         this.drawWithWidth(5, this.color, 4, 4);
+         this.drawWithDoubleLine(3, this.highlightColor, 3.5);
+         this.drawWithDoubleLine(3, this.color, 4.5);
+     }
     
-    drawWithWidth(width, color,offset=0) {//
+    drawWithWidth(width, color, s_offset = 0, e_offset = 0) {//
 		const turnRad = this.turnAngle/180 * Math.PI;
-		const angleoffset = Math.asin(offset/this.radius);
+		const angle_soffset = Math.asin(s_offset/this.radius);
+		const angle_eoffset = Math.asin(e_offset/this.radius);
 	 
         ctx.save();
         ctx.translate(this.x, this.y);
@@ -1380,9 +1472,9 @@ class Curve {
         ctx.lineCap = 'butt';
         ctx.beginPath();
         if (this.direction === DIRECTION_LEFT) {
-            ctx.arc(-this.radius, 0, this.radius, 0+angleoffset, turnRad-angleoffset);
+            ctx.arc(-this.radius, 0, this.radius, 0+angle_soffset, turnRad-angle_eoffset);
         } else if (this.direction === DIRECTION_RIGHT) {
-            ctx.arc(this.radius, 0, this.radius, Math.PI -turnRad + angleoffset, Math.PI-angleoffset);
+            ctx.arc(this.radius, 0, this.radius, Math.PI -turnRad + angle_eoffset, Math.PI-angle_soffset);
         } else {
             throw new Error(`Invalid direction: ${this.direction}`);
         }
@@ -1746,48 +1838,7 @@ class R17ThreewayRail extends ComplexRail {
         }
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
-
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            // シンプル描画
-            this.components.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
-
+ 
     /* =========================
        endpoint
     ========================= */
@@ -1960,47 +2011,7 @@ class R13PointRail extends ComplexRail {
         }
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
 
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            // シンプル描画
-            this.components.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -2324,44 +2335,7 @@ class R15WidePointRail extends ComplexRail {
         }
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
 
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        if (useRealisticRendering) {
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(7, this.color,4));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            this.components.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -2555,46 +2529,25 @@ class R30TrianglePointRail extends ComplexRail {
         this.components.push(curve1, straight1, curve3, straight2, curve5, straight3);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
-
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
+    /**
+     * 三角ポイントは、レール組み合わせで書いているので通常描画される凹部を先頭パーツを除き無効化
+     */
+    drawParts(parts) {
         if (useRealisticRendering) {
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
+            parts.forEach(c => c.drawWithWidth(14, 'black'));
+            parts.forEach(c => c.drawWithWidth(12, this.color));
+            parts.forEach(c => c.drawWithWidth(6, this.highlightColor));
+            parts.forEach(c => c.drawWithWidth(4, this.color));
         } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.slice(0,2).forEach(c => c.drawWithWidth(5, this.color,4));
-            this.components.slice(2).forEach(c => c.drawWithWidth(5, this.color,0));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            this.components.forEach(c => c.draw());
+            parts.slice(0,2).forEach(c => c.drawWithWidth(5, this.color, 4,0));
+            parts.slice(2).forEach(c => c.drawWithWidth(5, this.color, 0,0));
+            parts.forEach(c => c.drawWithDoubleLine(2, 'black', 6));
+            parts.forEach(c => c.drawWithDoubleLine(3, 'black', 3.5));
+            parts.forEach(c => c.drawWithDoubleLine(3, this.color, 4.5));
+        } else {
+            parts.forEach(c => c.draw());
         }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
-
+    } 
     /* =========================
        endpoint
     ========================= */
@@ -2738,14 +2691,7 @@ class CrossPointRail extends ComplexRail {
         this.components.push(straight1, straight2, curve1, curve2,curve3,curve4);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
+
 
     /* =========================
        描画
@@ -2907,45 +2853,7 @@ class DoubleTrackCrossoverRail extends ComplexRail {
         this.components.push(Straight1, Straight2, Slide1);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
 
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            // シンプル描画
-            this.components.forEach(c => c.draw());
-        }    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -3096,47 +3004,6 @@ class DoubleTrackTurnoutRail extends ComplexRail {
         this.components.push(straight1, straight2, curve1, curve2);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
-
-    /* =========================
-       描画
-    ========================= */
-    draw() {
-        this._sync();
-        
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.forEach(c => c.drawWithWidth(12, this.color));
-            this.components.forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.forEach(c => c.drawWithWidth(4, this.color));
-        } else if (useRealisticRendering2) {
-            // リアル描画（層ごと全体）
-            this.components.forEach(c => c.drawWithWidth(5, this.color,4));
-            this.components.forEach(c => c.drawWithDoubleLine(2, 'black',6));
-            this.components.forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
-            this.components.forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
-        } else{
-            // シンプル描画
-            this.components.forEach(c => c.draw());
-        }
-    }
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -3307,14 +3174,7 @@ class DoubleTrackRail extends ComplexRail {
         this.components.push(rail1, rail2);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
+
 
     /* =========================
        描画
@@ -3324,13 +3184,6 @@ class DoubleTrackRail extends ComplexRail {
         this.components.forEach(c => c.draw());
     }
 
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -3577,66 +3430,72 @@ class UTurnRail extends ComplexRail {
         this.components.push(Curve1,UturnMain,Curve2,UturnPart1);
     }
 
-    /* =========================
-       同期
-    ========================= */
-    _sync() {
-        if (!this._dirty) return;
-        this._buildComponents();
-        this._dirty = false;
-    }
 
     /* =========================
        描画
     ========================= */
     draw() {
+
+        this._sync();
+		
+		this.drawFacilities();
+        
+		this.components.slice(-1).forEach(c => c.drawWithWidth(14, this.color,0,0));
+		
+        if (useRealisticRendering) {
+            // リアル描画（層ごと全体）
+            this.components.slice(0,3).forEach(c => c.drawWithWidth(14, 'black'));
+           // this.components.slice(0,3).forEach(c => c.drawWithWidth(12, this.color));
+            this.components.slice(0,3).forEach(c => c.drawWithWidth(6, this.highlightColor));
+            this.components.slice(0,3).forEach(c => c.drawWithWidth(4, this.color));
+        }else if (useRealisticRendering2) {
+            //this.components.slice(0,1).forEach(c => c.drawWithWidth(5, this.color, 4,0));
+           // this.components.slice(1,1).forEach(c => c.drawWithWidth(5, this.color));
+           // this.components.slice(3,1).forEach(c => c.drawWithWidth(5, this.color, 0,0));
+            this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(2, 'black', 6));
+            this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(3, 'black', 3.5));
+            this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(3, this.color, 4.5));
+        }{
+            // シンプル描画
+            this.components.slice(0,3).forEach(c => c.draw());
+        }
+    }
+
+	drawFacilities(){
         const a = (this.type === 'V' || this.type === 'v') ? -1 : 1;
         const angleRad = this.angle * Math.PI / 180;
         const deg_sin = -Math.sin(angleRad);
         const deg_cos = -Math.cos(angleRad);
 
         const a1 = RAIL_LENGTH * this.URAIL_CNCT_R_RATIO * 0.5;
-        const b1 = RAIL_LENGTH * this.URAIL_CNCT_R_RATIO * 0.2 * a;
+        const b1 = RAIL_LENGTH * this.URAIL_CNCT_R_RATIO * 0.15 * a;
         const d1 = RAIL_LENGTH * a * this.DOUBLE_TRACK_DISTANCE_RATIO;
         
         ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.angle * Math.PI / 180);
         
         // 塗りつぶし部分（複線の間）
+		/*
+		(-b1,a1)-------(d1+b1,a1)
+			\            /
+		    (6,0)------(d1-6,0)
+		
+		
+		*/
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + a1 * deg_sin + b1 * deg_cos, this.y - a1 * deg_cos + b1 * deg_sin);
-        ctx.lineTo(this.x + a1 * deg_sin - (b1 + d1) * deg_cos, this.y - a1 * deg_cos - (b1 + d1) * deg_sin);
-        ctx.lineTo(this.x - d1 * deg_cos, this.y - d1 * deg_sin);
+
+        ctx.moveTo(6*a,0);//原点
+        ctx.lineTo(-b1,a1 );
+        ctx.lineTo(d1+b1,a1 );
+        ctx.lineTo(d1-6*a,0);
         ctx.closePath();
         ctx.fill();
 
         ctx.restore();
+	}
 
-        this._sync();
-        
-		this.components.slice(-1).forEach(c => c.drawWithWidth(14, this.color));
-		
-        if (useRealisticRendering) {
-            // リアル描画（層ごと全体）
-            this.components.slice(0,3).forEach(c => c.drawWithWidth(14, 'black'));
-            this.components.slice(0,3).forEach(c => c.drawWithWidth(12, this.color));
-            this.components.slice(0,3).forEach(c => c.drawWithWidth(6, this.highlightColor));
-            this.components.slice(0,3).forEach(c => c.drawWithWidth(4, this.color));
-        } else {
-            // シンプル描画
-            this.components.slice(0,3).forEach(c => c.draw());
-        }
-    }
-
-
-    /* =========================
-       当たり判定
-    ========================= */
-    contains(mx, my) {
-        this._sync();
-        return this.components.some(c => c.contains(mx, my));
-    }
 
     /* =========================
        endpoint
@@ -3690,7 +3549,7 @@ class Figure8PointRail extends ComplexRail {
             color: COLORS.FIGURE8.base,
             highlightColor: COLORS.FIGURE8.highlight
         });
-        this.curves = [];
+        this.components = [];
         this._sync();  // 初期構築
         
         // 端点構造の説明（実在製品に合わせた定義）:
@@ -3704,7 +3563,7 @@ class Figure8PointRail extends ComplexRail {
        内部構築
     ========================= */
     _buildComponents() {
-        this.curves.length = 0;
+        this.components.length = 0;
 
         const base = this.angle;
         const dir = this.direction;
@@ -3726,7 +3585,7 @@ class Figure8PointRail extends ComplexRail {
             c2.color = this.color;
             c2.highlightColor = this.highlightColor;
 
-            this.curves.push(c1, c2);
+            this.components.push(c1, c2);
         }
 
         /* ===== L 系：1本目終点から折り返し（実在製品のL型） ===== */
@@ -3746,18 +3605,11 @@ class Figure8PointRail extends ComplexRail {
             c2.color = this.color;
             c2.highlightColor = this.highlightColor;
 
-            this.curves.push(c1, c2);
+            this.components.push(c1, c2);
         }
     }
     
-    // curvesゲッター/セッター（基底クラスとの互換性）
-    get components() {
-        return this.curves;
-    }
-    
-    set components(value) {
-        this.curves = value;
-    }
+ 
 
     // ========== draw(), _sync(), contains()は基底クラスから継承 ==========
 
@@ -3781,13 +3633,13 @@ class Figure8PointRail extends ComplexRail {
         if (this.pointType === 'R') {
             // 1本目終点（凸）
             eps.push({
-                ...this.curves[0].getEndpoints()[1],
+                ...this.components[0].getEndpoints()[1],
                 id: this.id + '-2',
                 type: 'convex'
             });
 
             // 2本目終点（凹）- L型は2本目が凹（接続を受ける側）
-            const ep3 = this.curves[1].getEndpoints()[1];
+            const ep3 = this.components[1].getEndpoints()[1];
             eps.push({
                 x: ep3.x,
                 y: ep3.y,
@@ -3800,14 +3652,14 @@ class Figure8PointRail extends ComplexRail {
         else {
             // 1本目終点（凸）
             eps.push({
-                ...this.curves[0].getEndpoints()[1],
+                ...this.components[0].getEndpoints()[1],
                 id: this.id + '-2',
                 type: 'convex'
             });
 
             // 2本目終点（凸）- R型は2本目も凸
             eps.push({
-                ...this.curves[1].getEndpoints()[1],
+                ...this.components[1].getEndpoints()[1],
                 id: this.id + '-3',
                 type: 'convex'
             });
