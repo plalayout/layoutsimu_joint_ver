@@ -3444,18 +3444,21 @@ class UTurnRail extends ComplexRail {
 		
         if (useRealisticRendering) {
             // リアル描画（層ごと全体）
+			console.log('draw real 1');
             this.components.slice(0,3).forEach(c => c.drawWithWidth(14, 'black'));
-           // this.components.slice(0,3).forEach(c => c.drawWithWidth(12, this.color));
+            this.components.slice(0,3).forEach(c => c.drawWithWidth(12, this.color));
             this.components.slice(0,3).forEach(c => c.drawWithWidth(6, this.highlightColor));
             this.components.slice(0,3).forEach(c => c.drawWithWidth(4, this.color));
         }else if (useRealisticRendering2) {
-            //this.components.slice(0,1).forEach(c => c.drawWithWidth(5, this.color, 4,0));
-           // this.components.slice(1,1).forEach(c => c.drawWithWidth(5, this.color));
-           // this.components.slice(3,1).forEach(c => c.drawWithWidth(5, this.color, 0,0));
+						console.log('draw real 2');
+
+			this.components[0].drawWithWidth(5, this.color, 4, 0);
+			this.components[1].drawWithWidth(5, this.color, 0, 0);
+			this.components[2].drawWithWidth(5, this.color, 4, 0);
             this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(2, 'black', 6));
             this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(3, 'black', 3.5));
             this.components.slice(0,3).forEach(c => c.drawWithDoubleLine(3, this.color, 4.5));
-        }{
+        }else{
             // シンプル描画
             this.components.slice(0,3).forEach(c => c.draw());
         }
