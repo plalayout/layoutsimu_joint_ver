@@ -440,6 +440,7 @@
             <button id="groupMoveToggle" style="flex: 2;">まとめ移動: OFF</button>
             <button id="allclear" style="background: #ffcccc;">全クリア</button>
             <button id="canvasreset">原尺</button>
+            <button id="performanceToggle" style="background: #ffcccc;">軽減: OFF</button>
         </div>
         
         <div class="section-title">基本レール</div>
@@ -637,6 +638,21 @@ const scaleFactor = 1.1;
     let isPanning = false;
     let startX, startY;
 
+    // ========================================
+    // 描画軽減モード
+    // ========================================
+    let usePerformanceMode = false;  // 軽減モードのON/OFF（デフォルトOFF）
+    
+    // デバッグ用フラグ（本番環境ではfalse）
+    const DEBUG_VIEWPORT = false;  // true: テスト枠を表示
+    const DEBUG_VIEWPORT_RANGE = 1.2;  // 1.2=120%, 0.8=80%（デバッグ時の範囲切り替え用）
+    
+    // フラグ更新の条件判定用（前回の状態を保存）
+    let lastUpdateScale = 1.0;
+    let lastUpdateOffsetX = 0;
+    let lastUpdateOffsetY = 0;
+    let lastUpdateTime = 0;
+
         // ========================================
         // レスポンシブキャンバスサイズ調整
         // ========================================
@@ -772,6 +788,237 @@ const scaleFactor = 1.1;
 		return a;
 		}
 		
+		// ========================================
+		// 描画軽減: 画面内/画面外判定（テスト版）
+		// ========================================
+		
+		/**
+		 * テスト用の仮想画面範囲を取得
+		 * 実際の画面より20%小さい範囲
+		 */
+		function getTestViewportBounds(verbose = false) {
+			// ========================================
+			// 実際に見えている範囲をワールド座標で計算
+			// ========================================
+			
+			try {
+				// Canvas要素とコンテナ要素を取得
+				const canvas = document.getElementById('canvas');
+				const container = document.getElementById('canvas-container');
+				
+				if (!canvas || !container) {
+					console.error('Canvas or container not found');
+					// フォールバック: 固定サイズ
+					return {
+						minX: -400,
+						minY: -300,
+						maxX: 400,
+						maxY: 300,
+						width: 800,
+						height: 600
+					};
+				}
+				
+				// Canvasの表示サイズと位置
+				const canvasRect = canvas.getBoundingClientRect();
+				// コンテナの表示サイズと位置
+				const containerRect = container.getBoundingClientRect();
+				
+				// コンテナ内で実際に見えているCanvas範囲を計算
+				// コンテナの左上を基準にした、見えているCanvas部分のオフセット
+				const visibleLeft = Math.max(0, containerRect.left - canvasRect.left);
+				const visibleTop = Math.max(0, containerRect.top - canvasRect.top);
+				const visibleRight = Math.min(canvasRect.width, containerRect.right - canvasRect.left);
+				const visibleBottom = Math.min(canvasRect.height, containerRect.bottom - canvasRect.top);
+				
+				// 見えている範囲の幅と高さ
+				const visibleWidth = visibleRight - visibleLeft;
+				const visibleHeight = visibleBottom - visibleTop;
+				
+				// 見えている範囲の4隅をワールド座標に変換
+				const topLeft = screenToWorld(visibleLeft, visibleTop);
+			const bottomRight = screenToWorld(visibleRight, visibleBottom);
+			
+			// ワールド座標での画面サイズ
+			const worldWidth = bottomRight.x - topLeft.x;
+			const worldHeight = topLeft.y - bottomRight.y;  // Y軸上向きなので逆算
+			
+			// 実装版: 各辺を10%拡張（全体で120%）
+			const expandX = worldWidth * 0.1;
+			const expandY = worldHeight * 0.1;
+			
+			// 画面範囲（各辺を10%外側に拡張）
+			// Y軸は上向きなので、topLeft.y > bottomRight.y となる
+			const testBounds = {
+				minX: topLeft.x - expandX,          // 左辺を左へ10%
+				maxY: topLeft.y + expandY,          // 上辺を上へ10%
+				maxX: bottomRight.x + expandX,      // 右辺を右へ10%
+				minY: bottomRight.y - expandY,      // 下辺を下へ10%
+				width: worldWidth * 1.2,
+				height: worldHeight * 1.2
+			};
+			
+			return testBounds;
+			
+		} catch (error) {
+			console.error('Error in getTestViewportBounds:', error);
+			// エラー時はフォールバック: 固定サイズ
+			return {
+				minX: -400,
+				minY: -300,
+				maxX: 400,
+				maxY: 300,
+				width: 800,
+				height: 600
+			};
+		}
+	}
+	
+	/**
+	 * フラグ更新が必要かチェック
+	 * @returns {boolean} true=更新必要, false=更新不要
+	 */
+	function shouldUpdateFlags() {
+		// スケールの変化率
+		const scaleDiff = Math.abs(scale - lastUpdateScale) / lastUpdateScale;
+		
+		// オフセットの変化量（ピクセル）
+		const offsetDiffX = Math.abs(canvasOffsetX - lastUpdateOffsetX);
+		const offsetDiffY = Math.abs(canvasOffsetY - lastUpdateOffsetY);
+		
+		// 経過時間（ミリ秒）
+		const timeDiff = performance.now() - lastUpdateTime;
+		
+		// 条件: スケール10%変化 OR 移動200px OR 100ms経過
+		return scaleDiff > 0.1 || offsetDiffX > 200 || offsetDiffY > 200 || timeDiff > 100;
+	}
+	
+	/**
+	 * 全レールのskipDrawフラグを更新
+	 */
+	function updateSkipDrawFlags() {
+		const bounds = getTestViewportBounds();
+		let skippedCount = 0;
+		
+		rails.forEach(rail => {
+			rail.skipDraw = !isRailInViewport_Test(rail);
+			if (rail.skipDraw) skippedCount++;
+		});
+		
+		// 状態を保存
+		lastUpdateScale = scale;
+		lastUpdateOffsetX = canvasOffsetX;
+		lastUpdateOffsetY = canvasOffsetY;
+		lastUpdateTime = performance.now();
+		
+		return skippedCount;
+	}
+	
+		/**
+		 * レールが画面内にあるか判定（テスト版）
+		 * @param {Object} rail - レールオブジェクト
+		 * @param {string} testMode - 'auto'（自動計算、デフォルト）または 'fixed'（固定枠）
+		 * @returns {boolean} true=画面内, false=画面外
+		 */
+		function isRailInViewport_Test(rail, testMode = 'auto') {
+			try {
+				let bounds;
+				
+				if (testMode === 'fixed') {
+					// 固定サイズのテスト枠（中サイズ: 800×600）
+					bounds = {
+						minX: -400,
+						minY: -300,
+						maxX: 400,
+						maxY: 300
+					};
+				} else {
+					// 自動計算（コンテナベース）
+					bounds = getTestViewportBounds(true);  // 詳細ログON
+				}
+				
+				// レールの端点を取得
+				const endpoints = rail.getEndpoints();
+				if (!endpoints || endpoints.length === 0) {
+					return true;  // 端点がない場合は表示
+				}
+				
+				// レールのバウンディングボックスを計算
+				let minX = Infinity, minY = Infinity;
+				let maxX = -Infinity, maxY = -Infinity;
+				
+				endpoints.forEach(ep => {
+					if (ep && typeof ep.x === 'number' && typeof ep.y === 'number') {
+						minX = Math.min(minX, ep.x);
+						minY = Math.min(minY, ep.y);
+						maxX = Math.max(maxX, ep.x);
+						maxY = Math.max(maxY, ep.y);
+					}
+				});
+				
+				// 有効な端点が1つもない場合
+				if (minX === Infinity || maxX === -Infinity) {
+					console.warn('警告: レール', rail.id, 'の端点が取得できません');
+					return true;
+				}
+				
+				// 画面範囲と交差判定
+				const isInside = !(maxX < bounds.minX || minX > bounds.maxX ||
+				                   maxY < bounds.minY || minY > bounds.maxY);
+				
+				return isInside;
+			} catch (error) {
+				console.error('Error in isRailInViewport_Test:', error, rail);
+				return true;  // エラー時は表示
+			}
+		}
+		
+		/**
+		 * スナップ判定用: 近くのレールを取得
+		 * @param {Object} targetRail - 対象レール
+		 * @param {number} margin - マージン（デフォルト500px）
+		 * @returns {Array} 近くのレール配列
+		 */
+		function getNearbyRails(targetRail, margin = 500) {
+			// 軽減モードOFFの場合は全レール
+			if (!usePerformanceMode) {
+				return rails;
+			}
+			
+			try {
+				// 画面範囲を取得
+				const bounds = getTestViewportBounds();
+				
+				// マージンを追加
+				const expandedBounds = {
+					minX: bounds.minX - margin,
+					minY: bounds.minY - margin,
+					maxX: bounds.maxX + margin,
+					maxY: bounds.maxY + margin
+				};
+				
+				// 拡張範囲内のレールをフィルタ
+				return rails.filter(rail => {
+					if (rail === targetRail) return false;
+					
+					// レールの端点を取得
+					const endpoints = rail.getEndpoints();
+					if (!endpoints || endpoints.length === 0) return false;
+					
+					// 端点のいずれかが範囲内にあればOK
+					return endpoints.some(ep => {
+						return ep.x >= expandedBounds.minX && 
+						       ep.x <= expandedBounds.maxX &&
+						       ep.y >= expandedBounds.minY && 
+						       ep.y <= expandedBounds.maxY;
+					});
+				});
+			} catch (error) {
+				console.error('Error in getNearbyRails:', error);
+				return rails;  // エラー時は全レール
+			}
+		}
+		
 		function reversedegAngle(deg) {
 		return normalizedegAngle(deg + 180);
 		}
@@ -814,6 +1061,9 @@ class RailBase {
         
         // ========== 幅（ほぼ全レール共通） ==========
         this.width = options.width || RAIL_WIDTH;
+        
+        // ========== 描画軽減用フラグ ==========
+        this.skipDraw = false;  // 画面外判定フラグ
     }
     
     // ========== 基本メソッド（子クラスで実装必須） ==========
@@ -3813,6 +4063,10 @@ class Figure8PointRail extends ComplexRail {
 
     function drawAll() {
 
+	// ========================================
+	// 描画軽減: 実行時間測定開始
+	// ========================================
+	const startTime = performance.now();
 
 	ctx.restore();ctx.save();
 	ctx.setTransform(1,0,0,1,0,0);
@@ -3830,18 +4084,65 @@ class Figure8PointRail extends ComplexRail {
         
 	//    
 
+	// ========================================
+	// 描画軽減: 画面外判定フラグ設定（条件付き）
+	// ========================================
+	let skippedCount = 0;
+	if (usePerformanceMode) {
+		// 条件を満たす場合のみフラグ更新
+		if (shouldUpdateFlags()) {
+			skippedCount = updateSkipDrawFlags();
+		} else {
+			// 既存のフラグを使用（スキップ数をカウント）
+			rails.forEach(rail => {
+				if (rail.skipDraw) skippedCount++;
+			});
+		}
+	} else {
+		// 軽減OFF時は全て描画
+		rails.forEach(rail => {
+			rail.skipDraw = false;
+		});
+	}
+
+	// ========================================
+	// 描画軽減: 縮尺による強制簡易モード
+	// ========================================
+	let forceSimpleMode = false;
+	if (usePerformanceMode && scale < 0.5) {
+		// 軽減モードON & ズーム50%未満 → 強制簡易モード
+		forceSimpleMode = true;
+	}
+	
+	// 元の設定を保存
+	const originalDetailedEndpoints = useDetailedEndpoints;
+	
+	// 強制簡易モード適用
+	if (forceSimpleMode) {
+		useDetailedEndpoints = false;
+	}
+
 	// レールとジョイントの描画（描画順序修正版）
 	if (useDetailedEndpoints) {
 		// 詳細モード: レール描画直後にそのジョイントを描画
 		rails.forEach(rail => {
-			rail.draw();
-			drawRailEndpoints(rail);
+			if (!rail.skipDraw) {  // 画面外はスキップ
+				rail.draw();
+				drawRailEndpoints(rail);
+			}
 		});
 	} else {
 		// シンプルモード: 従来の方式
-		rails.forEach(rail => rail.draw());
+		rails.forEach(rail => {
+			if (!rail.skipDraw) {  // 画面外はスキップ
+				rail.draw();
+			}
+		});
 		drawSimpleEndpoints();
 	}
+	
+	// 設定を復元
+	useDetailedEndpoints = originalDetailedEndpoints;
 
 	// 選択された端点を赤丸で強調表示
 	if (selectedEndpoint) {
@@ -3850,6 +4151,51 @@ class Figure8PointRail extends ComplexRail {
 		ctx.beginPath();
 		ctx.arc(selectedEndpoint.x, selectedEndpoint.y, 8, 0, Math.PI * 2);
 		ctx.stroke();
+	}
+	
+	// ========================================
+	// 描画軽減: デバッグ用テスト枠（本番環境では非表示）
+	// ========================================
+	if (usePerformanceMode && DEBUG_VIEWPORT) {
+		ctx.save();
+		
+		// コンテナベースで計算した範囲を取得
+		const bounds = getTestViewportBounds();
+		
+		// 赤枠: 描画範囲の表示
+		ctx.strokeStyle = 'red';
+		ctx.lineWidth = 3;
+		ctx.setLineDash([10, 5]);
+		
+		const rectWidth = bounds.maxX - bounds.minX;
+		const rectHeight = bounds.maxY - bounds.minY;
+		
+		ctx.strokeRect(
+			bounds.minX,
+			bounds.minY,
+			rectWidth,
+			rectHeight
+		);
+		ctx.setLineDash([]);
+		
+		// ラベル（中央上部）
+		const rangePercent = Math.round(DEBUG_VIEWPORT_RANGE * 100);
+		ctx.fillStyle = 'red';
+		ctx.font = 'bold 20px monospace';
+		ctx.textAlign = 'center';
+		ctx.fillText(`描画範囲（${rangePercent}%）`, 0, bounds.maxY - 30);
+		
+		ctx.restore();
+	}
+
+	// ========================================
+	// 描画軽減: 実行時間測定終了
+	// ========================================
+	const endTime = performance.now();
+	const duration = endTime - startTime;
+	
+	if (usePerformanceMode && DEBUG_VIEWPORT) {
+		console.log(`[描画時間] ${duration.toFixed(2)}ms | レール: ${rails.length}個 | スキップ: ${skippedCount}個 | 描画: ${rails.length - skippedCount}個`);
 	}
 
         ctx.restore();
@@ -4157,6 +4503,11 @@ function rotateGroup(group, centerX, centerY, angleDelta) {
 
 // グループ全体をスナップ
 function snapGroupToClosestEndpoint(group, draggedRail) {
+    // 描画軽減: 縮尺が小さい時はスナップ無効
+    if (usePerformanceMode && scale < 0.5) {
+        return;  // ズーム50%未満ではスナップしない
+    }
+    
     // グループ内の全端点を取得
     let allEndpoints = [];
     group.forEach(rail => {
@@ -4166,9 +4517,12 @@ function snapGroupToClosestEndpoint(group, draggedRail) {
         });
     });
     
-    // グループ外のレールの全端点を取得
+    // 描画軽減: 近くのレールのみチェック
+    const nearbyRails = getNearbyRails(draggedRail, 500);
+    
+    // グループ外の近くのレールの端点を取得
     let externalEndpoints = [];
-    rails.forEach(rail => {
+    nearbyRails.forEach(rail => {
         if (!group.includes(rail)) {
             const endpoints = rail.getEndpoints();
             endpoints.forEach(ep => {
@@ -4257,11 +4611,19 @@ function rotateRailAroundPoint(rail, centerX, centerY, angleDelta) {
 }
 
 function snapToClosestEndpoint(shape) {
+    // 描画軽減: 縮尺が小さい時はスナップ無効
+    if (usePerformanceMode && scale < 0.5) {
+        return;  // ズーム50%未満ではスナップしない
+    }
+    
     const endpoints = shape.getEndpoints();
     let closestEndpoint = null;
     let closestDistance = Infinity;
 
-    rails.forEach(otherShape => {
+    // 描画軽減: 近くのレールのみチェック
+    const nearbyRails = getNearbyRails(shape, 500);
+    
+    nearbyRails.forEach(otherShape => {
         if (otherShape !== shape) {
             otherShape.getEndpoints().forEach(endpoint => {
                 endpoints.forEach(shapeEndpoint => {
@@ -4313,7 +4675,21 @@ function snapToClosestEndpoint(shape) {
         draggingGroup = null;
         selectedShape = null;
 
-        rails.forEach(rect => {
+        // 描画軽減: ズームアウト時はレール選定無効
+        if (usePerformanceMode && scale < 0.5) {
+            // ズーム50%未満では選定しない（パンのみ）
+            isPanning = true;
+            startX = e.offsetX;
+            startY = e.offsetY;
+            return;
+        }
+
+        // 描画軽減: 画面内レールのみチェック
+        const checkRails = usePerformanceMode 
+            ? rails.filter(r => !r.skipDraw)  // skipDraw=falseのレールのみ
+            : rails;  // 全レール
+        
+        checkRails.forEach(rect => {
             if (rect.contains(world.x, world.y)) {
                 dragging = rect;
                 selectedShape = rect;
@@ -4689,10 +5065,20 @@ function closeContextMenu() {
 
 // メニューを表示
 function showContextMenu(pageX, pageY, offsetX, offsetY) {
+    // 描画軽減: ズームアウト時はメニュー無効
+    if (usePerformanceMode && scale < 0.5) {
+        return;  // ズーム50%未満ではメニュー表示しない
+    }
+    
     const world = screenToWorld(offsetX, offsetY);
     
+    // 描画軽減: 画面内レールのみチェック
+    const checkRails = usePerformanceMode 
+        ? rails.filter(r => !r.skipDraw)  // skipDraw=falseのレールのみ
+        : rails;  // 全レール
+    
     selectedShape = null;
-    rails.forEach(rect => {
+    checkRails.forEach(rect => {
         if (rect.contains(world.x, world.y)) {
             selectedShape = rect;
         }
@@ -6000,6 +6386,15 @@ document.getElementById('canvasreset').addEventListener('click', () => {
 drawAll();
 
 
+});
+
+// 描画軽減モードトグル
+document.getElementById('performanceToggle').addEventListener('click', function() {
+    usePerformanceMode = !usePerformanceMode;
+    this.textContent = usePerformanceMode ? '軽減: ON' : '軽減: OFF';
+    this.style.background = usePerformanceMode ? '#ccffcc' : '#ffcccc';
+    console.log('Performance mode:', usePerformanceMode ? 'ON' : 'OFF');
+    drawAll();
 });
 
 // リセット　イベントリスナー
