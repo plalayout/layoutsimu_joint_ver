@@ -111,9 +111,9 @@
         @media (orientation: portrait) and (max-width: 768px) {
             #canvas-container {
                 width: 100%;
-                height: 75vw;           /* 幅の75% = 4:3の高さ */
-                max-height: 75vw;
-                min-height: 75vw;
+                height: 75vw !important;           /* 幅の75% = 4:3の高さ */
+                max-height: 75vw !important;
+                min-height: 75vw !important;
                 flex: none;
             }
             
@@ -931,14 +931,14 @@ const scaleFactor = 1.1;
 	/**
 	 * 全レールのskipDrawフラグを更新
 	 */
-	function updateSkipDrawFlags() {
-		const bounds = getTestViewportBounds();
-		let skippedCount = 0;
-		
-		rails.forEach(rail => {
-			rail.skipDraw = !isRailInViewport_Test(rail);
-			if (rail.skipDraw) skippedCount++;
-		});
+		function updateSkipDrawFlags() {
+			const bounds = getTestViewportBounds();
+			let skippedCount = 0;
+			
+			rails.forEach(rail => {
+				rail.skipDraw = !isRailInViewport_Test(rail, 'auto', bounds);
+				if (rail.skipDraw) skippedCount++;
+			});
 		
 		// 状態を保存
 		lastUpdateScale = scale;
@@ -959,13 +959,15 @@ const scaleFactor = 1.1;
 		 * @param {string} testMode - 'auto'（自動計算、デフォルト）または 'fixed'（固定枠）
 		 * @returns {boolean} true=画面内, false=画面外
 		 */
-		function isRailInViewport_Test(rail, testMode = 'auto') {
-			try {
-				let bounds;
-				
-				if (testMode === 'fixed') {
-					// 固定サイズのテスト枠（中サイズ: 800×600）
-					bounds = {
+			function isRailInViewport_Test(rail, testMode = 'auto', precomputedBounds = null) {
+				try {
+					let bounds;
+					
+					if (precomputedBounds) {
+						bounds = precomputedBounds;
+					} else if (testMode === 'fixed') {
+						// 固定サイズのテスト枠（中サイズ: 800×600）
+						bounds = {
 						minX: -400,
 						minY: -300,
 						maxX: 400,
