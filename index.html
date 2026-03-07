@@ -572,11 +572,14 @@
         </div>
 		</div>
 
-        <div class="section-title  collapsed" data-section="slide">S字レール<span class="toggle-arrow">▼</span></div>
+        <div class="section-title  collapsed" data-section="slide">その他<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-slide">
 		<div class="button-group">
             <button id="addSlide">S字</button>
             <button id="addRSlide">S字(R)</button>
+            <button id="addFlagNote">N メモ</button>
+            <button id="addFlagBreak">Nb 境界</button>
+            <button id="addConcaveJoint">Na 凸凸J</button>
         </div>
 		</div>
 
@@ -4240,6 +4243,209 @@ class Figure8PointRail extends ComplexRail {
     }
 }
 
+// ============================================================
+// ZeroLengthRailBase / FlagRail / ConcaveJointRail
+// ============================================================
+
+/**
+ * 長さ0特殊ジョイントの基底クラス
+ * 旗描画・ヒットテスト・ラベル編集を共通化
+ */
+class ZeroLengthRailBase extends RailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.label = options.label || this.defaultLabel();
+        // 旗描画パラメータ（ワールド座標）
+        // ポール: ジョイント中心(x,y)から斜め上右(x+OFFSET_X, y+HEIGHT)へ
+        this.POLE_OFFSET_X = 20;   // ポール先端のX方向オフセット（斜め）
+        this.POLE_HEIGHT   = 30;   // ポールの高さ
+        // 旗サイズ（画面座標px）
+        this.FLAG_W = 48;
+        this.FLAG_H = 20;
+    }
+
+    defaultLabel() { return ''; }
+    getFlagColor()  { return '#AAAAAA'; }
+    getFlagBorder() { return '#333333'; }
+
+    // サブクラスで実装
+    getEndpoints() { return []; }
+    toShortcut()   { return 'N'; }
+    getRailType()  { return 'flag'; }
+    getRailOptions() { return { label: this.label }; }
+
+    // ========== 旗の画面座標を返す ==========
+    _getFlagScreenPos() {
+        // ポール根本: ジョイント中心、先端: 斜め上右（ワールド座標）
+        const rootWorld  = { x: this.x,                    y: this.y };
+        const tipWorld   = { x: this.x + this.POLE_OFFSET_X, y: this.y + this.POLE_HEIGHT };
+        const rootScreen = worldToScreen(rootWorld.x, rootWorld.y);
+        const tipScreen  = worldToScreen(tipWorld.x,  tipWorld.y);
+        return { rootScreen, tipScreen };
+    }
+
+    // ========== 描画 ==========
+    draw() {
+        const { rootScreen, tipScreen } = this._getFlagScreenPos();
+
+        // ---- 現在のtransformをリセットして画面座標で描画 ----
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // ジョイント本体（赤縦線）をワールド座標系で描く必要があるので
+        // 一旦transformを戻して本体を描画
+        ctx.restore();
+        ctx.save();
+
+        // 本体（ジョイント面の縦線）
+        this._drawBody();
+
+        // 画面座標に切り替えてポール・旗を描画
+        ctx.restore();
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // ポール
+        ctx.beginPath();
+        ctx.moveTo(rootScreen.x, rootScreen.y);
+        ctx.lineTo(tipScreen.x,  tipScreen.y);
+        ctx.strokeStyle = '#555555';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 旗矩形
+        const fx = tipScreen.x;
+        const fy = tipScreen.y - this.FLAG_H;
+        ctx.fillStyle   = this.getFlagColor();
+        ctx.strokeStyle = this.getFlagBorder();
+        ctx.lineWidth   = 1;
+        ctx.fillRect(fx, fy, this.FLAG_W, this.FLAG_H);
+        ctx.strokeRect(fx, fy, this.FLAG_W, this.FLAG_H);
+
+        // ラベルテキスト
+        ctx.fillStyle  = '#222222';
+        ctx.font       = 'bold 11px sans-serif';
+        ctx.textAlign  = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.label, fx + this.FLAG_W / 2, fy + this.FLAG_H / 2);
+
+        ctx.restore();
+    }
+
+    // 本体（ジョイント面の縦線）— サブクラスで上書き可
+    _drawBody() {
+        // ワールド座標系で描画（drawAll が設定したtransformを使用）
+        const hw = 6; // 縦線の半幅（ワールド座標）
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = this.getFlagColor();
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    // ========== ヒットテスト（旗エリアのみ・画面座標） ==========
+    hitTestFlag(screenX, screenY) {
+        const { tipScreen } = this._getFlagScreenPos();
+        const fx = tipScreen.x;
+        const fy = tipScreen.y - this.FLAG_H;
+        return screenX >= fx && screenX <= fx + this.FLAG_W &&
+               screenY >= fy && screenY <= fy + this.FLAG_H;
+    }
+
+    drawFacilities() {}
+
+    // ワールド座標のhitTestは常にfalse（旗エリアは画面座標で別判定）
+    contains(mx, my) { return false; }
+}
+
+// ============================================================
+// FlagRail — メモ(N) / セクション境界(Nb)
+// ============================================================
+class FlagRail extends ZeroLengthRailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.breakGroup = options.breakGroup || false;
+        this.label = options.label || this.defaultLabel();
+    }
+
+    defaultLabel() {
+        return this.breakGroup ? 'セクション境界' : 'メモ';
+    }
+
+    getFlagColor() {
+        return this.breakGroup ? '#FF6666' : '#ADD8E6';
+    }
+
+    getEndpoints() {
+        const angle = this.angle;
+        return [
+            { id: `${this.id}-ep1`, x: this.x, y: this.y, angle: angle,       type: 'convex' },
+            { id: `${this.id}-ep2`, x: this.x, y: this.y, angle: angle,       type: 'concave' },
+        ];
+    }
+
+    _drawBody() {
+        const hw = 6 / scale;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = this.breakGroup ? '#CC0000' : '#6699CC';
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    toShortcut() {
+        const base = this.breakGroup ? 'Nb' : 'N';
+        const def  = this.breakGroup ? 'セクション境界' : 'メモ';
+        return this.label !== def ? `${base}{${this.label}}` : base;
+    }
+    getRailType()  { return 'flag'; }
+    getRailOptions() {
+        return { label: this.label, breakGroup: this.breakGroup };
+    }
+}
+
+// ============================================================
+// ConcaveJointRail — 凹凹接続アダプター(Na)
+// ============================================================
+class ConcaveJointRail extends ZeroLengthRailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.label = options.label || this.defaultLabel();
+    }
+
+    defaultLabel() { return '凸凸Joint'; }
+    getFlagColor()  { return '#FFD700'; }
+
+    getEndpoints() {
+        const angle = this.angle;
+        return [
+            { id: `${this.id}-ep1`, x: this.x, y: this.y, angle: angle,       type: 'convex' },
+            { id: `${this.id}-ep2`, x: this.x, y: this.y, angle: angle + 180,  type: 'convex' },
+        ];
+    }
+
+    _drawBody() {
+        const hw = 6 / scale;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = '#CC9900';
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    toShortcut() {
+        return this.label !== '凸凸Joint' ? `Na{${this.label}}` : 'Na';
+    }
+    getRailType()  { return 'concavejoint'; }
+    getRailOptions() {
+        return { label: this.label };
+    }
+}
+
+
 //
 
     // ==========================================
@@ -4613,6 +4819,17 @@ function findConnectedGroup(startRail) {
             for (const ep1 of currentEndpoints) {
                 for (const ep2 of otherEndpoints) {
                     if (areEndpointsConnected(ep1, ep2)) {
+                        // Nbは辿らない
+                        if (other instanceof FlagRail && other.breakGroup) return;
+                        if (current instanceof FlagRail && current.breakGroup) return;
+
+                        // 接続点の座標にNbが存在する場合は壁として機能
+                        const hasBreakAt = rails.some(r =>
+                            r instanceof FlagRail && r.breakGroup &&
+                            Math.abs(r.x - ep1.x) < 2 && Math.abs(r.y - ep1.y) < 2
+                        );
+                        if (hasBreakAt) return;
+
                         connected.add(other);
                         queue.push(other);
                         return;
@@ -4777,6 +4994,17 @@ function findGroupExcludingEndpoint(startRail, excludeEndpoint) {
                 
                 for (const ep2 of otherEndpoints) {
                     if (areEndpointsConnected(ep1, ep2)) {
+                        // Nbは辿らない
+                        if (other instanceof FlagRail && other.breakGroup) return;
+                        if (current instanceof FlagRail && current.breakGroup) return;
+
+                        // 接続点の座標にNbが存在する場合は壁として機能
+                        const hasBreakAt = rails.some(r =>
+                            r instanceof FlagRail && r.breakGroup &&
+                            Math.abs(r.x - ep1.x) < 2 && Math.abs(r.y - ep1.y) < 2
+                        );
+                        if (hasBreakAt) return;
+
                         connected.add(other);
                         queue.push(other);
                         return;
@@ -5004,8 +5232,19 @@ function snapToClosestEndpoint(shape) {
             ? rails.filter(r => !r.skipDraw)  // skipDraw=falseのレールのみ
             : rails;  // 全レール
         
+        // 旗レールの旗エリアヒットを優先チェック
         checkRails.forEach(rect => {
-            if (rect.contains(world.x, world.y)) {
+            if (rect instanceof ZeroLengthRailBase && rect.hitTestFlag(e.offsetX, e.offsetY)) {
+                dragging = rect;
+                selectedShape = rect;
+                // ジョイント中心のワールド座標とマウス位置のオフセットを維持
+                offsetX = world.x - rect.x;
+                offsetY = world.y - rect.y;
+            }
+        });
+
+        checkRails.forEach(rect => {
+            if (!(rect instanceof ZeroLengthRailBase) && rect.contains(world.x, world.y)) {
                 dragging = rect;
                 selectedShape = rect;
                 offsetX = world.x - rect.x;
@@ -5122,6 +5361,8 @@ function snapToClosestEndpoint(shape) {
     let lastTouchTime = 0;
     let touchStartPos = null;
     let lastTouchDistance = 0;
+    let lastPinchCenterX = 0;
+    let lastPinchCenterY = 0;
 
     canvas.addEventListener('touchstart', (e) => {
         // ピンチズーム開始（2本指）
@@ -5135,6 +5376,10 @@ function snapToClosestEndpoint(shape) {
                 Math.pow(touch2.clientX - touch1.clientX, 2) +
                 Math.pow(touch2.clientY - touch1.clientY, 2)
             );
+            // ピンチ中心をCSS座標で記録
+            const rect = canvas.getBoundingClientRect();
+            lastPinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+            lastPinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
             return;
         }
         
@@ -5148,13 +5393,28 @@ function snapToClosestEndpoint(shape) {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTouchTime;
             if (tapLength < 300 && tapLength > 0) {
-                // ダブルタップ: 削除
-                rails.forEach((rect, index) => {
-                    if (rect.contains(world.x, world.y)) {
-                        rails.splice(index, 1);
-                        drawAll();
+                // 旗ラベル編集を優先
+                let flagEdited = false;
+                for (const rail of rails) {
+                    if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(touch.x, touch.y)) {
+                        const newLabel = prompt('ラベルを入力:', rail.label);
+                        if (newLabel !== null) {
+                            rail.label = newLabel;
+                            drawAll();
+                        }
+                        flagEdited = true;
+                        break;
                     }
-                });
+                }
+                if (!flagEdited) {
+                    // ダブルタップ: 削除
+                    rails.forEach((rect, index) => {
+                        if (rect.contains(world.x, world.y)) {
+                            rails.splice(index, 1);
+                            drawAll();
+                        }
+                    });
+                }
                 lastTouchTime = 0;
                 return;
             }
@@ -5167,8 +5427,18 @@ function snapToClosestEndpoint(shape) {
             ghostOffset = null;
             selectedShape = null;
 
+            // 旗レールの旗エリアヒットを優先チェック
             rails.forEach(rect => {
-                if (rect.contains(world.x, world.y)) {
+                if (rect instanceof ZeroLengthRailBase && rect.hitTestFlag(touch.x, touch.y)) {
+                    dragging = rect;
+                    selectedShape = rect;
+                    offsetX = world.x - rect.x;
+                    offsetY = world.y - rect.y;
+                }
+            });
+
+            rails.forEach(rect => {
+                if (!(rect instanceof ZeroLengthRailBase) && rect.contains(world.x, world.y)) {
                     dragging = rect;
                     selectedShape = rect;
                     offsetX = world.x - rect.x;
@@ -5210,12 +5480,24 @@ function snapToClosestEndpoint(shape) {
             );
             
             if (lastTouchDistance > 0) {
-                const delta = currentDistance - lastTouchDistance;
-                if (delta > 0) {
-                    scale *= 1.02;
-                } else {
-                    scale /= 1.02;
-                }
+                // ピンチ中心（CSS座標）
+                const rect = canvas.getBoundingClientRect();
+                const pinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+                const pinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+                // ズーム前のピンチ中心ワールド座標
+                const worldBefore = screenToWorld(pinchCenterX, pinchCenterY);
+
+                // スケール変更（距離比率をそのまま使う）
+                scale *= currentDistance / lastTouchDistance;
+
+                // ズーム後のピンチ中心ワールド座標
+                const worldAfter = screenToWorld(pinchCenterX, pinchCenterY);
+
+                // ズレを補正してピンチ中心を固定
+                canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
+                canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
+
                 drawAll();
             }
             lastTouchDistance = currentDistance;
@@ -5328,17 +5610,30 @@ function snapToClosestEndpoint(shape) {
     }, {passive: false});
 
     canvas.addEventListener('dblclick', (e) => {
-        const world = screenToWorld(e.offsetX, e.offsetY);
+        const screenX = e.offsetX;
+        const screenY = e.offsetY;
+        const world = screenToWorld(screenX, screenY);
 
-            rails.forEach((rect, index) => {
-                if (rect.contains(world.x, world.y)) {
-                    rails.splice(index, 1);
+        // 旗レールのラベル編集を優先チェック
+        for (const rail of rails) {
+            if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(screenX, screenY)) {
+                const newLabel = prompt('ラベルを入力:', rail.label);
+                if (newLabel !== null) {
+                    rail.label = newLabel;
                     drawAll();
                 }
-            });
+                return;
+            }
+        }
 
-
+        // 通常レールの削除
+        rails.forEach((rect, index) => {
+            if (rect.contains(world.x, world.y)) {
+                rails.splice(index, 1);
+                drawAll();
+            }
         });
+    });
 
  canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -5859,6 +6154,22 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     //            'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
      //           'wasPlacedFromEnd=', wasPlacedFromEnd);
     
+    // 【最優先】ConcaveJointRail(Na): 凸+凸逆向き・長さ0
+    // Na追加後は ep0(凸,angle方向) を次の接続点とし、凹進行は停止
+    if (addedRail instanceof ConcaveJointRail) {
+        railProgression.endpointIndex = 0;
+        railProgression.isReversed = false;
+        return;
+    }
+
+    // 【最優先】FlagRail(N/Nb): 凸+凹同向き・長さ0
+    // 追加後は ep1(凹,同angle) を次の接続点として凹進行継続
+    if (addedRail instanceof FlagRail) {
+        railProgression.endpointIndex = 1;
+        railProgression.isReversed = false;
+        return;
+    }
+
     // 【最優先】1/4凸凸・1/6凸凸（ジョイント凸凸）: 凹進行を停止
     if (addedRail.railType === 'QuarterVV' ||
         addedRail.railType === 'SixthVV' ||
@@ -6069,6 +6380,17 @@ document.getElementById('addSlide').addEventListener('click', () => {
 
 document.getElementById('addRSlide').addEventListener('click', () => {
     addRailByType('slide', { reversed: true });
+});
+
+// ===== フラグ / 凹凹アダプター =====
+document.getElementById('addFlagNote').addEventListener('click', () => {
+    addRailByType('flag', { breakGroup: false });
+});
+document.getElementById('addFlagBreak').addEventListener('click', () => {
+    addRailByType('flag', { breakGroup: true });
+});
+document.getElementById('addConcaveJoint').addEventListener('click', () => {
+    addRailByType('concavejoint', {});
 });
 
 // ===== ターンアウト =====
@@ -6470,6 +6792,17 @@ function addRailByType(railType, options = {}) {
             break;
             
         // ===== スライドレール =====
+
+        // ===== フラグ(メモ/境界) =====
+        case 'flag':
+            rail = new FlagRail(lastEndpoint.x, lastEndpoint.y, id, options);
+            break;
+
+        // ===== 凹凹接続アダプター =====
+        case 'concavejoint':
+            rail = new ConcaveJointRail(lastEndpoint.x, lastEndpoint.y, id, options);
+            break;
+
         case 'slide':
             const slideOffset = options.reversed ? -D_TRACK_WIDTH : D_TRACK_WIDTH;
             rail = new Slide(lastEndpoint.x, lastEndpoint.y, id, slideOffset);
@@ -6716,7 +7049,7 @@ function addJointRail(isConcaveProgression) {
 }
 // 縮尺リセット　イベントリスナー
 document.getElementById('canvasreset').addEventListener('click', () => {
- scale = 3.0;  // 初期スケールに戻す
+ scale = 1.0;  // 初期スケールに戻す
 
      canvasOffsetX = canvW/2;
      canvasOffsetY = canvH/2;
@@ -6737,7 +7070,7 @@ document.getElementById('performanceToggle').addEventListener('click', function(
 
 // リセット　イベントリスナー
 document.getElementById('allclear').addEventListener('click', () => {
-    scale = 3.0;  // 初期スケールに戻す
+    scale = 1.0;  // 初期スケールに戻す
     canvasOffsetX = canvW/2;
     canvasOffsetY = canvH/2;
     rails.length = 0;
@@ -7251,6 +7584,11 @@ const railShortcuts = {
     'L': { type: 'curve', options: { direction: 'left' } },
     'H': { type: 'halfStraight' },
     
+    // フラグ / 凹凹アダプター
+    'N':  { type: 'flag',          options: { breakGroup: false } },
+    'Nb': { type: 'flag',          options: { breakGroup: true  } },
+    'Na': { type: 'concavejoint',  options: {} },
+
     // S字レール
     'Zr': { type: 'slide', options: { reversed: false } },
     'Zl': { type: 'slide', options: { reversed: true } },
@@ -7444,6 +7782,16 @@ function executeShortcutBuffer(input) {
                     const candidate = input.substring(i, i + len);
                     if (railShortcuts[candidate]) {
                         const sc = railShortcuts[candidate];
+                        let skipLen = len;
+                        // {label} があれば読み取る
+                        let customLabel = null;
+                        if (input[i + len] === '{') {
+                            const closeIdx = input.indexOf('}', i + len + 1);
+                            if (closeIdx !== -1) {
+                                customLabel = input.substring(i + len + 1, closeIdx);
+                                skipLen = closeIdx + 1 - i;
+                            }
+                        }
                         if (firstInGroup) {
                             // 座標指定でレール配置
                             const railOptions = {
@@ -7451,14 +7799,16 @@ function executeShortcutBuffer(input) {
                                 x: x,
                                 y: y,
                                 angle: angle,
-                                isReversed: isReversed
+                                isReversed: isReversed,
+                                ...(customLabel !== null ? { label: customLabel } : {})
                             };
                             addRailByType(sc.type, railOptions);
                             firstInGroup = false;
                         } else {
-                            placeRailWithEps(candidate, sc, epsIndex);
+                            placeRailWithEps(candidate, sc, epsIndex,
+                                customLabel !== null ? { label: customLabel } : {});
                         }
-                        i += len;
+                        i += skipLen;
                         matched = true;
                         break;
                     }
