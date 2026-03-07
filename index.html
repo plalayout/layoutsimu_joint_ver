@@ -111,9 +111,9 @@
         @media (orientation: portrait) and (max-width: 768px) {
             #canvas-container {
                 width: 100%;
-                height: 75vw !important;           /* 幅の75% = 4:3の高さ */
-                max-height: 75vw !important;
-                min-height: 75vw !important;
+                height: 75vw;           /* 幅の75% = 4:3の高さ */
+                max-height: 75vw;
+                min-height: 75vw;
                 flex: none;
             }
             
@@ -471,7 +471,7 @@
             <button id="groupMoveToggle" style="flex: 2;">まとめ移動: OFF</button>
             <button id="allclear" style="background: #ffcccc;">全クリア</button>
             <button id="canvasreset">原尺</button>
-            <button id="performanceToggle" style="background: #ffcccc;">軽減: OFF</button>
+            <button id="performanceToggle" style="background: #ccffcc;">軽減: ON</button>
         </div>
         
         <div class="section-title" data-section="basic">基本レール<span class="toggle-arrow">▼</span></div>
@@ -676,7 +676,7 @@ const scaleFactor = 1.1;
     // ========================================
     // 描画軽減モード
     // ========================================
-    let usePerformanceMode = false;  // 軽減モードのON/OFF（デフォルトOFF）
+    let usePerformanceMode = true;  // 軽減モードのON/OFF（デフォルトON）
     
     // デバッグ用フラグ（本番環境ではfalse）
     const DEBUG_VIEWPORT = false;  // true: テスト枠を表示
@@ -931,14 +931,14 @@ const scaleFactor = 1.1;
 	/**
 	 * 全レールのskipDrawフラグを更新
 	 */
-		function updateSkipDrawFlags() {
-			const bounds = getTestViewportBounds();
-			let skippedCount = 0;
-			
-			rails.forEach(rail => {
-				rail.skipDraw = !isRailInViewport_Test(rail, 'auto', bounds);
-				if (rail.skipDraw) skippedCount++;
-			});
+	function updateSkipDrawFlags() {
+		const bounds = getTestViewportBounds();
+		let skippedCount = 0;
+		
+		rails.forEach(rail => {
+			rail.skipDraw = !isRailInViewport_Test(rail);
+			if (rail.skipDraw) skippedCount++;
+		});
 		
 		// 状態を保存
 		lastUpdateScale = scale;
@@ -959,15 +959,13 @@ const scaleFactor = 1.1;
 		 * @param {string} testMode - 'auto'（自動計算、デフォルト）または 'fixed'（固定枠）
 		 * @returns {boolean} true=画面内, false=画面外
 		 */
-			function isRailInViewport_Test(rail, testMode = 'auto', precomputedBounds = null) {
-				try {
-					let bounds;
-					
-					if (precomputedBounds) {
-						bounds = precomputedBounds;
-					} else if (testMode === 'fixed') {
-						// 固定サイズのテスト枠（中サイズ: 800×600）
-						bounds = {
+		function isRailInViewport_Test(rail, testMode = 'auto') {
+			try {
+				let bounds;
+				
+				if (testMode === 'fixed') {
+					// 固定サイズのテスト枠（中サイズ: 800×600）
+					bounds = {
 						minX: -400,
 						minY: -300,
 						maxX: 400,
@@ -4495,6 +4493,8 @@ class Figure8PointRail extends ComplexRail {
 
 let groupMoveEnabled = false;
 let draggingGroup = null;
+let ghostOffset = null;   // グループ移動中のゴーストオフセット {dx, dy}
+let ghostBaseX = 0, ghostBaseY = 0;  // ドラッグ基準位置（dragging.x/yを汚さない）
 
 // 2つの端点が接続されているか判定（厳格な条件）
 function areEndpointsConnected(ep1, ep2) {
@@ -4632,6 +4632,38 @@ function moveGroup(group, dx, dy) {
         rail.y += dy;
         if (rail._dirty !== undefined) rail._dirty = true;
     });
+}
+
+// ゴースト描画: グループ移動中に x/y を変えずオフセットだけで描画
+function drawAllWithGhost() {
+    // 通常描画（全レールそのまま）
+    drawAll();
+
+    if (!ghostOffset || !draggingGroup) return;
+    const { dx, dy } = ghostOffset;
+    if (dx === 0 && dy === 0) return;
+
+    // drawAll() は末尾で ctx.restore() するため transform がリセットされる
+    // → drawAll と同じ変換を明示的に再設定する
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.translate(0, canvas.height);
+    ctx.translate(canvasOffsetX, -canvasOffsetY);
+    ctx.scale(scale, -scale);
+    ctx.globalAlpha = 0.6;
+
+    draggingGroup.forEach(rail => {
+        const origX = rail.x, origY = rail.y;
+        rail.x += dx;
+        rail.y += dy;
+        if (rail._dirty !== undefined) rail._dirty = true;
+        rail.draw();
+        rail.x = origX;
+        rail.y = origY;
+        if (rail._dirty !== undefined) rail._dirty = true;
+    });
+
+    ctx.restore();
 }
 
 // グリップ位置に基づいてインテリジェントにグループを検出
@@ -4792,81 +4824,76 @@ function rotateGroup(group, centerX, centerY, angleDelta) {
 function snapGroupToClosestEndpoint(group, draggedRail) {
     // 描画軽減: 縮尺が小さい時はスナップ無効
     if (usePerformanceMode && scale < 0.5) {
-        return;  // ズーム50%未満ではスナップしない
+        return;
     }
-    
-    // グループ内の全端点を取得
+
+    // グループをSetで管理（includes より高速）
+    const groupSet = new Set(group);
+
+    // グループ内の未接続端点のみ収集
     let allEndpoints = [];
     group.forEach(rail => {
-        const endpoints = rail.getEndpoints();
-        endpoints.forEach(ep => {
-            allEndpoints.push({ rail: rail, endpoint: ep });
-        });
-    });
-    
-    // 描画軽減: 近くのレールのみチェック
-    const nearbyRails = getNearbyRails(draggedRail, 500);
-    
-    // グループ外の近くのレールの端点を取得
-    let externalEndpoints = [];
-    nearbyRails.forEach(rail => {
-        if (!group.includes(rail)) {
-            const endpoints = rail.getEndpoints();
-            endpoints.forEach(ep => {
-                externalEndpoints.push({ rail: rail, endpoint: ep });
-            });
-        }
-    });
-    
-    // 最も近い端点ペアを見つける
-    let closestPair = null;
-    let closestDistance = Infinity;
-    
-    allEndpoints.forEach(groupEp => {
-        externalEndpoints.forEach(extEp => {
-            // 両端点が未接続かチェック
-            if (isEndpointConnected(groupEp.rail, groupEp.endpoint.id)) return;
-            if (isEndpointConnected(extEp.rail, extEp.endpoint.id)) return;
-            
-            // スナップ可能かチェック
-            if (!canSnapEndpoints(groupEp.endpoint, extEp.endpoint)) return;
-            
-            const dx = groupEp.endpoint.x - extEp.endpoint.x;
-            const dy = groupEp.endpoint.y - extEp.endpoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestPair = {
-                    groupEndpoint: groupEp,
-                    externalEndpoint: extEp
-                };
+        rail.getEndpoints().forEach(ep => {
+            if (!isEndpointConnected(rail, ep.id)) {
+                allEndpoints.push({ rail, endpoint: ep });
             }
         });
     });
-    
-    // スナップ実行
+
+    // キャッシュを更新してからスナップ対象を絞る
+    nearbyRailsCacheValid = false;
+    updateNearbyRailsCache();
+    const nearbyRails = getNearbyRails(draggedRail, 500);
+
+    // グループ外の未接続端点のみ収集
+    let externalEndpoints = [];
+    nearbyRails.forEach(rail => {
+        if (!groupSet.has(rail)) {
+            rail.getEndpoints().forEach(ep => {
+                if (!isEndpointConnected(rail, ep.id)) {
+                    externalEndpoints.push({ rail, endpoint: ep });
+                }
+            });
+        }
+    });
+
+    // 最も近い端点ペアを見つける
+    let closestPair = null;
+    let closestDistance = Infinity;
+
+    allEndpoints.forEach(groupEp => {
+        externalEndpoints.forEach(extEp => {
+            if (!canSnapEndpoints(groupEp.endpoint, extEp.endpoint)) return;
+            const dx = groupEp.endpoint.x - extEp.endpoint.x;
+            const dy = groupEp.endpoint.y - extEp.endpoint.y;
+            const dist = dx*dx + dy*dy;  // sqrt不要（比較だけ）
+            if (dist < closestDistance) {
+                closestDistance = dist;
+                closestPair = { groupEndpoint: groupEp, externalEndpoint: extEp };
+            }
+        });
+    });
+
     if (closestPair) {
         const groupEp = closestPair.groupEndpoint.endpoint;
-        const extEp = closestPair.externalEndpoint.endpoint;
-        
-        // 1. まず角度を合わせる（グループの掴んでいるレールを中心に回転）
+        const extEp  = closestPair.externalEndpoint.endpoint;
+
+        // 角度差がほぼ0なら回転スキップ（_sync 全走らせない）
         const angleDiff = extEp.angle - groupEp.angle;
-        rotateGroup(group, draggedRail.x, draggedRail.y, angleDiff);
-        
-        // 2. 回転後の端点位置を再計算
-        const updatedGroupEndpoints = closestPair.groupEndpoint.rail.getEndpoints();
-        const updatedGroupEp = updatedGroupEndpoints.find(ep => ep.id === groupEp.id);
-        
-        // 3. 位置を合わせる（平行移動）
-        const dx = extEp.x - updatedGroupEp.x;
-        const dy = extEp.y - updatedGroupEp.y;
-        moveGroup(group, dx, dy);
-        
-        return true; // スナップした
+        const normalizedDiff = ((angleDiff % 360) + 360) % 360;
+        if (normalizedDiff > 0.01 && normalizedDiff < 359.99) {
+            rotateGroup(group, draggedRail.x, draggedRail.y, angleDiff);
+        }
+
+        // 回転後の端点位置で平行移動
+        const updatedGroupEp = closestPair.groupEndpoint.rail
+            .getEndpoints().find(ep => ep.id === groupEp.id);
+        if (updatedGroupEp) {
+            moveGroup(group, extEp.x - updatedGroupEp.x, extEp.y - updatedGroupEp.y);
+        }
+        return true;
     }
-    
-    return false; // スナップしなかった
+    return false;
 }
 
 // レールを指定点を中心に回転（グループ移動と共通化）
@@ -4960,6 +4987,7 @@ function snapToClosestEndpoint(shape) {
         
         dragging = null;
         draggingGroup = null;
+        ghostOffset = null;
         selectedShape = null;
 
         // 描画軽減: ズームアウト時はレール選定無効
@@ -4989,6 +5017,11 @@ function snapToClosestEndpoint(shape) {
                 // グループ移動モードならグリップ位置に基づいて接続グループを検出
                 if (groupMoveEnabled) {
                     draggingGroup = findGroupByGripPosition(rect, world.x, world.y);
+                    if (draggingGroup) {
+                        ghostOffset = { dx: 0, dy: 0 };
+                        ghostBaseX = world.x - offsetX;  // dragging の初期ワールド位置
+                        ghostBaseY = world.y - offsetY;
+                    }
                 }
             }
         });
@@ -5020,17 +5053,17 @@ function snapToClosestEndpoint(shape) {
             const newY = world.y - offsetY;
             
             if (draggingGroup) {
-                // グループ移動: 相対移動量を計算
-                const dx = newX - dragging.x;
-                const dy = newY - dragging.y;
-                moveGroup(draggingGroup, dx, dy);
+                // グループ移動: ゴーストオフセットを更新（実座標は変更しない）
+                ghostOffset.dx = newX - ghostBaseX;
+                ghostOffset.dy = newY - ghostBaseY;
+                drawAllWithGhost();
             } else {
                 // 単独移動
                 dragging.x = newX;
                 dragging.y = newY;
                 if (dragging._dirty !== undefined) dragging._dirty = true;
+                drawAll();
             }
-            drawAll();
         } else if (isPanning) {
             // Canvas表示サイズと内部解像度の比率を取得
             const rect = canvas.getBoundingClientRect();
@@ -5054,6 +5087,11 @@ function snapToClosestEndpoint(shape) {
     canvas.addEventListener('mouseup', () => {
         if (dragging) {
             if (draggingGroup) {
+                // ゴーストオフセット分を実際の座標に確定
+                if (ghostOffset) {
+                    moveGroup(draggingGroup, ghostOffset.dx, ghostOffset.dy);
+                    ghostOffset = null;
+                }
                 // グループ移動の場合、グループ全体をスナップ
                 snapGroupToClosestEndpoint(draggingGroup, dragging);
             } else {
@@ -5063,6 +5101,7 @@ function snapToClosestEndpoint(shape) {
 	    LastselectedShape = dragging;
             dragging = null;
             draggingGroup = null;
+            ghostOffset = null;
         }
         isPanning = false;
         drawAll();
@@ -5125,6 +5164,7 @@ function snapToClosestEndpoint(shape) {
             touchStartPos = {x: touch.x, y: touch.y};
             dragging = null;
             draggingGroup = null;
+            ghostOffset = null;
             selectedShape = null;
 
             rails.forEach(rect => {
@@ -5140,6 +5180,11 @@ function snapToClosestEndpoint(shape) {
                     // グループ移動モードならグリップ位置に基づいて接続グループを検出
                     if (groupMoveEnabled) {
                         draggingGroup = findGroupByGripPosition(rect, world.x, world.y);
+                        if (draggingGroup) {
+                            ghostOffset = { dx: 0, dy: 0 };
+                            ghostBaseX = world.x - offsetX;
+                            ghostBaseY = world.y - offsetY;
+                        }
                     }
                 }
             });
@@ -5187,17 +5232,17 @@ function snapToClosestEndpoint(shape) {
                 const newY = world.y - offsetY;
                 
                 if (draggingGroup) {
-                    // グループ移動: 相対移動量を計算
-                    const dx = newX - dragging.x;
-                    const dy = newY - dragging.y;
-                    moveGroup(draggingGroup, dx, dy);
+                    // グループ移動: ゴーストオフセットを更新（実座標は変更しない）
+                    ghostOffset.dx = newX - ghostBaseX;
+                    ghostOffset.dy = newY - ghostBaseY;
+                    drawAllWithGhost();
                 } else {
                     // 単独移動
                     dragging.x = newX;
                     dragging.y = newY;
                     if (dragging._dirty !== undefined) dragging._dirty = true;
+                    drawAll();
                 }
-                drawAll();
             } else if (isPanning) {
                 // Canvas表示サイズと内部解像度の比率を取得
                 const rect = canvas.getBoundingClientRect();
@@ -5260,6 +5305,11 @@ function snapToClosestEndpoint(shape) {
             
             if (dragging) {
                 if (draggingGroup) {
+                    // ゴーストオフセット分を実際の座標に確定
+                    if (ghostOffset) {
+                        moveGroup(draggingGroup, ghostOffset.dx, ghostOffset.dy);
+                        ghostOffset = null;
+                    }
                     // グループ移動の場合、グループ全体をスナップ
                     snapGroupToClosestEndpoint(draggingGroup, dragging);
                 } else {
@@ -5269,6 +5319,7 @@ function snapToClosestEndpoint(shape) {
                 LastselectedShape = dragging;
                 dragging = null;
                 draggingGroup = null;
+                ghostOffset = null;
             }
             isPanning = false;
             touchStartPos = null;
@@ -6753,7 +6804,14 @@ function loadFromSlot(slot) {
 function getLayoutURL() {
     const data = saveLayout();
     const compressed = encodeURIComponent(data);
-    const url = `${window.location.origin}${window.location.pathname}?layout=${compressed}`;
+
+    // ビューポートをワールド座標の中心点として保存
+    // canvasOffsetX/Y はcanvasサイズ依存なので中心ワールド座標に変換
+    const cx = -canvasOffsetX / scale;
+    const cy =  canvasOffsetY / scale;
+    const view = `${scale.toFixed(4)},${cx.toFixed(2)},${cy.toFixed(2)}`;
+
+    const url = `${window.location.origin}${window.location.pathname}?layout=${compressed}&view=${encodeURIComponent(view)}`;
     return url;
 }
 
@@ -6818,6 +6876,23 @@ function loadFromURL() {
             showStatus('URLからレイアウトを読み込みました');
         } catch (e) {
             console.error('レイアウト読み込みエラー:', e);
+        }
+    }
+
+    // ビューポート復元（scale + ワールド中心座標 → canvasOffset変換）
+    const viewParam = params.get('view');
+    if (viewParam) {
+        try {
+            const [s, cx, cy] = decodeURIComponent(viewParam).split(',').map(Number);
+            if (!isNaN(s) && !isNaN(cx) && !isNaN(cy) && s > 0) {
+                scale = s;
+                // ワールド中心 → canvasOffset に逆変換
+                canvasOffsetX = -cx * scale;
+                canvasOffsetY =  cy * scale;
+                drawAll();
+            }
+        } catch (e) {
+            console.error('ビューポート復元エラー:', e);
         }
     }
 }
