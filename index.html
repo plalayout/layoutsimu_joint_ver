@@ -477,16 +477,16 @@
         <div class="section-title" data-section="basic">基本レール<span class="toggle-arrow">▼</span></div>
         <div class="section-content" id="section-basic">
 		<div class="button-group rail-buttons">
-            <button id="addStraight">直線</button>
-            <button id="addRightCurve">右カーブ</button>
-            <button id="addLeftCurve">左カーブ</button>
+            <button id="addStraight" data-rail="straight">直線</button>
+            <button id="addRightCurve" data-rail="curve" data-direction="right">右カーブ</button>
+            <button id="addLeftCurve" data-rail="curve" data-direction="left">左カーブ</button>
         </div>
         
         <div class="button-group">
-            <button id="addHalfStraight">1/2直線</button>
-            <button id="addDoubleStraight">倍直線</button>
-            <button id="addDoubleLengthCurveRight">倍曲右</button>
-            <button id="addDoubleLengthCurveLeft">倍曲左</button>
+            <button id="addHalfStraight" data-rail="halfStraight">1/2直線</button>
+            <button id="addDoubleStraight" data-rail="doubleStraight">倍直線</button>
+            <button id="addDoubleLengthCurveRight" data-rail="doubleLengthCurve" data-direction="right">倍曲右</button>
+            <button id="addDoubleLengthCurveLeft" data-rail="doubleLengthCurve" data-direction="left">倍曲左</button>
         </div>
 		<div class="button-group">		
 			<button id="addQuarterV">1/4 (to凸)</button>  <!-- 終点が凸 -->
@@ -496,87 +496,88 @@
         </div>
 		</div>
       
-
         <div class="section-title  collapsed" data-section="point">ポイント<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-point">
 		<div class="button-group">
-            <button id="addTurnoutLeft">T.O(R)</button>
-            <button id="addTurnoutRight">(R裏)</button>
-            <button id="addTurnoutLeftL">(L)</button>
-            <button id="addTurnoutRightL">(L裏)</button>
+            <button id="addTurnoutLeft" data-rail="turnout" data-direction="left" data-type="R">T.O(R)</button>
+            <button id="addTurnoutRight" data-rail="turnout" data-direction="right" data-type="R">(R裏)</button>
+            <button id="addTurnoutLeftL" data-rail="turnout" data-direction="left" data-type="L">(L)</button>
+            <button id="addTurnoutRightL" data-rail="turnout" data-direction="right" data-type="L">(L裏)</button>
         </div>
         <div class="button-group">
-            <button id="addFigure8Point">8P R(左)</button>
-            <button id="addFigure8PointRRev">R(右)</button>
-            <button id="addFigure8PointL">L(左)</button>
-            <button id="addFigure8PointLRev">L(右)</button>
+            <button id="addFigure8Point" data-rail="figure8" data-type="R" data-direction="left">8P R(左)</button>
+            <button id="addFigure8PointRRev" data-rail="figure8" data-type="R" data-direction="right">R(右)</button>
+            <button id="addFigure8PointL" data-rail="figure8" data-type="L" data-direction="left">L(左)</button>
+            <button id="addFigure8PointLRev" data-rail="figure8" data-type="L" data-direction="right">L(右)</button>
         </div>
 		<div class="button-group">
-            <button id="addCrossPoint">十字P</button>  
-            <button id="addCrossPointRev">十字(転）</button>  
-            <button id="addR30TrianglePoint">R-30三角</button>
-            <button id="addR30TrianglePointRev">(裏)</button>
+            <button id="addCrossPoint" data-rail="crossPoint" data-reversed="false">十字P</button>  
+            <button id="addCrossPointRev" data-rail="crossPoint" data-reversed="true">十字(転）</button>  
+            <button id="addR30TrianglePoint" data-rail="r30" data-reversed="false">R-30三角</button>
+            <button id="addR30TrianglePointRev" data-rail="r30" data-reversed="true">(裏)</button>
         </div>
 		</div>
 
         <div class="section-title  collapsed" data-section="double">複線・複曲線レール<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-double">
 		<div class="button-group">
-            <button id="addDoubleTrack">複直線</button>
-            <button id="addDoubleCurveLeft">複曲線(左)</button>
-            <button id="addDoubleCurveRight">複曲線(右)</button>
+            <button id="addDoubleTrack" data-rail="doubleTrack">複直線</button>
+            <button id="addDoubleCurveLeft" data-rail="doubleCurve" data-direction="left">複曲線(左)</button>
+            <button id="addDoubleCurveRight" data-rail="doubleCurve" data-direction="right">複曲線(右)</button>
         </div>
         <div class="button-group">
-            <button id="addRightOuterCurve">右外側</button>
-            <button id="addLeftOuterCurve">左外側</button>
+            <button id="addRightOuterCurve" data-rail="outerCurve" data-direction="right">右外側</button>
+            <button id="addLeftOuterCurve" data-rail="outerCurve" data-direction="left">左外側</button>
         </div>
 
-
         <div class="button-group">
-            <button id="addUTurnRailU">Uターン</button>
-            <button id="addUTurnRailV">U(逆)</button>
-            <button id="addDoubleTrackCrossover">複線渡り</button>
-            <button id="addDoubleTrackCrossoverRev">複渡(裏)</button>
+            <button id="addUTurnRailU" data-rail="uturn" data-type="U">Uターン</button>
+            <button id="addUTurnRailV" data-rail="uturn" data-type="V">U(逆)</button>
+            <button id="addDoubleTrackCrossover" data-rail="doubleCrossover" data-reversed="false">複線渡り</button>
+            <button id="addDoubleTrackCrossoverRev" data-rail="doubleCrossover" data-reversed="true">複渡(裏)</button>
         </div>
 		</div>
 		
         <div class="section-title  collapsed" data-section="doubleturnout">複線ターンアウト/R-15複線幅広/R-17三方向<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-doubleturnout">
 		<div class="button-group">
-            <button id="addDoubleTrackTurnoutLeft">複T.O.(左)</button>
-            <button id="addDoubleTrackTurnoutLeftRev">(左裏)</button>
-            <button id="addDoubleTrackTurnoutRight">(右)</button>
-            <button id="addDoubleTrackTurnoutRightRev">(右裏)</button>
-            <button id="addR15WideA">幅広(A)</button>
-            <button id="addR15WideARev">(A裏)</button>
-            <button id="addR15WideB">(B)</button>
-            <button id="addR15WideBRev">(B裏)</button>
-            <button id="addR17ThreewayPointALeft">3分岐(A)</button>
-            <button id="addR17ThreewayPointARight"> (A右)</button>
-            <button id="addR17ThreewayPointBLeft"> (B左)</button>
-            <button id="addR17ThreewayPointBRight">(B右)</button>
+            <button id="addDoubleTrackTurnoutLeft" data-rail="doubleTurnout" data-direction="left" data-reversed="false">複T.O.(左)</button>
+            <button id="addDoubleTrackTurnoutLeftRev" data-rail="doubleTurnout" data-direction="left" data-reversed="true">(左裏)</button>
+            <button id="addDoubleTrackTurnoutRight" data-rail="doubleTurnout" data-direction="right" data-reversed="false">(右)</button>
+            <button id="addDoubleTrackTurnoutRightRev" data-rail="doubleTurnout" data-direction="right" data-reversed="true">(右裏)</button>
+            <button id="addR15WideA" data-rail="r15" data-type="A" data-reversed="false">幅広(A)</button>
+            <button id="addR15WideARev" data-rail="r15" data-type="A" data-reversed="true">(A裏)</button>
+            <button id="addR15WideB" data-rail="r15" data-type="B" data-reversed="false">(B)</button>
+            <button id="addR15WideBRev" data-rail="r15" data-type="B" data-reversed="true">(B裏)</button>
+            <button id="addR17ThreewayPointALeft" data-rail="r17" data-type="A" data-direction="left">3分岐(A)</button>
+            <button id="addR17ThreewayPointARight" data-rail="r17" data-type="A" data-direction="right"> (A右)</button>
+            <button id="addR17ThreewayPointBLeft" data-rail="r17" data-type="B" data-direction="left"> (B左)</button>
+            <button id="addR17ThreewayPointBRight" data-rail="r17" data-type="B" data-direction="right">(B右)</button>
 			</div>
 			</div>
 
 		<div class="section-title  collapsed" data-section="r13r22">R-13単複P/R-22 Y字P<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-r13r22">
 		<div class="button-group">
-            <button id="addR13PointBRight">単複 (B右)</button>
-            <button id="addR13PointBLeft">（B左)</button>
-            <button id="addR13PointARight">(A右)</button>
-            <button id="addR13PointALeft">(A左)</button>
-            <button id="addR22YPointB">Y字(B)</button>
-            <button id="addR22YPointBRev">(B裏)</button>
-            <button id="addR22YPointA">Y字(A)</button>
-            <button id="addR22YPointARev">(A裏)</button>
+            <button id="addR13PointBRight" data-rail="r13" data-type="B" data-direction="right">単複 (B右)</button>
+            <button id="addR13PointBLeft" data-rail="r13" data-type="B" data-direction="left">（B左)</button>
+            <button id="addR13PointARight" data-rail="r13" data-type="A" data-direction="right">(A右)</button>
+            <button id="addR13PointALeft" data-rail="r13" data-type="A" data-direction="left">(A左)</button>
+            <button id="addR22YPointB" data-rail="r22" data-type="B" data-reversed="false">Y字(B)</button>
+            <button id="addR22YPointBRev" data-rail="r22" data-type="B" data-reversed="true">(B裏)</button>
+            <button id="addR22YPointA" data-rail="r22" data-type="A" data-reversed="false">Y字(A)</button>
+            <button id="addR22YPointARev" data-rail="r22" data-type="A" data-reversed="true">(A裏)</button>
         </div>
 		</div>
 
-        <div class="section-title  collapsed" data-section="slide">S字レール<span class="toggle-arrow">▼</span></div>
+        <div class="section-title  collapsed" data-section="slide">その他<span class="toggle-arrow">▼</span></div>
         <div class="section-content  collapsed" id="section-slide">
 		<div class="button-group">
-            <button id="addSlide">S字</button>
-            <button id="addRSlide">S字(R)</button>
+            <button id="addSlide" data-rail="slide" data-reversed="false">S字</button>
+            <button id="addRSlide" data-rail="slide" data-reversed="true">S字(R)</button>
+            <button id="addFlagNote" data-rail="flag" data-breakgroup="false">N メモ</button>
+            <button id="addFlagBreak" data-rail="flag" data-breakgroup="true">Nb 境界</button>
+            <button id="addConcaveJoint" data-rail="concavejoint">Na 凸凸J</button>
         </div>
 		</div>
 
@@ -692,7 +693,6 @@ const scaleFactor = 1.1;
         // レスポンシブキャンバスサイズ調整
         // ========================================
         // CSSのobject-fit: containとhandleResize()で対応
-
 
         const DIRECTION_LEFT = 'left';
         const DIRECTION_RIGHT = 'right';
@@ -1036,7 +1036,6 @@ function rotatedegAngle(deg, delta) {
 		return normalizedegAngle(deg + delta);
 }
 
-
 // ========================================
 // 複合レール基底クラス
 // ========================================
@@ -1342,7 +1341,6 @@ class SimpleRail extends RailBase {
     }
 }
 
-
 class StraightRail extends SimpleRail {
             constructor(x, y, id, length = RAIL_LENGTH, options = {}) {
                 super(x, y, id, {
@@ -1395,7 +1393,6 @@ class StraightRail extends SimpleRail {
                 this.drawWithDoubleLine(3, this.color, 4.5);
             }
             
-            
             drawWithWidth(width, color,s_offset=0,e_offset=0) {
                 ctx.save();
                 ctx.translate(this.x, this.y);
@@ -1416,10 +1413,8 @@ class StraightRail extends SimpleRail {
 				ctx.restore();
             }
 
-
             contains(mx, my) {
  
-
 				const scaledX = (mx ) ;
 				const scaledY = (my ) ;
 
@@ -1500,7 +1495,6 @@ class StraightRail extends SimpleRail {
                 }		
 				}
 			
-			
 			}
             
             toggleReverse() {
@@ -1521,7 +1515,6 @@ class StraightRail extends SimpleRail {
             }
 			
 }
-
 
 class Slide extends SimpleRail {
             constructor(x, y, id, slide, length = RAIL_LENGTH) {
@@ -1626,7 +1619,6 @@ class Slide extends SimpleRail {
 				};
 			}
 			
-			
 }
 
 // オフセット曲線を描画(スライドレール描写補助）
@@ -1646,7 +1638,6 @@ function drawOffsetBezier(ctx, p0, p1, p2, p3, offset, steps = 16) {
     }
     ctx.stroke();
 }
-
 
 // 3次ベジェ曲線の点を計算
 function cubicBezierPoint(t, p0, p1, p2, p3) {
@@ -1680,8 +1671,6 @@ function normalVector(tangent) {
     if (len === 0) return { x: 0, y: 0 };
     return { x: -tangent.y / len, y: tangent.x / len };
 }
-
-
 
 class Curve extends SimpleRail {
     constructor(x, y, id, direction = DIRECTION_LEFT, radius = RAIL_LENGTH, turnAngle = 45) {
@@ -1811,7 +1800,6 @@ class Curve extends SimpleRail {
                withinArc;
     }
 
-
     getEndpoints() {
         const angleRad = this.angle * Math.PI / 180;
 		const turnRad = this.turnAngle/180 * Math.PI;
@@ -1859,13 +1847,7 @@ class Curve extends SimpleRail {
         };
     }
 	
-	
-	
-	
-	
 }
-
-
 
 class TurnoutRail extends ComplexRail {
     constructor(x, y, id, turnoutType = 'R', direction = 'left') {
@@ -2016,10 +1998,7 @@ class TurnoutRail extends ComplexRail {
         };
     }
 	
-	
-
 }
-
 
 class R17ThreewayRail extends ComplexRail {
     constructor(x, y, id, ThreewayType = 'B', direction = 'left') {
@@ -2048,7 +2027,6 @@ class R17ThreewayRail extends ComplexRail {
         const dir = this.direction;
 		const dir2 =  (this.direction === 'right') ? 'left' : 'right';
 		
-
         /* ===== B型：起点共有・直線と曲線が分岐 ===== */
         if (this.ThreewayType === 'B') {
             // 直線部
@@ -2093,12 +2071,10 @@ class R17ThreewayRail extends ComplexRail {
             curve2.color = this.color;
             curve2.highlightColor = this.highlightColor;
 
-
             this.components.push(straight, curve, curve2);
         }
     }
 
- 
     /* =========================
        endpoint
     ========================= */
@@ -2166,7 +2142,6 @@ class R17ThreewayRail extends ComplexRail {
                 type: 'convex'
             });
 
-		
 		}
 
         return eps;
@@ -2202,9 +2177,7 @@ class R17ThreewayRail extends ComplexRail {
         };
     }
 	
-	
 }
-
 
 class R13PointRail extends ComplexRail {
     constructor(x, y, id, pointType = 'B', direction = 'right') {
@@ -3026,9 +2999,6 @@ class CrossPointRail extends ComplexRail {
         const dir = this.isReversed ? 'left' : 'right';
         const dir2 = this.isReversed ? 'right' : 'left';
 
-
-
-        
         // 1本目: 横方向直線（起点凹→終点凸）
         const straight1 = new StraightRail(this.x, this.y, this.id + '-1');
         straight1.angle = base;
@@ -3078,8 +3048,6 @@ class CrossPointRail extends ComplexRail {
         this.components.push(straight1, straight2, curve1, curve2,curve3,curve4);
     }
 
-
-
     /* =========================
        描画
     ========================= */
@@ -3105,7 +3073,6 @@ class CrossPointRail extends ComplexRail {
             this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(2, 'black',6));
             this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(3, 'black',3.5));
             this.components.slice(0, 4).forEach(c => c.drawWithDoubleLine(3, this.color,4.5));
-
 
         } else{
             this.components.forEach(c => c.draw());
@@ -3237,7 +3204,6 @@ class DoubleTrackCrossoverRail extends ComplexRail {
         const Slide1 = new Slide(this.x + track1OffsetX * flg, this.y + track1OffsetY * flg, this.id + '-L', D_TRACK_WIDTH * direction);
         Slide1.angle = base;
         Slide1.color = this.color;
-        
         
         this.components.push(Straight1, Straight2, Slide1);
     }
@@ -3510,7 +3476,6 @@ class DoubleTrackTurnoutRail extends ComplexRail {
             type: 'concave'
         });
 
-
         // 終点側（右直線）
         const rightEnd = this.components[1].getEndpoints()[1];
         eps.push({
@@ -3563,7 +3528,6 @@ class DoubleTrackTurnoutRail extends ComplexRail {
             type: 'concave'
         });
 			
-		
 		}
 	
         return eps;
@@ -3642,8 +3606,6 @@ class DoubleTrackRail extends ComplexRail {
         this.components.push(rail1, rail2);
     }
 
-
-
     /* =========================
        描画
     ========================= */
@@ -3672,7 +3634,6 @@ class DoubleTrackRail extends ComplexRail {
 		this.drawFacilities();
         this.components.forEach(c => c.draw());
     }
-
 
     /* =========================
        endpoint
@@ -3754,7 +3715,6 @@ class DoubleCurveRail extends ComplexRail {
 
         // 角度のラジアン変換
         const angleRad = base * Math.PI / 180;
-
 
         const dir = this.direction;
         
@@ -3893,8 +3853,6 @@ class DoubleCurveRail extends ComplexRail {
 
 }
 
-
-
 class UTurnRail extends ComplexRail {
     constructor(x, y, id, type = 'U') {
         // typeをisReversedに変換
@@ -3961,10 +3919,8 @@ class UTurnRail extends ComplexRail {
 		UturnPart1.color = this.color;
 		UturnPart1.highlightColor = this.highlightColor;
 
-        
         this.components.push(Curve1,UturnMain,Curve2,UturnPart1);
     }
-
 
     /* =========================
        描画
@@ -4019,7 +3975,6 @@ class UTurnRail extends ComplexRail {
 			\            /
 		    (6,0)------(d1-6,0)
 		
-		
 		*/
         ctx.fillStyle = this.color;
         ctx.beginPath();
@@ -4033,7 +3988,6 @@ class UTurnRail extends ComplexRail {
 
         ctx.restore();
 	}
-
 
     /* =========================
        endpoint
@@ -4063,7 +4017,6 @@ class UTurnRail extends ComplexRail {
 
     }
     
-    
     toggleReverse() {
 		this.type = (this.type === 'U') ? 'V' : 'U';
         this._dirty = true;
@@ -4077,7 +4030,6 @@ class UTurnRail extends ComplexRail {
     }
 
 }
-
 
 class Figure8PointRail extends ComplexRail {
     constructor(x, y, id, pointType = 'R', direction = 'left') {
@@ -4147,8 +4099,6 @@ class Figure8PointRail extends ComplexRail {
         }
     }
     
- 
-
     // ========== draw(), _sync(), contains()は基底クラスから継承 ==========
 
     /* =========================
@@ -4237,6 +4187,208 @@ class Figure8PointRail extends ComplexRail {
             type: this.pointType,
             direction: this.direction
         };
+    }
+}
+
+// ============================================================
+// ZeroLengthRailBase / FlagRail / ConcaveJointRail
+// ============================================================
+
+/**
+ * 長さ0特殊ジョイントの基底クラス
+ * 旗描画・ヒットテスト・ラベル編集を共通化
+ */
+class ZeroLengthRailBase extends RailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.label = options.label || this.defaultLabel();
+        // 旗描画パラメータ（ワールド座標）
+        // ポール: ジョイント中心(x,y)から斜め上右(x+OFFSET_X, y+HEIGHT)へ
+        this.POLE_OFFSET_X = 20;   // ポール先端のX方向オフセット（斜め）
+        this.POLE_HEIGHT   = 30;   // ポールの高さ
+        // 旗サイズ（画面座標px）
+        this.FLAG_W = 48;
+        this.FLAG_H = 20;
+    }
+
+    defaultLabel() { return ''; }
+    getFlagColor()  { return '#AAAAAA'; }
+    getFlagBorder() { return '#333333'; }
+
+    // サブクラスで実装
+    getEndpoints() { return []; }
+    toShortcut()   { return 'N'; }
+    getRailType()  { return 'flag'; }
+    getRailOptions() { return { label: this.label }; }
+
+    // ========== 旗の画面座標を返す ==========
+    _getFlagScreenPos() {
+        // ポール根本: ジョイント中心、先端: 斜め上右（ワールド座標）
+        const rootWorld  = { x: this.x,                    y: this.y };
+        const tipWorld   = { x: this.x + this.POLE_OFFSET_X, y: this.y + this.POLE_HEIGHT };
+        const rootScreen = worldToScreen(rootWorld.x, rootWorld.y);
+        const tipScreen  = worldToScreen(tipWorld.x,  tipWorld.y);
+        return { rootScreen, tipScreen };
+    }
+
+    // ========== 描画 ==========
+    draw() {
+        const { rootScreen, tipScreen } = this._getFlagScreenPos();
+
+        // ---- 現在のtransformをリセットして画面座標で描画 ----
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // ジョイント本体（赤縦線）をワールド座標系で描く必要があるので
+        // 一旦transformを戻して本体を描画
+        ctx.restore();
+        ctx.save();
+
+        // 本体（ジョイント面の縦線）
+        this._drawBody();
+
+        // 画面座標に切り替えてポール・旗を描画
+        ctx.restore();
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // ポール
+        ctx.beginPath();
+        ctx.moveTo(rootScreen.x, rootScreen.y);
+        ctx.lineTo(tipScreen.x,  tipScreen.y);
+        ctx.strokeStyle = '#555555';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 旗矩形
+        const fx = tipScreen.x;
+        const fy = tipScreen.y - this.FLAG_H;
+        ctx.fillStyle   = this.getFlagColor();
+        ctx.strokeStyle = this.getFlagBorder();
+        ctx.lineWidth   = 1;
+        ctx.fillRect(fx, fy, this.FLAG_W, this.FLAG_H);
+        ctx.strokeRect(fx, fy, this.FLAG_W, this.FLAG_H);
+
+        // ラベルテキスト
+        ctx.fillStyle  = '#222222';
+        ctx.font       = 'bold 11px sans-serif';
+        ctx.textAlign  = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(this.label, fx + this.FLAG_W / 2, fy + this.FLAG_H / 2);
+
+        ctx.restore();
+    }
+
+    // 本体（ジョイント面の縦線）— サブクラスで上書き可
+    _drawBody() {
+        // ワールド座標系で描画（drawAll が設定したtransformを使用）
+        const hw = 6; // 縦線の半幅（ワールド座標）
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = this.getFlagColor();
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    // ========== ヒットテスト（旗エリアのみ・画面座標） ==========
+    hitTestFlag(screenX, screenY) {
+        const { tipScreen } = this._getFlagScreenPos();
+        const fx = tipScreen.x;
+        const fy = tipScreen.y - this.FLAG_H;
+        return screenX >= fx && screenX <= fx + this.FLAG_W &&
+               screenY >= fy && screenY <= fy + this.FLAG_H;
+    }
+
+    drawFacilities() {}
+
+    // ワールド座標のhitTestは常にfalse（旗エリアは画面座標で別判定）
+    contains(mx, my) { return false; }
+}
+
+// ============================================================
+// FlagRail — メモ(N) / セクション境界(Nb)
+// ============================================================
+class FlagRail extends ZeroLengthRailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.breakGroup = options.breakGroup || false;
+        this.label = options.label || this.defaultLabel();
+    }
+
+    defaultLabel() {
+        return this.breakGroup ? 'セクション境界' : 'メモ';
+    }
+
+    getFlagColor() {
+        return this.breakGroup ? '#FF6666' : '#ADD8E6';
+    }
+
+    getEndpoints() {
+        const angle = this.angle;
+        return [
+            { id: `${this.id}-ep1`, x: this.x, y: this.y, angle: angle,       type: 'convex' },
+            { id: `${this.id}-ep2`, x: this.x, y: this.y, angle: angle,       type: 'concave' },
+        ];
+    }
+
+    _drawBody() {
+        const hw = 6 / scale;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = this.breakGroup ? '#CC0000' : '#6699CC';
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    toShortcut() {
+        const base = this.breakGroup ? 'Nb' : 'N';
+        const def  = this.breakGroup ? 'セクション境界' : 'メモ';
+        return this.label !== def ? `${base}{${this.label}}` : base;
+    }
+    getRailType()  { return 'flag'; }
+    getRailOptions() {
+        return { label: this.label, breakGroup: this.breakGroup };
+    }
+}
+
+// ============================================================
+// ConcaveJointRail — 凹凹接続アダプター(Na)
+// ============================================================
+class ConcaveJointRail extends ZeroLengthRailBase {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, options);
+        this.label = options.label || this.defaultLabel();
+    }
+
+    defaultLabel() { return '凸凸Joint'; }
+    getFlagColor()  { return '#FFD700'; }
+
+    getEndpoints() {
+        const angle = this.angle;
+        return [
+            { id: `${this.id}-ep1`, x: this.x, y: this.y, angle: angle,       type: 'convex' },
+            { id: `${this.id}-ep2`, x: this.x, y: this.y, angle: angle + 180,  type: 'convex' },
+        ];
+    }
+
+    _drawBody() {
+        const hw = 6 / scale;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y - hw);
+        ctx.lineTo(this.x, this.y + hw);
+        ctx.strokeStyle = '#CC9900';
+        ctx.lineWidth = 2.5 / scale;
+        ctx.stroke();
+    }
+
+    toShortcut() {
+        return this.label !== '凸凸Joint' ? `Na{${this.label}}` : 'Na';
+    }
+    getRailType()  { return 'concavejoint'; }
+    getRailOptions() {
+        return { label: this.label };
     }
 }
 
@@ -4364,7 +4516,6 @@ class Figure8PointRail extends ComplexRail {
       	
         ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
 
-
        // ctx.save(); ctx.setTransform(scale, 0, 0, scale, canvasOffsetX, canvasOffsetY);
         
 	//    
@@ -4485,7 +4636,6 @@ class Figure8PointRail extends ComplexRail {
 
         ctx.restore();
     }
-
 
 // ========================================
 // グループ移動機能
@@ -4613,6 +4763,17 @@ function findConnectedGroup(startRail) {
             for (const ep1 of currentEndpoints) {
                 for (const ep2 of otherEndpoints) {
                     if (areEndpointsConnected(ep1, ep2)) {
+                        // Nbは辿らない
+                        if (other instanceof FlagRail && other.breakGroup) return;
+                        if (current instanceof FlagRail && current.breakGroup) return;
+
+                        // 接続点の座標にNbが存在する場合は壁として機能
+                        const hasBreakAt = rails.some(r =>
+                            r instanceof FlagRail && r.breakGroup &&
+                            Math.abs(r.x - ep1.x) < 2 && Math.abs(r.y - ep1.y) < 2
+                        );
+                        if (hasBreakAt) return;
+
                         connected.add(other);
                         queue.push(other);
                         return;
@@ -4777,6 +4938,17 @@ function findGroupExcludingEndpoint(startRail, excludeEndpoint) {
                 
                 for (const ep2 of otherEndpoints) {
                     if (areEndpointsConnected(ep1, ep2)) {
+                        // Nbは辿らない
+                        if (other instanceof FlagRail && other.breakGroup) return;
+                        if (current instanceof FlagRail && current.breakGroup) return;
+
+                        // 接続点の座標にNbが存在する場合は壁として機能
+                        const hasBreakAt = rails.some(r =>
+                            r instanceof FlagRail && r.breakGroup &&
+                            Math.abs(r.x - ep1.x) < 2 && Math.abs(r.y - ep1.y) < 2
+                        );
+                        if (hasBreakAt) return;
+
                         connected.add(other);
                         queue.push(other);
                         return;
@@ -4912,7 +5084,6 @@ function rotateRailAroundPoint(rail, centerX, centerY, angleDelta) {
     
     rail.x = centerX + newDx;
 
-    
     if (rail._dirty !== undefined) rail._dirty = true;
     rail.y = centerY + newDy;
 
@@ -5004,8 +5175,19 @@ function snapToClosestEndpoint(shape) {
             ? rails.filter(r => !r.skipDraw)  // skipDraw=falseのレールのみ
             : rails;  // 全レール
         
+        // 旗レールの旗エリアヒットを優先チェック
         checkRails.forEach(rect => {
-            if (rect.contains(world.x, world.y)) {
+            if (rect instanceof ZeroLengthRailBase && rect.hitTestFlag(e.offsetX, e.offsetY)) {
+                dragging = rect;
+                selectedShape = rect;
+                // ジョイント中心のワールド座標とマウス位置のオフセットを維持
+                offsetX = world.x - rect.x;
+                offsetY = world.y - rect.y;
+            }
+        });
+
+        checkRails.forEach(rect => {
+            if (!(rect instanceof ZeroLengthRailBase) && rect.contains(world.x, world.y)) {
                 dragging = rect;
                 selectedShape = rect;
                 offsetX = world.x - rect.x;
@@ -5122,6 +5304,8 @@ function snapToClosestEndpoint(shape) {
     let lastTouchTime = 0;
     let touchStartPos = null;
     let lastTouchDistance = 0;
+    let lastPinchCenterX = 0;
+    let lastPinchCenterY = 0;
 
     canvas.addEventListener('touchstart', (e) => {
         // ピンチズーム開始（2本指）
@@ -5135,6 +5319,10 @@ function snapToClosestEndpoint(shape) {
                 Math.pow(touch2.clientX - touch1.clientX, 2) +
                 Math.pow(touch2.clientY - touch1.clientY, 2)
             );
+            // ピンチ中心をCSS座標で記録
+            const rect = canvas.getBoundingClientRect();
+            lastPinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+            lastPinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
             return;
         }
         
@@ -5148,13 +5336,28 @@ function snapToClosestEndpoint(shape) {
             const currentTime = new Date().getTime();
             const tapLength = currentTime - lastTouchTime;
             if (tapLength < 300 && tapLength > 0) {
-                // ダブルタップ: 削除
-                rails.forEach((rect, index) => {
-                    if (rect.contains(world.x, world.y)) {
-                        rails.splice(index, 1);
-                        drawAll();
+                // 旗ラベル編集を優先
+                let flagEdited = false;
+                for (const rail of rails) {
+                    if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(touch.x, touch.y)) {
+                        const newLabel = prompt('ラベルを入力:', rail.label);
+                        if (newLabel !== null) {
+                            rail.label = newLabel;
+                            drawAll();
+                        }
+                        flagEdited = true;
+                        break;
                     }
-                });
+                }
+                if (!flagEdited) {
+                    // ダブルタップ: 削除
+                    rails.forEach((rect, index) => {
+                        if (rect.contains(world.x, world.y)) {
+                            rails.splice(index, 1);
+                            drawAll();
+                        }
+                    });
+                }
                 lastTouchTime = 0;
                 return;
             }
@@ -5167,8 +5370,18 @@ function snapToClosestEndpoint(shape) {
             ghostOffset = null;
             selectedShape = null;
 
+            // 旗レールの旗エリアヒットを優先チェック
             rails.forEach(rect => {
-                if (rect.contains(world.x, world.y)) {
+                if (rect instanceof ZeroLengthRailBase && rect.hitTestFlag(touch.x, touch.y)) {
+                    dragging = rect;
+                    selectedShape = rect;
+                    offsetX = world.x - rect.x;
+                    offsetY = world.y - rect.y;
+                }
+            });
+
+            rails.forEach(rect => {
+                if (!(rect instanceof ZeroLengthRailBase) && rect.contains(world.x, world.y)) {
                     dragging = rect;
                     selectedShape = rect;
                     offsetX = world.x - rect.x;
@@ -5210,12 +5423,24 @@ function snapToClosestEndpoint(shape) {
             );
             
             if (lastTouchDistance > 0) {
-                const delta = currentDistance - lastTouchDistance;
-                if (delta > 0) {
-                    scale *= 1.02;
-                } else {
-                    scale /= 1.02;
-                }
+                // ピンチ中心（CSS座標）
+                const rect = canvas.getBoundingClientRect();
+                const pinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+                const pinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+                // ズーム前のピンチ中心ワールド座標
+                const worldBefore = screenToWorld(pinchCenterX, pinchCenterY);
+
+                // スケール変更（距離比率をそのまま使う）
+                scale *= currentDistance / lastTouchDistance;
+
+                // ズーム後のピンチ中心ワールド座標
+                const worldAfter = screenToWorld(pinchCenterX, pinchCenterY);
+
+                // ズレを補正してピンチ中心を固定
+                canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
+                canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
+
                 drawAll();
             }
             lastTouchDistance = currentDistance;
@@ -5328,17 +5553,30 @@ function snapToClosestEndpoint(shape) {
     }, {passive: false});
 
     canvas.addEventListener('dblclick', (e) => {
-        const world = screenToWorld(e.offsetX, e.offsetY);
+        const screenX = e.offsetX;
+        const screenY = e.offsetY;
+        const world = screenToWorld(screenX, screenY);
 
-            rails.forEach((rect, index) => {
-                if (rect.contains(world.x, world.y)) {
-                    rails.splice(index, 1);
+        // 旗レールのラベル編集を優先チェック
+        for (const rail of rails) {
+            if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(screenX, screenY)) {
+                const newLabel = prompt('ラベルを入力:', rail.label);
+                if (newLabel !== null) {
+                    rail.label = newLabel;
                     drawAll();
                 }
-            });
+                return;
+            }
+        }
 
-
+        // 通常レールの削除
+        rails.forEach((rect, index) => {
+            if (rect.contains(world.x, world.y)) {
+                rails.splice(index, 1);
+                drawAll();
+            }
         });
+    });
 
  canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -5380,9 +5618,6 @@ function snapToClosestEndpoint(shape) {
     drawAll();
 });
 
-
-
-
 // ==========================================
 // タッチメニュー修正コード（v37.1用）
 // ==========================================
@@ -5393,8 +5628,6 @@ function snapToClosestEndpoint(shape) {
 // 3. 新しいタッチイベントリスナーを追加
 //
 // ==========================================
-
-// ===== 共通関数 =====
 
 // メニューを閉じる
 function closeContextMenu() {
@@ -5429,8 +5662,6 @@ function showContextMenu(pageX, pageY, offsetX, offsetY) {
         menu.style.display = 'block';
     }
 }
-
-// ===== イベントリスナー =====
 
 // 右クリックでメニュー表示（マウス）
 canvas.addEventListener('contextmenu', (e) => {
@@ -5499,34 +5730,6 @@ document.addEventListener('touchstart', (e) => {
         closeContextMenu();
     }
 });
-
-// ===== 置き換え対象（削除する既存コード） =====
-/*
-削除する既存コード:
-
-// 既存のcontextmenuリスナー（3421行目付近）
-canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    const world = screenToWorld(e.offsetX, e.offsetY);
-    selectedShape = null;
-    rails.forEach(rect => {
-        if (rect.contains(world.x, world.y)) {
-            selectedShape = rect;
-        }
-    });
-    if (selectedShape) {
-        const menu = document.getElementById('contextMenu');
-        menu.style.left = `${e.pageX}px`;
-        menu.style.top = `${e.pageY}px`;
-        menu.style.display = 'block';
-    }
-});
-
-// 既存のdocument clickリスナー（3559行目付近）
-document.addEventListener('click', () => {
-    document.getElementById('contextMenu').style.display = 'none';
-});
-*/
 
 // ==========================================
 // 補足：メニューボタンのイベントリスナー修正
@@ -5618,8 +5821,6 @@ document.getElementById('toggleType').addEventListener('click', () => {
                 document.getElementById('contextMenu').style.display = 'none';
             }
         });
-
-
 
 // 最後に置いたレールの端点を取得する関数
 // 最後に配置したレールの端点を取得する関数
@@ -5859,6 +6060,22 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     //            'railType=', addedRail.railType, 'endpoints=', endpoints.length, 
      //           'wasPlacedFromEnd=', wasPlacedFromEnd);
     
+    // 【最優先】ConcaveJointRail(Na): 凸+凸逆向き・長さ0
+    // Na追加後は ep0(凸,angle方向) を次の接続点とし、凹進行は停止
+    if (addedRail instanceof ConcaveJointRail) {
+        railProgression.endpointIndex = 0;
+        railProgression.isReversed = false;
+        return;
+    }
+
+    // 【最優先】FlagRail(N/Nb): 凸+凹同向き・長さ0
+    // 追加後は ep1(凹,同angle) を次の接続点として凹進行継続
+    if (addedRail instanceof FlagRail) {
+        railProgression.endpointIndex = 1;
+        railProgression.isReversed = false;
+        return;
+    }
+
     // 【最優先】1/4凸凸・1/6凸凸（ジョイント凸凸）: 凹進行を停止
     if (addedRail.railType === 'QuarterVV' ||
         addedRail.railType === 'SixthVV' ||
@@ -5905,44 +6122,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
     }
     
     // ポイントレール: 常にendpoints[1]（ID-2の主要終点）を使用
-/*    if (addedRail.constructor.name === 'TurnoutRail' ||
-        addedRail.constructor.name === 'R13PointRail' ||
-        addedRail.constructor.name === 'R22YPointRail' ||
-        addedRail.constructor.name === 'R15WidePointRail' ||
-        addedRail.constructor.name === 'R30TrianglePointRail' ||
-        addedRail.constructor.name === 'CrossPointRail' ||
-        addedRail.constructor.name === 'DoubleTrackCrossoverRail' ||
-        addedRail.constructor.name === 'DoubleTrackTurnoutRail') {
-        railProgression.endpointIndex = 1;  // 固定: endpoints[1] = -2の主要終点
-        railProgression.isReversed = false;
-        console.log('→ Point rail: endpoint 1 (ID-2), reversed=false');
-        return;
-    }
-    
-    // 8の字ポイント: タイプ別処理
-    if (addedRail.constructor.name === 'Figure8PointRail') {
-        // 8の字R系: 終点3が凹なので、凹進行を停止
-        if (addedRail.pointType === 'R' || addedRail.pointType === 'R_REV') {
-            if (wasPlacedFromEnd) {
-                // 凹から配置された場合: 起点(凹)を次の接続点にするが、凹進行は停止
-                railProgression.endpointIndex = 0;  // 起点(凹)
-                railProgression.isReversed = false; // ❗ 凹進行停止（手動選択待ち）
-                console.log('→ Figure8 R-type (from concave): endpoint 0 (concave), reversed=false (stop auto-concave)');
-            } else {
-                // 通常配置: endpoint 1から
-                railProgression.endpointIndex = 1;
-                railProgression.isReversed = false;
-                console.log('→ Figure8 R-type: endpoint 1 (ID-2), reversed=false');
-            }
-        } else {
-            // 8の字L系: 通常のポイントレールと同じ
-            railProgression.endpointIndex = 1;
-            railProgression.isReversed = false;
-            console.log('→ Figure8 L-type: endpoint 1 (ID-2), reversed=false');
-        }
-        return;
-    }*/
-    
+
     // Uターンレール: 両端が凹なので特殊処理
     if (addedRail.constructor.name === 'UTurnRail') {
         if (wasPlacedFromEnd) {
@@ -5958,23 +6138,7 @@ function updateProgressionAfterAdd(addedRail, wasPlacedFromEnd) {
         }
         return;
     }
-/*    
-    // 複線レール（4端点）: 凹進行時と通常時で異なる処理
-    if (addedRail.isDoubleTrack && endpoints.length === 4) {
-        if (wasPlacedFromEnd) {
-            // 凹から配置された場合: 内側凹（endpoint 2, ID-3）を次の起点に
-            railProgression.endpointIndex = 2; // eps[2] (内側凹)
-            railProgression.isReversed = true; // 凹進行継続
-            console.log('→ Double track rail (from concave): endpoint 2 (ID-3, inner concave), reversed=true');
-        } else {
-            // 通常配置: 外側凸（endpoint 1, ID-2）を次の起点に
-            railProgression.endpointIndex = 1; // eps[1] (外側凸)
-            railProgression.isReversed = false;
-            console.log('→ Double track rail: endpoint 1 (ID-2, outer convex), reversed=false');
-        }
-        return;
-    }*/
-    
+
     // 【原則】通常レール: endpoint 1（ID-2）を使用
     if (endpoints.length >= 2) {
         railProgression.endpointIndex = 1; // eps[1] (ID-2)
@@ -6018,225 +6182,26 @@ function addRailCommon(rail, lastEndpoint, options = {}) {
     drawAll();
 }
 
-
 // ==========================================
 // イベントリスナー（v37用）
 // ==========================================
 
-// ===== 基本レール =====
-document.getElementById('addStraight').addEventListener('click', () => {
-    addRailByType('straight');
+// ==========================================
+// レール追加ボタン — イベントデリゲーション
+// data-rail 属性を持つボタンを一括処理
+// ==========================================
+document.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-rail]');
+    if (!btn) return;
+    const { rail, direction, type, reversed, breakgroup } = btn.dataset;
+    const opts = {};
+    if (direction  !== undefined) opts.direction  = direction;
+    if (type       !== undefined) opts.type       = type;
+    if (reversed   !== undefined) opts.reversed   = (reversed === 'true');
+    if (breakgroup !== undefined) opts.breakGroup = (breakgroup === 'true');
+    addRailByType(rail, opts);
 });
 
-document.getElementById('addHalfStraight').addEventListener('click', () => {
-    addRailByType('halfStraight');
-});
-
-document.getElementById('addDoubleStraight').addEventListener('click', () => {
-    addRailByType('doubleStraight');
-});
-
-document.getElementById('addRightCurve').addEventListener('click', () => {
-    addRailByType('curve', { direction: 'right' });
-});
-
-document.getElementById('addLeftCurve').addEventListener('click', () => {
-    addRailByType('curve', { direction: 'left' });
-});
-
-// ===== 外側曲線 =====
-document.getElementById('addRightOuterCurve').addEventListener('click', () => {
-    addRailByType('outerCurve', { direction: 'right' });
-});
-
-document.getElementById('addLeftOuterCurve').addEventListener('click', () => {
-    addRailByType('outerCurve', { direction: 'left' });
-});
-
-// ===== 倍曲線（90度） =====
-document.getElementById('addDoubleLengthCurveRight').addEventListener('click', () => {
-    addRailByType('doubleLengthCurve', { direction: 'right' });
-});
-
-document.getElementById('addDoubleLengthCurveLeft').addEventListener('click', () => {
-    addRailByType('doubleLengthCurve', { direction: 'left' });
-});
-
-// ===== スライド =====
-document.getElementById('addSlide').addEventListener('click', () => {
-    addRailByType('slide', { reversed: false });
-});
-
-document.getElementById('addRSlide').addEventListener('click', () => {
-    addRailByType('slide', { reversed: true });
-});
-
-// ===== ターンアウト =====
-document.getElementById('addTurnoutLeft').addEventListener('click', () => {
-    addRailByType('turnout', { direction: 'left', type: 'R' });
-});
-
-document.getElementById('addTurnoutRight').addEventListener('click', () => {
-    addRailByType('turnout', { direction: 'right', type: 'R' });
-});
-
-document.getElementById('addTurnoutLeftL').addEventListener('click', () => {
-    addRailByType('turnout', { direction: 'left', type: 'L' });
-});
-
-document.getElementById('addTurnoutRightL').addEventListener('click', () => {
-    addRailByType('turnout', { direction: 'right', type: 'L' });
-});
-
-// ===== 8の字ポイント =====
-document.getElementById('addFigure8Point').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'R', direction: 'left' });
-});
-
-document.getElementById('addFigure8PointL').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'L', direction: 'left' });
-});
-
-document.getElementById('addFigure8PointRRev').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'R', direction: 'right' });
-});
-
-document.getElementById('addFigure8PointLRev').addEventListener('click', () => {
-    addRailByType('figure8', { type: 'L', direction: 'right' });
-});
-
-// ===== 十字ポイント =====
-document.getElementById('addCrossPoint').addEventListener('click', () => {
-    addRailByType('crossPoint', { reversed: false });
-});
-document.getElementById('addCrossPointRev').addEventListener('click', () => {
-    addRailByType('crossPoint', { reversed: true });
-});
-
-// ===== Uターン =====
-document.getElementById('addUTurnRailU').addEventListener('click', () => {
-    addRailByType('uturn', { type: 'U' });
-});
-
-document.getElementById('addUTurnRailV').addEventListener('click', () => {
-    addRailByType('uturn', { type: 'V' });
-});
-
-// ===== R13ポイント =====
-document.getElementById('addR13PointARight').addEventListener('click', () => {
-    addRailByType('r13', { type: 'A', direction: 'right' });
-});
-
-document.getElementById('addR13PointALeft').addEventListener('click', () => {
-    addRailByType('r13', { type: 'A', direction: 'left' });
-});
-
-document.getElementById('addR13PointBRight').addEventListener('click', () => {
-    addRailByType('r13', { type: 'B', direction: 'right' });
-});
-
-document.getElementById('addR13PointBLeft').addEventListener('click', () => {
-    addRailByType('r13', { type: 'B', direction: 'left' });
-});
-
-// ===== R22 Y字 =====
-document.getElementById('addR22YPointA').addEventListener('click', () => {
-    addRailByType('r22', { type: 'A', reversed: false });
-});
-
-document.getElementById('addR22YPointARev').addEventListener('click', () => {
-    addRailByType('r22', { type: 'A', reversed: true });
-});
-
-document.getElementById('addR22YPointB').addEventListener('click', () => {
-    addRailByType('r22', { type: 'B', reversed: false });
-});
-
-document.getElementById('addR22YPointBRev').addEventListener('click', () => {
-    addRailByType('r22', { type: 'B', reversed: true });
-});
-
-// ===== R15ワイドポイント =====
-document.getElementById('addR15WideA').addEventListener('click', () => {
-    addRailByType('r15', { type: 'A', reversed: false });
-});
-
-document.getElementById('addR15WideARev').addEventListener('click', () => {
-    addRailByType('r15', { type: 'A', reversed: true });
-});
-
-document.getElementById('addR15WideB').addEventListener('click', () => {
-    addRailByType('r15', { type: 'B', reversed: false });
-});
-
-document.getElementById('addR15WideBRev').addEventListener('click', () => {
-    addRailByType('r15', { type: 'B', reversed: true });
-});
-
-// ===== R17ポイント =====
-document.getElementById('addR17ThreewayPointARight').addEventListener('click', () => {
-    addRailByType('r17', { type: 'A', direction: 'right' });
-});
-
-document.getElementById('addR17ThreewayPointALeft').addEventListener('click', () => {
-    addRailByType('r17', { type: 'A', direction: 'left' });
-});
-
-document.getElementById('addR17ThreewayPointBRight').addEventListener('click', () => {
-    addRailByType('r17', { type: 'B', direction: 'right' });
-});
-
-document.getElementById('addR17ThreewayPointBLeft').addEventListener('click', () => {
-    addRailByType('r17', { type: 'B', direction: 'left' });
-});
-
-// ===== R30三角ポイント =====
-document.getElementById('addR30TrianglePoint').addEventListener('click', () => {
-    addRailByType('r30', { reversed: false });
-});
-
-document.getElementById('addR30TrianglePointRev').addEventListener('click', () => {
-    addRailByType('r30', { reversed: true });
-});
-
-// ===== 複線レール =====
-document.getElementById('addDoubleTrack').addEventListener('click', () => {
-    addRailByType('doubleTrack');
-});
-
-document.getElementById('addDoubleCurveRight').addEventListener('click', () => {
-    addRailByType('doubleCurve', { direction: 'right' });
-});
-
-document.getElementById('addDoubleCurveLeft').addEventListener('click', () => {
-    addRailByType('doubleCurve', { direction: 'left' });
-});
-
-document.getElementById('addDoubleTrackCrossover').addEventListener('click', () => {
-    addRailByType('doubleCrossover', { reversed: false });
-});
-
-document.getElementById('addDoubleTrackCrossoverRev').addEventListener('click', () => {
-    addRailByType('doubleCrossover', { reversed: true });
-});
-
-document.getElementById('addDoubleTrackTurnoutLeft').addEventListener('click', () => {
-    addRailByType('doubleTurnout', { direction: 'left', reversed: false });
-});
-
-document.getElementById('addDoubleTrackTurnoutRight').addEventListener('click', () => {
-    addRailByType('doubleTurnout', { direction: 'right', reversed: false });
-});
-
-document.getElementById('addDoubleTrackTurnoutLeftRev').addEventListener('click', () => {
-    addRailByType('doubleTurnout', { direction: 'left', reversed: true });
-});
-
-document.getElementById('addDoubleTrackTurnoutRightRev').addEventListener('click', () => {
-    addRailByType('doubleTurnout', { direction: 'right', reversed: true });
-});
-
-// ===== 1/4・1/6レール =====
 document.getElementById('addQuarterV').addEventListener('click', () => {
     addRailByType('quarterV');
 });
@@ -6251,49 +6216,6 @@ document.getElementById('addJoint').addEventListener('click', () => {
 
 // 1/4直線を追加するボタンのイベントリスナー（凹凸）
 // 以下のボタンは削除済みだが、将来の使用のためイベントリスナーを残す
-/*
-document.getElementById('addQuarterStraight').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `Q${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25);
-        rect.color = 'skyblue';
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-// 1/4直線を追加するボタンのイベントリスナー（凹凹）
-document.getElementById('addQuarterCC').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `QCC${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
-            { startType: 'concave', endType: 'concave' });
-        rect.color = 'skyblue';
-        rect.railType = 'QuarterCC';  // 識別用
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-
-// 1/4直線を追加するボタンのイベントリスナー（凸凸）
-document.getElementById('addQuarterVV').addEventListener('click', () => {
-    const lastEndpoint = getLastEndpoint();
-    if (lastEndpoint) {
-        const id = `QVV${rails.length + 1}`;
-        const rect = new StraightRail(lastEndpoint.x, lastEndpoint.y, id, RAIL_LENGTH * 0.25, 
-            { startType: 'convex', endType: 'convex' });
-        rect.color = 'skyblue';
-        rect.railType = 'QuarterVV';  // 識別用
-        addRailCommon(rect, lastEndpoint);
-    }
-});
-*/
-
-
-
-
-
-
 
 // レールを追加する関数
 function addRail(type) {
@@ -6397,7 +6319,6 @@ function getAngleFromRailType(railType) {
     return railType === 'doubleLengthCurve' ? 90 : 45;
 }
 
-
 // 統一レール追加関数
 function addRailByType(railType, options = {}) {
     // レール追加時は選択端点をクリア
@@ -6469,7 +6390,16 @@ function addRailByType(railType, options = {}) {
             }
             break;
             
-        // ===== スライドレール =====
+        // ===== フラグ(メモ/境界) =====
+        case 'flag':
+            rail = new FlagRail(lastEndpoint.x, lastEndpoint.y, id, options);
+            break;
+
+        // ===== 凹凹接続アダプター =====
+        case 'concavejoint':
+            rail = new ConcaveJointRail(lastEndpoint.x, lastEndpoint.y, id, options);
+            break;
+
         case 'slide':
             const slideOffset = options.reversed ? -D_TRACK_WIDTH : D_TRACK_WIDTH;
             rail = new Slide(lastEndpoint.x, lastEndpoint.y, id, slideOffset);
@@ -6716,13 +6646,12 @@ function addJointRail(isConcaveProgression) {
 }
 // 縮尺リセット　イベントリスナー
 document.getElementById('canvasreset').addEventListener('click', () => {
- scale = 3.0;  // 初期スケールに戻す
+ scale = 1.0;  // 初期スケールに戻す
 
      canvasOffsetX = canvW/2;
      canvasOffsetY = canvH/2;
 
 drawAll();
-
 
 });
 
@@ -6737,7 +6666,7 @@ document.getElementById('performanceToggle').addEventListener('click', function(
 
 // リセット　イベントリスナー
 document.getElementById('allclear').addEventListener('click', () => {
-    scale = 3.0;  // 初期スケールに戻す
+    scale = 1.0;  // 初期スケールに戻す
     canvasOffsetX = canvW/2;
     canvasOffsetY = canvH/2;
     rails.length = 0;
@@ -6745,19 +6674,7 @@ document.getElementById('allclear').addEventListener('click', () => {
     drawAll();
 });
 
-
-
 // テキストボックスの入力を処理するイベントリスナー
-document.getElementById('addRails').addEventListener('click', () => {
-    const input = document.getElementById('railInput').value.toUpperCase();
-    for (const char of input) {
-        if (['S', 'R', 'L'].includes(char)) {
-            addRail(char);
-        }
-    }
-    document.getElementById('railInput').value = ''; // 入力をクリア
-});
-
 
 // レイアウトをコンパクトな文字列に変換
 function saveLayout() {
@@ -6901,8 +6818,6 @@ function loadFromURL() {
 document.getElementById('saveLayout').addEventListener('click', saveLayout);
 document.getElementById('loadLayout').addEventListener('click', loadLayout);
 
-
-
 // スロット保存/読込
 for (let i = 1; i <= 5; i++) {
     document.getElementById(`saveSlot${i}`).addEventListener('click', () => saveToSlot(i));
@@ -6924,8 +6839,6 @@ document.getElementById('groupMoveToggle').addEventListener('click', () => {
     btn.textContent = `まとめ移動: ${groupMoveEnabled ? 'ON' : 'OFF'}`;
     btn.style.background = groupMoveEnabled ? '#cfc' : '#fff';
 });
-
-
 
 // 初期レール生成
 function initializeRails() {
@@ -7251,6 +7164,11 @@ const railShortcuts = {
     'L': { type: 'curve', options: { direction: 'left' } },
     'H': { type: 'halfStraight' },
     
+    // フラグ / 凹凹アダプター
+    'N':  { type: 'flag',          options: { breakGroup: false } },
+    'Nb': { type: 'flag',          options: { breakGroup: true  } },
+    'Na': { type: 'concavejoint',  options: {} },
+
     // S字レール
     'Zr': { type: 'slide', options: { reversed: false } },
     'Zl': { type: 'slide', options: { reversed: true } },
@@ -7444,6 +7362,16 @@ function executeShortcutBuffer(input) {
                     const candidate = input.substring(i, i + len);
                     if (railShortcuts[candidate]) {
                         const sc = railShortcuts[candidate];
+                        let skipLen = len;
+                        // {label} があれば読み取る
+                        let customLabel = null;
+                        if (input[i + len] === '{') {
+                            const closeIdx = input.indexOf('}', i + len + 1);
+                            if (closeIdx !== -1) {
+                                customLabel = input.substring(i + len + 1, closeIdx);
+                                skipLen = closeIdx + 1 - i;
+                            }
+                        }
                         if (firstInGroup) {
                             // 座標指定でレール配置
                             const railOptions = {
@@ -7451,14 +7379,16 @@ function executeShortcutBuffer(input) {
                                 x: x,
                                 y: y,
                                 angle: angle,
-                                isReversed: isReversed
+                                isReversed: isReversed,
+                                ...(customLabel !== null ? { label: customLabel } : {})
                             };
                             addRailByType(sc.type, railOptions);
                             firstInGroup = false;
                         } else {
-                            placeRailWithEps(candidate, sc, epsIndex);
+                            placeRailWithEps(candidate, sc, epsIndex,
+                                customLabel !== null ? { label: customLabel } : {});
                         }
-                        i += len;
+                        i += skipLen;
                         matched = true;
                         break;
                     }
@@ -8020,7 +7950,6 @@ function findNextConnectionExcluding(currentRail, cluster, visited, excludeEpsIn
 
 // 現在のレールから次の接続を探す（旧版・互換性のため残す）
 
-
 // テキストボックスからのショートカット実行
 document.getElementById('executeShortcut').addEventListener('click', () => {
     const input = document.getElementById('shortcutInput').value.trim();
@@ -8122,7 +8051,6 @@ if (document.readyState === 'loading') {
     initSectionCollapse();
 }
 
-
 // ========================================
 // v50.23: nearbyRailsCache パフォーマンス最適化
 // ========================================
@@ -8149,7 +8077,6 @@ function updateNearbyRailsCache() {
     });
     nearbyRailsCacheValid = true;
 }
-
 
     </script>
 </body>
