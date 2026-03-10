@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v50.0</title>
+    <title>プラレールレイアウトシミュレータ v50.23</title>
     <style>
         * {
             box-sizing: border-box;
@@ -62,6 +62,9 @@
                 border-radius: 0;
                 border-top: 2px solid #333;
                 z-index: 100;
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                overflow-y: hidden;
             }
             
             /* ボタンを大きく、使いやすく */
@@ -109,13 +112,7 @@
         
         /* スマホ縦持ち: Canvas固定、Controls最大化 */
         @media (orientation: portrait) and (max-width: 768px) {
-            #canvas-container {
-                width: 100%;
-                height: 75vw;           /* 幅の75% = 4:3の高さ */
-                max-height: 75vw;
-                min-height: 75vw;
-                flex: none;
-            }
+
             
             canvas {
                 width: 100%;
@@ -132,19 +129,171 @@
         }
         
         #canvas-container {
-            position: relative;
             width: 100%;
             flex: 1;
             min-height: 400px;
-            max-height: calc(100vh - 150px);
-            max-height: calc(100dvh - 150px);
-            border-bottom: 2px solid #333;
             background: #f0f0f0;
             touch-action: none;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* 全画面ボタン（canvas右上に重ねて固定） */
+        #btn-fullscreen {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            z-index: 150;
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 36px;
+            text-align: center;
+            background: rgba(255,255,255,0.75);
+            border: 1px solid #999;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+        }
+        #btn-fullscreen:hover { background: rgba(255,255,255,0.95); }
+        
+        /* 全画面時は通常の全画面ボタンを非表示 */
+        body.fullscreen #btn-fullscreen { display: none; }
+
+        /* 全画面モード */
+        body.fullscreen #canvas-container {
+            position: fixed;
+            inset: 0;
+            max-height: none;
+            z-index: 200;
+            border: none;
+        }
+
+        body.fullscreen .color-legend,
+        body.fullscreen .controls {
+            display: none;
+        }
+
+        /* 全画面時のオーバーレイボタン群 */
+        #fs-overlay {
+            display: none;
+            position: fixed;
+            top: 8px;
+            left: 0;
+            right: 0;
+            z-index: 300;
+            pointer-events: none;
+            padding: 0 8px;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        body.fullscreen #fs-overlay { display: flex; }
+
+        .fs-btn {
+            pointer-events: auto;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            font-size: 18px;
+            line-height: 40px;
+            text-align: center;
+            background: rgba(255,255,255,0.80);
+            border: 1px solid #999;
+            border-radius: 6px;
+            cursor: pointer;
+            user-select: none;
+            margin-left: 4px;
+        }
+        .fs-btn:hover { background: rgba(255,255,255,0.97); }
+        #fs-left, #fs-right {
+            display: flex;
+            gap: 4px;
+        }
+
+        /* 全画面モード: 凡例2層パネル */
+        #fs-legend {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 300;
+            background: rgba(240,240,240,0.95);
+            border-top: 1px solid #aaa;
+            user-select: none;
+            flex-shrink: 0;
+            flex-grow: 0;
+            height: 0;
+        }
+        body.fullscreen #fs-legend { display: block; height: auto; }
+
+        /* 上段: カテゴリタブ */
+        #fs-legend-tabs {
+            display: flex;
+            border-bottom: 1px solid #bbb;
+        }
+        .fs-tab {
+            flex: 1;
+            padding: 5px 0;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            background: rgba(220,220,220,0.9);
+            border: none;
+            border-right: 1px solid #bbb;
+            cursor: pointer;
+            color: #333;
+        }
+        .fs-tab:last-child { border-right: none; }
+        .fs-tab.active {
+            background: rgba(255,255,255,0.97);
+            color: #0055cc;
+            border-bottom: 2px solid #0055cc;
+        }
+
+        /* 下段: 凡例アイテム横スクロール */
+        #fs-legend-items {
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 4px 6px;
+            gap: 4px;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+        #fs-legend-items::-webkit-scrollbar { height: 4px; }
+        #fs-legend-items::-webkit-scrollbar-thumb { background: #aaa; border-radius: 2px; }
+
+        .fs-legend-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 4px 6px;
+            background: rgba(255,255,255,0.85);
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            font-size: 11px;
+            min-width: 44px;
+            flex-shrink: 0;
+        }
+        .fs-legend-item:active { background: rgba(200,220,255,0.95); }
+        .fs-legend-color {
+            width: 20px;
+            height: 10px;
+            border-radius: 2px;
+            border: 1px solid #aaa;
+        }
+        .fs-legend-sep {
+            width: 1px;
+            background: #bbb;
+            margin: 2px 2px;
+            flex-shrink: 0;
         }
         
         canvas {
@@ -384,6 +533,29 @@
 <body>
     <div id="canvas-container">
         <canvas id="canvas" width="2400" height="1800"></canvas>
+        <button id="btn-fullscreen" title="全画面">⛶</button>
+    </div>
+
+    <!-- 全画面モード オーバーレイボタン -->
+    <div id="fs-overlay">
+        <div id="fs-left">
+            <button class="fs-btn" id="fs-exit" title="全画面解除">⊠</button>
+            <button class="fs-btn" id="fs-save" title="保存">💾</button>
+        </div>
+
+    </div>
+
+    <!-- 全画面モード: 凡例2層パネル -->
+    <div id="fs-legend">
+        <div id="fs-legend-tabs">
+            <button class="fs-tab active" data-cat="basic">基本</button>
+            <button class="fs-tab" data-cat="branch">分岐</button>
+            <button class="fs-tab" data-cat="double">複線</button>
+            <button class="fs-tab" data-cat="other">その他</button>
+        </div>
+        <div id="fs-legend-items">
+            <!-- JSで生成 -->
+        </div>
     </div>
 
     <div class="color-legend">
@@ -646,6 +818,7 @@
 		</div>
 
     <div id="contextMenu" class="context-menu">
+        <div id="editLabel">編集</div>
         <div id="rotateRight">右回転 (45°)</div>
         <div id="rotateLeft">左回転 (45°)</div>
         <div id="toggleType">タイプ切替 (R/L, A/B)</div>
@@ -3547,6 +3720,8 @@ class DoubleTrackTurnoutRail extends ComplexRail {
     
     toggleType() {
         this.direction = (this.direction === 'right') ? 'left' : 'right';
+        this._dirty = true;
+        this._sync();
 	}
     
     toggleReverse() {
@@ -4635,11 +4810,276 @@ class ConcaveJointRail extends ZeroLengthRailBase {
 	}
 
         ctx.restore();
+
+        // 全画面モード: S/R/L矢印 + ≡ をスクリーン座標で描画
+        if (isFullscreen && rails.length > 0) {
+            drawFsArrows();
+        }
     }
 
 // ========================================
-// グループ移動機能
+// 全画面モード: S/R/L矢印描画 & 当たり判定
 // ========================================
+
+const FS_BTN_R = 28;     // ボタン半径(CSS px)
+const FS_BTN_OFFSET = 70; // 端点からの距離(CSS px)
+let fsMenuOpen = false;       // ≡メニュー展開状態
+let fsMenuTargetRail = null;  // メニュー対象レール（nullなら通常のLastEndpoint基準）
+
+// 対象レール取得
+function getFsTargetRail() {
+    if (fsMenuTargetRail) return fsMenuTargetRail;
+    if (rails.length === 0) return null;
+    return railProgression.rail || LastselectedShape || rails.slice(-1)[0];
+}
+
+// 端点のワールド座標→CSS座標変換
+function epToCss(ep) {
+    const sc = worldToScreen(ep.x, ep.y);
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: sc.x / (canvas.width  / rect.width),
+        y: sc.y / (canvas.height / rect.height),
+    };
+}
+
+// 端点のangle(度,ワールド)→スクリーン方向ベクトル
+// 凹進行時は前方反転 + 左右入れ替えで直感通りにする
+function epToScreenDir(ep) {
+    const baseAngle = ep.placeFromEnd ? ep.angle + 180 : ep.angle;
+    const rad = -baseAngle * Math.PI / 180;
+    const fwd = { x:  Math.sin(rad), y: -Math.cos(rad) };
+    const lft = { x:  fwd.y,         y: -fwd.x };
+    const rgt = { x: -fwd.y,         y:  fwd.x };
+    // 凹進行時は左右を入れ替え（鏡像補正）
+    if (ep.placeFromEnd) return { fwd, lft: rgt, rgt: lft };
+    return { fwd, lft, rgt };
+}
+
+// S/R/L/≡ ボタン位置
+function getFsButtonPositions(ep) {
+    const { x: cx, y: cy } = epToCss(ep);
+    const { fwd, lft, rgt } = epToScreenDir(ep);
+    const D = FS_BTN_OFFSET;
+    return {
+        S: { x: cx + fwd.x * D,                          y: cy + fwd.y * D },
+        L: { x: cx + lft.x * D,                          y: cy + lft.y * D },
+        R: { x: cx + rgt.x * D,                          y: cy + rgt.y * D },
+        M: { x: cx + rgt.x * D * 1.6 + fwd.x * D * 0.5, y: cy + rgt.y * D * 1.6 + fwd.y * D * 0.5 },
+    };
+}
+
+// ≡メニュー展開時の操作ボタン位置（レール中心を基準に放射状6個）
+function getFsMenuPositions(rail) {
+    const eps = rail.getEndpoints();
+    const ep0 = eps[0], ep1 = eps[1] || eps[0];
+    // eps[0]とeps[1]の中点をワールド座標で計算
+    const mx = (ep0.x + ep1.x) / 2;
+    const my = (ep0.y + ep1.y) / 2;
+    const sc = worldToScreen(mx, my);
+    const rect = canvas.getBoundingClientRect();
+    const cx = sc.x / (canvas.width  / rect.width);
+    const cy = sc.y / (canvas.height / rect.height);
+
+    const D = FS_BTN_OFFSET * 1.1;
+    const positions = {};
+    const keys = ['flip', 'type', 'rotL', 'rotR', 'del', 'copy'];
+    keys.forEach((key, i) => {
+        const a = (i / keys.length) * Math.PI * 2 - Math.PI / 2;
+        positions[key] = { x: cx + Math.cos(a) * D, y: cy + Math.sin(a) * D };
+    });
+    return positions;
+}
+
+function drawFsArrows() {
+    const ep = getLastEndpoint();
+    if (!ep) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    ctx.save();
+    ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+
+    const R = FS_BTN_R;
+
+    if (fsMenuOpen) {
+        // ≡メニュー展開中: 操作ボタン6個をレール中心に表示
+        const rail = getFsTargetRail();
+        if (!rail) { fsMenuOpen = false; return; }
+        const pos = getFsMenuPositions(rail);
+        const btns = [
+            { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)' },
+            { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)'  },
+            { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)'  },  // 右回転
+            { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)'  },  // 左回転
+            { key: 'del',  label: '消',  color: 'rgba(200,30,30,0.88)'  },
+            { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)'  },
+        ];
+        // 中心に薄い円（ターゲット表示）
+        const eps = rail.getEndpoints();
+        const ep0 = eps[0], ep1 = eps[1] || eps[0];
+        const sc = worldToScreen((ep0.x + ep1.x) / 2, (ep0.y + ep1.y) / 2);
+        const cx = sc.x / scaleX, cy = sc.y / scaleY;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(80,80,80,0.3)';
+        ctx.fill();
+
+        btns.forEach(({ key, label, color }) => {
+            const p = pos[key];
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${R * 0.9}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, p.x, p.y);
+        });
+    } else {
+        // 通常: S/R/L/≡（複線端点時はD-track-mode表示）
+        const ep = getLastEndpoint();
+        const pos = getFsButtonPositions(ep);
+        const targetRail = getFsTargetRail();
+        const isDouble = isDoubleEndpoint(targetRail, ep);
+        const labelL = ep.placeFromEnd ? (isDouble ? 'R' : 'R') : 'L';
+        const labelR = ep.placeFromEnd ? 'L' : 'R';
+        const btns = [
+            { key: 'S', label: 'S', color: 'rgba(30,120,255,0.85)' },
+            { key: 'L', label: labelL, color: 'rgba(30,180,80,0.85)'  },
+            { key: 'R', label: labelR, color: 'rgba(220,80,30,0.85)'  },
+            { key: 'M', label: '≡',   color: 'rgba(80,80,80,0.80)'   },
+        ];
+        btns.forEach(({ key, label, color }) => {
+            const p = pos[key];
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${R}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (isDouble && key !== 'M') {
+                // メインラベルを少し上にずらしてサブラベルを追加
+                ctx.fillText(label, p.x, p.y - R * 0.18);
+                ctx.font = `bold ${R * 0.38}px sans-serif`;
+                ctx.fillText('D-track', p.x, p.y + R * 0.55);
+            } else {
+                ctx.fillText(label, p.x, p.y);
+            }
+        });
+    }
+
+    ctx.restore();
+}
+
+// 当たり判定: CSS座標(tx,ty) → ヒットしたキー or null
+function hitTestFsArrows(tx, ty) {
+    if (!isFullscreen || rails.length === 0) return null;
+    const ep = getLastEndpoint();
+    if (!ep) return null;
+    const R = FS_BTN_R;
+
+    if (fsMenuOpen) {
+        const rail = getFsTargetRail();
+        if (!rail) return 'outside';
+        const pos = getFsMenuPositions(rail);
+        for (const key of ['flip', 'type', 'rotL', 'rotR', 'del', 'copy']) {
+            const p = pos[key];
+            if ((tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
+        }
+        return 'outside'; // メニュー外タップ → 閉じる
+    } else {
+        const pos = getFsButtonPositions(ep);
+        for (const key of ['S', 'L', 'R', 'M']) {
+            const p = pos[key];
+            if ((tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
+        }
+        return null;
+    }
+}
+
+// ≡メニューを閉じてターゲットをリセット
+function closeFsMenu() {
+    fsMenuOpen = false;
+    fsMenuTargetRail = null;
+}
+
+// タップ処理
+function handleFsArrowTap(hit) {
+    if (fsMenuOpen) {
+        const rail = getFsTargetRail();
+        if (hit === 'outside') {
+            closeFsMenu();
+        } else if (rail) {
+            if (hit === 'flip') {
+                rail.toggleReverse();
+            } else if (hit === 'type') {
+                rail.toggleType();
+            } else if (hit === 'rotL') {
+                rotateRail(rail, +45);  // 左回転（反時計回り）
+                return;  // rotateRail内でdrawAll()が呼ばれる
+            } else if (hit === 'rotR') {
+                rotateRail(rail, -45);  // 右回転（時計回り）
+                return;  // rotateRail内でdrawAll()が呼ばれる
+            } else if (hit === 'del') {
+                deleteRail(rail);
+                closeFsMenu();
+                return;  // deleteRail内でdrawAll()が呼ばれる
+            } else if (hit === 'copy') {
+                const railType = rail.getRailType();
+                const options = { x: rail.x + 100, y: rail.y + 100, angle: rail.angle };
+                if (typeof rail.getRailOptions === 'function') {
+                    Object.assign(options, rail.getRailOptions());
+                }
+                closeFsMenu();
+                addRailByType(railType, options);
+                return;
+            }
+            closeFsMenu();
+            drawAll();
+        }
+        return;
+    }
+
+    // 通常モード
+    // LastEndpointが複線レールの端点なら複線レールを追加
+    const _ep = getLastEndpoint();
+    const _rail = getFsTargetRail();
+    const _isDouble = isDoubleEndpoint(_rail, _ep);
+
+    if (hit === 'S') {
+        addRailByType(_isDouble ? 'doubleTrack' : 'straight');
+    } else if (hit === 'L') {
+        addRailByType(_isDouble ? 'doubleCurve' : 'curve', { direction: 'left' });
+    } else if (hit === 'R') {
+        addRailByType(_isDouble ? 'doubleCurve' : 'curve', { direction: 'right' });
+    } else if (hit === 'M') {
+        fsMenuOpen = true;
+        drawAll();
+    }
+}
+
+// 端点が複線ペアに属しているか判定
+function isDoubleEndpoint(rail, ep) {
+    if (!rail || !rail.endpointPairs || !ep) return false;
+    // ep.id は "${railId}-N" の形式、末尾の番号を取得
+    const match = ep.id && ep.id.match(/-(\d+)$/);
+    if (!match) return false;
+    const epNum = parseInt(match[1]);
+    return rail.endpointPairs.some(pair => pair.includes(epNum));
+}
+
+
 
 let groupMoveEnabled = false;
 let draggingGroup = null;
@@ -4992,6 +5432,44 @@ function rotateGroup(group, centerX, centerY, angleDelta) {
     });
 }
 
+/**
+ * レールを回転（コンテキストメニューと≡メニューの共通処理）
+ * @param {RailBase} rail - 対象レール
+ * @param {number} deltaAngle - 回転角度（+45=反時計回り, -45=時計回り）
+ */
+function rotateRail(rail, deltaAngle) {
+    if (groupMoveEnabled) {
+        // グループ移動モード: 接続されたレール全体を回転
+        const group = findConnectedGroup(rail);
+        rotateGroup(group, rail.x, rail.y, deltaAngle);
+    } else {
+        // 通常モード: 選択レールのみ回転
+        rail.angle += deltaAngle;
+        
+        if (rail._dirty !== undefined) rail._dirty = true;
+    }
+    drawAll();
+}
+
+/**
+ * レールを削除（コンテキストメニューと≡メニューの共通処理）
+ * @param {RailBase} rail - 対象レール
+ */
+function deleteRail(rail) {
+    const index = rails.indexOf(rail);
+    if (index > -1) {
+        rails.splice(index, 1);
+    }
+    // 削除後の状態管理
+    railProgression.rail = null;
+    railProgression.endpointIndex = 1;
+    railProgression.isReversed = false;
+    if (rails.length > 0 && !railProgression.rail) {
+        LastselectedShape = rails.slice(-1)[0];
+    }
+    drawAll();
+}
+
 // グループ全体をスナップ
 function snapGroupToClosestEndpoint(group, draggedRail) {
     // 描画軽減: 縮尺が小さい時はスナップ無効
@@ -5219,7 +5697,14 @@ function snapToClosestEndpoint(shape) {
     canvas.addEventListener('click', (e) => {
         // ドラッグしていた場合はスキップ
         if (dragging || isPanning) return;
-        
+
+        // 全画面モード: S/R/L/≡ 当たり判定（CSS座標で判定）
+        const fsRect = canvas.getBoundingClientRect();
+        const cssTx = e.clientX - fsRect.left;
+        const cssTy = e.clientY - fsRect.top;
+        const fsHit = hitTestFsArrows(cssTx, cssTy);
+        if (fsHit) { handleFsArrowTap(fsHit); return; }
+
         const world = screenToWorld(e.offsetX, e.offsetY);
         
         // 端点をクリックして進行方向を変更
@@ -5497,12 +5982,26 @@ function snapToClosestEndpoint(shape) {
         
         // タッチ終了時の処理（1本指→0本指）
         if (e.touches.length === 0) {
+            const touch = e.changedTouches[0];
+            const rect = canvas.getBoundingClientRect();
+            const endX = touch.clientX - rect.left;
+            const endY = touch.clientY - rect.top;
+
+            // 全画面モード: S/R/L/≡ 当たり判定を最優先（selectedShape不問）
+            if (isFullscreen && rails.length > 0) {
+                const fsHit = hitTestFsArrows(endX, endY);
+                if (fsHit) {
+                    handleFsArrowTap(fsHit);
+                    isPanning = false;
+                    dragging = null;
+                    touchStartPos = null;
+                    drawAll();
+                    return;
+                }
+            }
+
             // 長押し検出（コンテキストメニュー表示）
             if (touchStartPos && selectedShape) {
-                const touch = e.changedTouches[0];
-                const rect = canvas.getBoundingClientRect();
-                const endX = touch.clientX - rect.left;
-                const endY = touch.clientY - rect.top;
                 const distance = Math.sqrt(
                     Math.pow(endX - touchStartPos.x, 2) + 
                     Math.pow(endY - touchStartPos.y, 2)
@@ -5510,20 +6009,21 @@ function snapToClosestEndpoint(shape) {
                 
                 // ほとんど動いていない場合
                 if (distance < 10) {
-                    // 端点選択を試みる（タップ）
-                    const rect = canvas.getBoundingClientRect();
-                    const touchX = touch.clientX - rect.left;
-                    const touchY = touch.clientY - rect.top;
-                    const world = screenToWorld(touchX, touchY);
-                    
+                    const world = screenToWorld(endX, endY);
                     if (selectEndpointForProgression(world.x, world.y)) {
                         if (isNeedJointConsole) console.log('Endpoint selected via touch');
                     } else {
-                        // 端点が見つからない場合、コンテキストメニュー
-                        const menu = document.getElementById('contextMenu');
-                        menu.style.left = `${touch.clientX}px`;
-                        menu.style.top = `${touch.clientY}px`;
-                        menu.style.display = 'block';
+                        // 端点が見つからない場合、コンテキストメニュー（全画面時は≡メニュー）
+                        if (isFullscreen) {
+                            fsMenuTargetRail = selectedShape || null;
+                            fsMenuOpen = true;
+                            drawAll();
+                        } else {
+                            const menu = document.getElementById('contextMenu');
+                            menu.style.left = `${touch.clientX}px`;
+                            menu.style.top = `${touch.clientY}px`;
+                            menu.style.display = 'block';
+                        }
                     }
                 }
             }
@@ -5657,6 +6157,16 @@ function showContextMenu(pageX, pageY, offsetX, offsetY) {
     
     if (selectedShape) {
         const menu = document.getElementById('contextMenu');
+        
+        // メニュー項目の表示/非表示を制御
+        const hasToggleType = typeof selectedShape.toggleType === 'function';
+        const hasToggleReverse = typeof selectedShape.toggleReverse === 'function';
+        const hasLabel = selectedShape instanceof FlagRail || selectedShape instanceof ConcaveJointRail;
+        
+        document.getElementById('editLabel').style.display = hasLabel ? 'block' : 'none';
+        document.getElementById('toggleType').style.display = hasToggleType ? 'block' : 'none';
+        document.getElementById('toggleReverse').style.display = hasToggleReverse ? 'block' : 'none';
+        
         menu.style.left = `${pageX}px`;
         menu.style.top = `${pageY}px`;
         menu.style.display = 'block';
@@ -5666,6 +6176,12 @@ function showContextMenu(pageX, pageY, offsetX, offsetY) {
 // 右クリックでメニュー表示（マウス）
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
+    if (isFullscreen) {
+        fsMenuTargetRail = selectedShape || null;
+        fsMenuOpen = true;
+        drawAll();
+        return;
+    }
     showContextMenu(e.pageX, e.pageY, e.offsetX, e.offsetY);
 });
 
@@ -5689,7 +6205,13 @@ canvas.addEventListener('touchstart', (e) => {
         
         longPressTimer = setTimeout(() => {
             // 500ms後、移動していなければメニュー表示
-            showContextMenu(savedPageX, savedPageY, savedOffsetX, savedOffsetY);
+            if (isFullscreen) {
+                fsMenuTargetRail = selectedShape || null;
+                fsMenuOpen = true;
+                drawAll();
+            } else {
+                showContextMenu(savedPageX, savedPageY, savedOffsetX, savedOffsetY);
+            }
             longPressTimer = null;
         }, 500); // 500ms長押し
     }
@@ -5740,34 +6262,14 @@ document.addEventListener('touchstart', (e) => {
 
 document.getElementById('rotateRight').addEventListener('click', () => {
     if (selectedShape) {
-        if (groupMoveEnabled) {
-            // グループ移動モード: 接続されたレール全体を回転
-            const group = findConnectedGroup(selectedShape);
-            rotateGroup(group, selectedShape.x, selectedShape.y, -45);
-        } else {
-            // 通常モード: 選択レールのみ回転
-            selectedShape.angle -= 45;
-
-            if (selectedShape._dirty !== undefined) selectedShape._dirty = true;
-        }
-        drawAll();
+        rotateRail(selectedShape, -45);  // 右回転（時計回り）
         closeContextMenu();
     }
 });
 
 document.getElementById('rotateLeft').addEventListener('click', () => {
     if (selectedShape) {
-        if (groupMoveEnabled) {
-            // グループ移動モード: 接続されたレール全体を回転
-            const group = findConnectedGroup(selectedShape);
-            rotateGroup(group, selectedShape.x, selectedShape.y, +45);
-        } else {
-            // 通常モード: 選択レールのみ回転
-            selectedShape.angle += 45;
-
-            if (selectedShape._dirty !== undefined) selectedShape._dirty = true;
-        }
-        drawAll();
+        rotateRail(selectedShape, +45);  // 左回転（反時計回り）
         closeContextMenu();
     }
 });
@@ -5796,14 +6298,24 @@ document.getElementById('duplicate').addEventListener('click', () => {
 
 document.getElementById('delete').addEventListener('click', () => {
     if (selectedShape) {
-        const index = rails.indexOf(selectedShape);
-        if (index > -1) {
-            rails.splice(index, 1);
-        }
-        drawAll();
+        deleteRail(selectedShape);
         closeContextMenu();
     }
 });
+
+// 編集（FlagRailとConcaveJointRailのラベル編集）
+document.getElementById('editLabel').addEventListener('click', () => {
+    if (selectedShape && (selectedShape instanceof FlagRail || selectedShape instanceof ConcaveJointRail)) {
+        const currentLabel = selectedShape.label || selectedShape.defaultLabel();
+        const newLabel = prompt('ラベルを入力してください:', currentLabel);
+        if (newLabel !== null) {  // キャンセル時はnullが返る
+            selectedShape.label = newLabel;
+            drawAll();
+        }
+        closeContextMenu();
+    }
+});
+
         // タイプ切替 (R/L, A/B)
 document.getElementById('toggleType').addEventListener('click', () => {
             if (selectedShape) {
@@ -6915,6 +7427,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // マウスドラッグでスクロール（PC用）
     const legend = document.querySelector('.color-legend');
+    if (legend) {
     let isDown = false;
     let startX;
     let scrollLeft;
@@ -6946,6 +7459,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初期カーソル設定
     legend.style.cursor = 'grab';
+    } // end if(legend)
 });
 
 // ==========================================
@@ -7985,6 +8499,32 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 window.addEventListener('orientationchange', handleResize);
 
+// ==========================================
+// 全画面モード
+// ==========================================
+let isFullscreen = false;
+
+function toggleFullscreen() {
+    isFullscreen = !isFullscreen;
+    document.body.classList.toggle('fullscreen', isFullscreen);
+    document.getElementById('btn-fullscreen').textContent = isFullscreen ? '⊡' : '⛶';
+    drawAll();
+}
+
+function applyFullscreenCanvasSize() {
+    // 不使用（CSS方式に変更）
+}
+
+document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+document.getElementById('fs-exit').addEventListener('click', toggleFullscreen);
+
+// 全画面時の保存・戻るボタンは既存機能に接続
+document.getElementById('fs-save').addEventListener('click', () => {
+    // 既存の保存処理を呼び出し（保存ボタンと同じ）
+    const saveBtn = document.getElementById('saveSlot1');
+    if (saveBtn) saveBtn.click();
+});
+
 // ========================================
 // v50.23: セクション折りたたみ機能
 // ========================================
@@ -8077,6 +8617,102 @@ function updateNearbyRailsCache() {
     });
     nearbyRailsCacheValid = true;
 }
+
+// ==========================================
+// 全画面モード: 凡例2層パネル
+// ==========================================
+
+const FS_LEGEND_CATS = {
+    basic: [
+        { label: '直線',    color: 'deepskyblue', action: () => addRailByType('straight') },
+        { label: '右カーブ', color: 'pink',        action: () => addRailByType('curve', { direction: 'right' }) },
+        { label: '左カーブ', color: 'pink',        action: () => addRailByType('curve', { direction: 'left' }) },
+        { sep: true },
+        { label: '1/2',     color: 'deepskyblue', action: () => addRailByType('halfStraight') },
+        { label: '倍直線',  color: 'deepskyblue', action: () => addRailByType('doubleStraight') },
+        { label: '倍曲右',  color: 'violet',      action: () => addRailByType('doubleLengthCurve', { direction: 'right' }) },
+        { label: '倍曲左',  color: 'violet',      action: () => addRailByType('doubleLengthCurve', { direction: 'left' }) },
+        { sep: true },
+        { label: '1/4(凸)', color: 'deepskyblue', action: () => addRailByType('quarterV') },
+        { label: '1/4(凹)', color: 'deepskyblue', action: () => addRailByType('quarterC') },
+        { label: '1/6',     color: 'deepskyblue', action: () => addRailByType('joint') },
+    ],
+    branch: [
+        { label: 'T.O.',    color: 'lawngreen',     action: () => addRailByType('turnout', { direction: 'left', turnoutType: 'R' }) },
+        { label: '8の字',   color: 'plum',           action: () => addRailByType('figure8', { pointType: 'R', direction: 'left' }) },
+        { label: '十字P',   color: 'coral',          action: () => addRailByType('crossPoint', { reversed: false }) },
+        { label: 'R-30',    color: 'mediumseagreen', action: () => addRailByType('r30', { reversed: false }) },
+        { label: 'R-15',    color: 'mediumseagreen', action: () => addRailByType('r15', { pointType: 'A', reversed: false }) },
+        { label: 'R-17',    color: 'orange',         action: () => addRailByType('r17', { ThreewayType: 'A', direction: 'left' }) },
+        { label: '単複',    color: 'orange',         action: () => addRailByType('r13', { pointType: 'A', direction: 'right' }) },
+        { label: 'Y字',     color: 'yellowgreen',    action: () => addRailByType('r22', { pointType: 'A', reversed: false }) },
+        { sep: true },
+        { label: '外カーブ右', color: 'purple',      action: () => addRailByType('outerCurve', { direction: 'right' }) },
+        { label: '外カーブ左', color: 'purple',      action: () => addRailByType('outerCurve', { direction: 'left' }) },
+        { label: 'Uターン', color: 'red',            action: () => addRailByType('uturn', { type: 'U' }) },
+        { label: 'S字',     color: 'deepskyblue',   action: () => addRailByType('slide', { reversed: false }) },
+    ],
+    double: [
+        { label: '複直線',  color: 'cyan',          action: () => addRailByType('doubleTrack') },
+        { label: '複曲左',  color: 'lightcyan',     action: () => addRailByType('doubleCurve', { direction: 'left' }) },
+        { label: '複曲右',  color: 'lightcyan',     action: () => addRailByType('doubleCurve', { direction: 'right' }) },
+        { label: '複渡り',  color: 'turquoise',     action: () => addRailByType('doubleCrossover', { reversed: false }) },
+        { label: '複T.O.', color: 'lightseagreen',  action: () => addRailByType('doubleTurnout', { direction: 'left', reversed: false }) },
+    ],
+    other: [
+        { label: 'N メモ',  color: '#aaaaaa', action: () => addRailByType('flag', { breakGroup: false }) },
+        { label: 'Nb 境界', color: '#888888', action: () => addRailByType('flag', { breakGroup: true  }) },
+        { label: 'Na 凹接', color: '#bbbbbb', action: () => addRailByType('concavejoint') },
+    ],
+};
+
+// カテゴリ内の各アイテムにcat/indexを付与しておく（スクロール位置計算用）
+const FS_CAT_ORDER = ['basic', 'branch', 'double', 'other'];
+
+function buildFsLegend() {
+    const container = document.getElementById('fs-legend-items');
+    container.innerHTML = '';
+    FS_CAT_ORDER.forEach(cat => {
+        const items = FS_LEGEND_CATS[cat];
+        // カテゴリ開始マーカー（スクロールアンカー）
+        const anchor = document.createElement('div');
+        anchor.id = `fs-legend-anchor-${cat}`;
+        anchor.style.flexShrink = '0';
+        container.appendChild(anchor);
+
+        items.forEach(item => {
+            if (item.sep) {
+                const sep = document.createElement('div');
+                sep.className = 'fs-legend-sep';
+                container.appendChild(sep);
+                return;
+            }
+            const el = document.createElement('div');
+            el.className = 'fs-legend-item';
+            el.innerHTML = `<div class="fs-legend-color" style="background:${item.color}"></div><span>${item.label}</span>`;
+            el.addEventListener('click', () => { item.action(); });
+            el.addEventListener('touchend', (e) => { e.preventDefault(); item.action(); });
+            container.appendChild(el);
+        });
+    });
+}
+
+function fsLegendScrollTo(cat) {
+    const anchor = document.getElementById(`fs-legend-anchor-${cat}`);
+    if (anchor) anchor.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+}
+
+// タブ切替
+document.querySelectorAll('.fs-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.fs-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        fsLegendScrollTo(tab.dataset.cat);
+    });
+});
+
+// 初期構築
+buildFsLegend();
 
     </script>
 </body>
