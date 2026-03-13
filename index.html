@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プラレールレイアウトシミュレータ v50.23</title>
+    <title>プラレールレイアウトシミュレータ v50.0</title>
     <style>
         * {
             box-sizing: border-box;
@@ -300,8 +300,8 @@
             display: block;
             touch-action: none;
             /* コンテナに収まる最大サイズで、キャンバス実寸比を維持 */
-            /* max-width: 100%; */
-            /* max-height: 100%; */
+           // max-width: 100%;
+           // max-height: 100%;
             width: auto;
             height: auto;
         }
@@ -817,15 +817,53 @@
 		</div>
 		</div>
 
-    <div id="contextMenu" class="context-menu">
-        <div id="editLabel">編集</div>
-        <div id="rotateRight">右回転 (45°)</div>
-        <div id="rotateLeft">左回転 (45°)</div>
-        <div id="toggleType">タイプ切替 (R/L, A/B)</div>
-        <div id="toggleReverse">裏/表</div>
-        <div id="duplicate">複製</div>
-        <div id="delete">削除</div>
+    <!-- コンテキストメニュー: タイプ別に5種類 -->
+    
+    <!-- メニュータイプ1: 基本（回転・複製・削除のみ） -->
+    <div id="menu-basic" class="context-menu">
+        <div data-action="rotateRight">右回転 (45°)</div>
+        <div data-action="rotateLeft">左回転 (45°)</div>
+        <div data-action="duplicate">複製</div>
+        <div data-action="delete">削除</div>
     </div>
+    
+    <!-- メニュータイプ2: タイプ切替あり -->
+    <div id="menu-type" class="context-menu">
+        <div data-action="rotateRight">右回転 (45°)</div>
+        <div data-action="rotateLeft">左回転 (45°)</div>
+        <div data-action="toggleType">タイプ切替 (R/L, A/B)</div>
+        <div data-action="duplicate">複製</div>
+        <div data-action="delete">削除</div>
+    </div>
+    
+    <!-- メニュータイプ3: 裏/表あり -->
+    <div id="menu-reverse" class="context-menu">
+        <div data-action="rotateRight">右回転 (45°)</div>
+        <div data-action="rotateLeft">左回転 (45°)</div>
+        <div data-action="toggleReverse">裏/表</div>
+        <div data-action="duplicate">複製</div>
+        <div data-action="delete">削除</div>
+    </div>
+    
+    <!-- メニュータイプ4: 両方あり（ポイント等） -->
+    <div id="menu-full" class="context-menu">
+        <div data-action="rotateRight">右回転 (45°)</div>
+        <div data-action="rotateLeft">左回転 (45°)</div>
+        <div data-action="toggleType">タイプ切替 (R/L, A/B)</div>
+        <div data-action="toggleReverse">裏/表</div>
+        <div data-action="duplicate">複製</div>
+        <div data-action="delete">削除</div>
+    </div>
+    
+    <!-- メニュータイプ5: 編集あり（フラグレール） -->
+    <div id="menu-edit" class="context-menu">
+        <div data-action="editLabel">編集</div>
+        <div data-action="rotateRight">右回転 (45°)</div>
+        <div data-action="rotateLeft">左回転 (45°)</div>
+        <div data-action="duplicate">複製</div>
+        <div data-action="delete">削除</div>
+    </div>
+    
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -1246,6 +1284,10 @@ class RailBase {
         
         // ========== 描画軽減用フラグ ==========
         this.skipDraw = false;  // 画面外判定フラグ
+        
+        // ========== トグル可否フラグ ==========
+        this.canToggleType = false;     // A/B, L/R切り替えの可否
+        this.canToggleReverse = false;  // 裏/表, 方向切り替えの可否
     }
     
     // ========== 基本メソッド（子クラスで実装必須） ==========
@@ -1317,18 +1359,24 @@ class ComplexRail extends RailBase {
         this.components = [];
         this._dirty = true;
         
+        // ========== トグル可否（ComplexRailは全てReverse可能） ==========
+        this.canToggleReverse = true;
+        
         // ========== タイプ系（使わないクラスはundefined） ==========
         // turnoutType: R, L
         // pointType: A, B
         // ThreewayType: A, B
         if (options.turnoutType !== undefined) {
             this.turnoutType = options.turnoutType;
+            this.canToggleType = true;
         }
         if (options.pointType !== undefined) {
             this.pointType = options.pointType;
+            this.canToggleType = true;
         }
         if (options.ThreewayType !== undefined) {
             this.ThreewayType = options.ThreewayType;
+            this.canToggleType = true;
         }
         
         // ========== 表裏/方向（使わないクラスはundefined） ==========
@@ -1554,6 +1602,10 @@ class StraightRail extends SimpleRail {
 		           this.railType = 'customStraight';
 				}
 		   
+		        // Q直線（1/4直線）の場合のみタイプ切替可能
+		        if (length === RAIL_LENGTH * 0.25) {
+		            this.canToggleType = true;
+		        }
 		   }
 
             // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
@@ -1699,6 +1751,9 @@ class Slide extends SimpleRail {
                 this.slide = slide;
                 this.isReversed = (this.slide < 0) ? true : false;
                 this.railType = 'slide';
+                
+                // S字レールは裏/表切り替え可能
+                this.canToggleReverse = true;
            }
 
             // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
@@ -1869,6 +1924,9 @@ class Curve extends SimpleRail {
         } else {
             this.railType = 'customCurve';
         }
+        
+        // カーブは裏/表（左/右）切り替え可能
+        this.canToggleReverse = true;
     }
 
      // draw()は基底クラスから継承（useRealisticRendering2のみオーバーライド）
@@ -3487,7 +3545,10 @@ class DoubleTrackTurnoutRail extends ComplexRail {
         this._sync();  // 初期構築
         this.isDoubleTrack = true;  // 複線レールフラグ
         // 複線ターンアウトは4組の端点ペア: 直線2本+分岐2本
-        this.endpointPairs = [[1, 3], [2, 4], [5, 7],[6, 8]];  
+        this.endpointPairs = [[1, 3], [2, 4], [5, 7],[6, 8]];
+        
+        // 複線ターンアウト専用: directionをタイプ切替として扱う
+        this.canToggleType = true;
         
         // 複線ターンアウトレール（単線→複線への分岐ポイント）:
         // 複線幅(22mm)の直線2本（長さ120）- 端点 1,3（凹）→ 2,4（凸）
@@ -4477,8 +4538,19 @@ class ZeroLengthRailBase extends RailBase {
 
     drawFacilities() {}
 
-    // ワールド座標のhitTestは常にfalse（旗エリアは画面座標で別判定）
-    contains(mx, my) { return false; }
+    // ワールド座標での当たり判定（旗エリアで判定）
+    contains(mx, my) {
+        // ワールド座標を画面座標に変換
+        const screen = worldToScreen(mx, my);
+        
+        // 旗の矩形範囲をチェック
+        const { tipScreen } = this._getFlagScreenPos();
+        const fx = tipScreen.x;
+        const fy = tipScreen.y - this.FLAG_H;
+        
+        return screen.x >= fx && screen.x <= fx + this.FLAG_W &&
+               screen.y >= fy && screen.y <= fy + this.FLAG_H;
+    }
 }
 
 // ============================================================
@@ -4489,6 +4561,7 @@ class FlagRail extends ZeroLengthRailBase {
         super(x, y, id, options);
         this.breakGroup = options.breakGroup || false;
         this.label = options.label || this.defaultLabel();
+        this.hasEditLabel = true;  // 編集メニュー用フラグ
     }
 
     defaultLabel() {
@@ -4535,6 +4608,7 @@ class ConcaveJointRail extends ZeroLengthRailBase {
     constructor(x, y, id, options = {}) {
         super(x, y, id, options);
         this.label = options.label || this.defaultLabel();
+        this.hasEditLabel = true;  // 編集メニュー用フラグ
     }
 
     defaultLabel() { return '凸凸Joint'; }
@@ -4825,6 +4899,7 @@ const FS_BTN_R = 28;     // ボタン半径(CSS px)
 const FS_BTN_OFFSET = 70; // 端点からの距離(CSS px)
 let fsMenuOpen = false;       // ≡メニュー展開状態
 let fsMenuTargetRail = null;  // メニュー対象レール（nullなら通常のLastEndpoint基準）
+let menuJustOpened = false;   // コンテキストメニュー表示直後フラグ
 
 // 対象レール取得
 function getFsTargetRail() {
@@ -4870,7 +4945,7 @@ function getFsButtonPositions(ep) {
 }
 
 // ≡メニュー展開時の操作ボタン位置（レール中心を基準に放射状6個）
-function getFsMenuPositions(rail) {
+function getFsMenuPositions(rail, keys) {
     const eps = rail.getEndpoints();
     const ep0 = eps[0], ep1 = eps[1] || eps[0];
     // eps[0]とeps[1]の中点をワールド座標で計算
@@ -4883,7 +4958,6 @@ function getFsMenuPositions(rail) {
 
     const D = FS_BTN_OFFSET * 1.1;
     const positions = {};
-    const keys = ['flip', 'type', 'rotL', 'rotR', 'del', 'copy'];
     keys.forEach((key, i) => {
         const a = (i / keys.length) * Math.PI * 2 - Math.PI / 2;
         positions[key] = { x: cx + Math.cos(a) * D, y: cy + Math.sin(a) * D };
@@ -4904,18 +4978,27 @@ function drawFsArrows() {
     const R = FS_BTN_R;
 
     if (fsMenuOpen) {
-        // ≡メニュー展開中: 操作ボタン6個をレール中心に表示
+        // ≡メニュー展開中: 操作ボタンをレール中心に表示
         const rail = getFsTargetRail();
         if (!rail) { fsMenuOpen = false; return; }
-        const pos = getFsMenuPositions(rail);
-        const btns = [
-            { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)' },
-            { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)'  },
-            { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)'  },  // 右回転
-            { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)'  },  // 左回転
-            { key: 'del',  label: '消',  color: 'rgba(200,30,30,0.88)'  },
-            { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)'  },
+        
+        // ボタン定義（条件付き表示）
+        const allBtns = [
+            { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
+            { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
+            { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
+            { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
+            { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
+            { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
+            { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
         ];
+        
+        // 表示するボタンのみフィルタリング
+        const btns = allBtns.filter(btn => btn.show);
+        const keys = btns.map(btn => btn.key);
+        
+        const pos = getFsMenuPositions(rail, keys);
+        
         // 中心に薄い円（ターゲット表示）
         const eps = rail.getEndpoints();
         const ep0 = eps[0], ep1 = eps[1] || eps[0];
@@ -4992,10 +5075,24 @@ function hitTestFsArrows(tx, ty) {
     if (fsMenuOpen) {
         const rail = getFsTargetRail();
         if (!rail) return 'outside';
-        const pos = getFsMenuPositions(rail);
-        for (const key of ['flip', 'type', 'rotL', 'rotR', 'del', 'copy']) {
+        
+        // ボタン定義（drawFsArrowsと同じロジック）
+        const allBtns = [
+            { key: 'edit', show: rail.hasEditLabel === true },
+            { key: 'flip', show: rail.canToggleReverse === true },
+            { key: 'type', show: rail.canToggleType === true },
+            { key: 'rotL', show: true },
+            { key: 'rotR', show: true },
+            { key: 'del',  show: true },
+            { key: 'copy', show: true },
+        ];
+        const btns = allBtns.filter(btn => btn.show);
+        const keys = btns.map(btn => btn.key);
+        
+        const pos = getFsMenuPositions(rail, keys);
+        for (const key of keys) {
             const p = pos[key];
-            if ((tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
+            if (p && (tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
         }
         return 'outside'; // メニュー外タップ → 閉じる
     } else {
@@ -5021,32 +5118,23 @@ function handleFsArrowTap(hit) {
         if (hit === 'outside') {
             closeFsMenu();
         } else if (rail) {
-            if (hit === 'flip') {
-                rail.toggleReverse();
+            // menuActionsの共通処理を使用
+            if (hit === 'edit') {
+                menuActions.editLabel(rail);
+            } else if (hit === 'flip') {
+                menuActions.toggleReverse(rail);
             } else if (hit === 'type') {
-                rail.toggleType();
+                menuActions.toggleType(rail);
             } else if (hit === 'rotL') {
-                rotateRail(rail, +45);  // 左回転（反時計回り）
-                return;  // rotateRail内でdrawAll()が呼ばれる
+                menuActions.rotateLeft(rail);
             } else if (hit === 'rotR') {
-                rotateRail(rail, -45);  // 右回転（時計回り）
-                return;  // rotateRail内でdrawAll()が呼ばれる
+                menuActions.rotateRight(rail);
             } else if (hit === 'del') {
-                deleteRail(rail);
-                closeFsMenu();
-                return;  // deleteRail内でdrawAll()が呼ばれる
+                menuActions.delete(rail);
             } else if (hit === 'copy') {
-                const railType = rail.getRailType();
-                const options = { x: rail.x + 100, y: rail.y + 100, angle: rail.angle };
-                if (typeof rail.getRailOptions === 'function') {
-                    Object.assign(options, rail.getRailOptions());
-                }
-                closeFsMenu();
-                addRailByType(railType, options);
-                return;
+                menuActions.duplicate(rail);
             }
             closeFsMenu();
-            drawAll();
         }
         return;
     }
@@ -5469,6 +5557,67 @@ function deleteRail(rail) {
     }
     drawAll();
 }
+
+// ==========================================
+// コンテキストメニュー: 共通アクション関数
+// ==========================================
+
+const menuActions = {
+    rotateRight: (rail) => {
+        rotateRail(rail, -45);
+    },
+    
+    rotateLeft: (rail) => {
+        rotateRail(rail, +45);
+    },
+    
+    toggleType: (rail) => {
+        if (rail.toggleType) {
+            rail.toggleType();
+            drawAll();
+        }
+    },
+    
+    toggleReverse: (rail) => {
+        if (rail.toggleReverse) {
+            rail.toggleReverse();
+            drawAll();
+        }
+    },
+    
+    duplicate: (rail) => {
+        if (typeof rail.getRailType === 'function') {
+            const railType = rail.getRailType();
+            const options = {
+                x: rail.x + 100,
+                y: rail.y + 100,
+                angle: rail.angle
+            };
+            
+            if (typeof rail.getRailOptions === 'function') {
+                Object.assign(options, rail.getRailOptions());
+            }
+            
+            addRailByType(railType, options);
+            drawAll();
+        }
+    },
+    
+    delete: (rail) => {
+        deleteRail(rail);
+    },
+    
+    editLabel: (rail) => {
+        if (rail instanceof FlagRail || rail instanceof ConcaveJointRail) {
+            const currentLabel = rail.label || rail.defaultLabel();
+            const newLabel = prompt('ラベルを入力してください:', currentLabel);
+            if (newLabel !== null) {
+                rail.label = newLabel;
+                drawAll();
+            }
+        }
+    }
+};
 
 // グループ全体をスナップ
 function snapGroupToClosestEndpoint(group, draggedRail) {
@@ -6019,10 +6168,8 @@ function snapToClosestEndpoint(shape) {
                             fsMenuOpen = true;
                             drawAll();
                         } else {
-                            const menu = document.getElementById('contextMenu');
-                            menu.style.left = `${touch.clientX}px`;
-                            menu.style.top = `${touch.clientY}px`;
-                            menu.style.display = 'block';
+                            // 新しいshowContextMenu関数を使用
+                            showContextMenu(touch.clientX, touch.clientY, endX, endY);
                         }
                     }
                 }
@@ -6130,23 +6277,33 @@ function snapToClosestEndpoint(shape) {
 // ==========================================
 
 // メニューを閉じる
+// ==========================================
+// コンテキストメニュー: 表示/非表示
+// ==========================================
+
+function closeAllMenus() {
+    document.querySelectorAll('.context-menu').forEach(menu => {
+        menu.style.display = 'none';
+    });
+}
+
 function closeContextMenu() {
-    document.getElementById('contextMenu').style.display = 'none';
+    closeAllMenus();
 }
 
 // メニューを表示
 function showContextMenu(pageX, pageY, offsetX, offsetY) {
     // 描画軽減: ズームアウト時はメニュー無効
     if (usePerformanceMode && scale < 0.5) {
-        return;  // ズーム50%未満ではメニュー表示しない
+        return;
     }
     
     const world = screenToWorld(offsetX, offsetY);
     
     // 描画軽減: 画面内レールのみチェック
     const checkRails = usePerformanceMode 
-        ? rails.filter(r => !r.skipDraw)  // skipDraw=falseのレールのみ
-        : rails;  // 全レール
+        ? rails.filter(r => !r.skipDraw)
+        : rails;
     
     selectedShape = null;
     checkRails.forEach(rect => {
@@ -6156,20 +6313,34 @@ function showContextMenu(pageX, pageY, offsetX, offsetY) {
     });
     
     if (selectedShape) {
-        const menu = document.getElementById('contextMenu');
+        closeAllMenus();
         
-        // メニュー項目の表示/非表示を制御
-        const hasToggleType = typeof selectedShape.toggleType === 'function';
-        const hasToggleReverse = typeof selectedShape.toggleReverse === 'function';
-        const hasLabel = selectedShape instanceof FlagRail || selectedShape instanceof ConcaveJointRail;
+        let menuId;
         
-        document.getElementById('editLabel').style.display = hasLabel ? 'block' : 'none';
-        document.getElementById('toggleType').style.display = hasToggleType ? 'block' : 'none';
-        document.getElementById('toggleReverse').style.display = hasToggleReverse ? 'block' : 'none';
+        // メニュータイプの判定
+        if (selectedShape.hasEditLabel) {
+            menuId = 'menu-edit';
+        } else if (selectedShape.canToggleType && selectedShape.canToggleReverse) {
+            menuId = 'menu-full';
+        } else if (selectedShape.canToggleType) {
+            menuId = 'menu-type';
+        } else if (selectedShape.canToggleReverse) {
+            menuId = 'menu-reverse';
+        } else {
+            menuId = 'menu-basic';
+        }
+        
+        const menu = document.getElementById(menuId);
+        if (!menu) return;
         
         menu.style.left = `${pageX}px`;
         menu.style.top = `${pageY}px`;
         menu.style.display = 'block';
+        menu.offsetHeight;  // iOS Safari強制リフロー
+        
+        // 表示直後フラグを設定（即座閉じを防ぐ）
+        menuJustOpened = true;
+        setTimeout(() => { menuJustOpened = false; }, 100);
     }
 }
 
@@ -6239,100 +6410,46 @@ canvas.addEventListener('touchmove', (e) => {
 
 // メニュー外クリック/タッチで閉じる
 document.addEventListener('click', (e) => {
-    const menu = document.getElementById('contextMenu');
-    if (!menu.contains(e.target)) {
-        closeContextMenu();
+    if (!e.target.closest('.context-menu')) {
+        closeAllMenus();
     }
 });
 
 document.addEventListener('touchstart', (e) => {
-    const menu = document.getElementById('contextMenu');
+    // メニュー表示直後は無視（即座閉じを防ぐ）
+    if (menuJustOpened) {
+        menuJustOpened = false;
+        return;
+    }
     // メニューの外をタッチした場合のみ閉じる
-    if (menu.style.display === 'block' && !menu.contains(e.target)) {
-        closeContextMenu();
+    if (!e.target.closest('.context-menu')) {
+        closeAllMenus();
     }
 });
 
 // ==========================================
-// 補足：メニューボタンのイベントリスナー修正
+
 // ==========================================
-//
-// 各メニューボタンのリスナーも closeContextMenu() を使用するように修正
-//
+// コンテキストメニュー: イベントリスナー設定
+// ==========================================
 
-document.getElementById('rotateRight').addEventListener('click', () => {
-    if (selectedShape) {
-        rotateRail(selectedShape, -45);  // 右回転（時計回り）
-        closeContextMenu();
-    }
-});
-
-document.getElementById('rotateLeft').addEventListener('click', () => {
-    if (selectedShape) {
-        rotateRail(selectedShape, +45);  // 左回転（反時計回り）
-        closeContextMenu();
-    }
-});
-
-document.getElementById('duplicate').addEventListener('click', () => {
-
- if (selectedShape && typeof selectedShape.getRailType === 'function') {
-        const railType = selectedShape.getRailType();
-        const options = {
-            x: selectedShape.x + 100,
-            y: selectedShape.y + 100,
-            angle: selectedShape.angle
-        };
-        
-        // レール固有のオプションを取得
-        if (typeof selectedShape.getRailOptions === 'function') {
-            Object.assign(options, selectedShape.getRailOptions());
-        }
-        
-        addRailByType(railType, options);
-        drawAll();
-        closeContextMenu();
-    }
-
-});
-
-document.getElementById('delete').addEventListener('click', () => {
-    if (selectedShape) {
-        deleteRail(selectedShape);
-        closeContextMenu();
-    }
-});
-
-// 編集（FlagRailとConcaveJointRailのラベル編集）
-document.getElementById('editLabel').addEventListener('click', () => {
-    if (selectedShape && (selectedShape instanceof FlagRail || selectedShape instanceof ConcaveJointRail)) {
-        const currentLabel = selectedShape.label || selectedShape.defaultLabel();
-        const newLabel = prompt('ラベルを入力してください:', currentLabel);
-        if (newLabel !== null) {  // キャンセル時はnullが返る
-            selectedShape.label = newLabel;
-            drawAll();
-        }
-        closeContextMenu();
-    }
-});
-
-        // タイプ切替 (R/L, A/B)
-document.getElementById('toggleType').addEventListener('click', () => {
-            if (selectedShape) {
-				selectedShape.toggleType();
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
+function setupContextMenus() {
+    const menus = document.querySelectorAll('.context-menu');
+    
+    menus.forEach(menu => {
+        menu.querySelectorAll('[data-action]').forEach(item => {
+            item.addEventListener('click', (e) => {
+                const action = e.target.dataset.action;
+                const handler = menuActions[action];
+                
+                if (handler && selectedShape) {
+                    handler(selectedShape);
+                    closeAllMenus();
+                }
+            });
         });
-
-        // 方向反転 (裏/表、左/右)
-        document.getElementById('toggleReverse').addEventListener('click', () => {
-            if (selectedShape) {
-				selectedShape.toggleReverse();
-                drawAll();
-                document.getElementById('contextMenu').style.display = 'none';
-            }
-        });
+    });
+}
 
 // 最後に置いたレールの端点を取得する関数
 // 最後に配置したレールの端点を取得する関数
@@ -7397,6 +7514,9 @@ const legendToButton = {
 
 // 凡例アイテムクリック時の処理
 document.addEventListener('DOMContentLoaded', () => {
+    // コンテキストメニューのイベントリスナーを設定
+    setupContextMenus();
+    
     const legendItems = document.querySelectorAll('.color-item');
     
     legendItems.forEach(item => {
