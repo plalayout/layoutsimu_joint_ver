@@ -4885,9 +4885,12 @@ class ConcaveJointRail extends ZeroLengthRailBase {
 
         ctx.restore();
 
-        // 全画面モード: S/R/L矢印 + ≡ をスクリーン座標で描画
+        // 放射状メニュー描画（全画面モード時はS/R/L矢印も）
         if (isFullscreen && rails.length > 0) {
             drawFsArrows();
+        } else if (fsMenuOpen) {
+            // 通常モード: ≡メニューのみ描画
+            drawContextRadialMenu();
         }
     }
 
@@ -4963,6 +4966,66 @@ function getFsMenuPositions(rail, keys) {
         positions[key] = { x: cx + Math.cos(a) * D, y: cy + Math.sin(a) * D };
     });
     return positions;
+}
+
+// 通常モード用: 放射状メニュー描画
+function drawContextRadialMenu() {
+    const rail = getFsTargetRail();
+    if (!rail || !fsMenuOpen) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    ctx.save();
+    ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+
+    const R = FS_BTN_R;
+    
+    // ボタン定義（条件付き表示）
+    const allBtns = [
+        { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
+        { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
+        { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
+        { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
+        { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
+        { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
+        { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
+    ];
+    
+    // 表示するボタンのみフィルタリング
+    const btns = allBtns.filter(btn => btn.show);
+    const keys = btns.map(btn => btn.key);
+    
+    const pos = getFsMenuPositions(rail, keys);
+    
+    // 中心に薄い円（ターゲット表示）
+    const eps = rail.getEndpoints();
+    const ep0 = eps[0], ep1 = eps[1] || eps[0];
+    const sc = worldToScreen((ep0.x + ep1.x) / 2, (ep0.y + ep1.y) / 2);
+    const cx = sc.x / scaleX, cy = sc.y / scaleY;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(80,80,80,0.3)';
+    ctx.fill();
+
+    btns.forEach(({ key, label, color }) => {
+        const p = pos[key];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${R * 0.9}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, p.x, p.y);
+    });
+
+    ctx.restore();
 }
 
 function drawFsArrows() {
@@ -5067,12 +5130,10 @@ function drawFsArrows() {
 
 // 当たり判定: CSS座標(tx,ty) → ヒットしたキー or null
 function hitTestFsArrows(tx, ty) {
-    if (!isFullscreen || rails.length === 0) return null;
-    const ep = getLastEndpoint();
-    if (!ep) return null;
     const R = FS_BTN_R;
 
     if (fsMenuOpen) {
+        // 放射状メニュー展開中の当たり判定
         const rail = getFsTargetRail();
         if (!rail) return 'outside';
         
@@ -5095,7 +5156,11 @@ function hitTestFsArrows(tx, ty) {
             if (p && (tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
         }
         return 'outside'; // メニュー外タップ → 閉じる
-    } else {
+    } else if (isFullscreen && rails.length > 0) {
+        // 全画面モード: S/R/L/≡ボタン判定
+        const ep = getLastEndpoint();
+        if (!ep) return null;
+        
         const pos = getFsButtonPositions(ep);
         for (const key of ['S', 'L', 'R', 'M']) {
             const p = pos[key];
@@ -5103,6 +5168,8 @@ function hitTestFsArrows(tx, ty) {
         }
         return null;
     }
+    
+    return null;
 }
 
 // ≡メニューを閉じてターゲットをリセット
@@ -6136,20 +6203,18 @@ function snapToClosestEndpoint(shape) {
             const endX = touch.clientX - rect.left;
             const endY = touch.clientY - rect.top;
 
-            // 全画面モード: S/R/L/≡ 当たり判定を最優先（selectedShape不問）
-            if (isFullscreen && rails.length > 0) {
-                const fsHit = hitTestFsArrows(endX, endY);
-                if (fsHit) {
-                    handleFsArrowTap(fsHit);
-                    isPanning = false;
-                    dragging = null;
-                    touchStartPos = null;
-                    drawAll();
-                    return;
-                }
+            // 放射状メニューの当たり判定（全画面/通常モード共通）
+            const fsHit = hitTestFsArrows(endX, endY);
+            if (fsHit) {
+                handleFsArrowTap(fsHit);
+                isPanning = false;
+                dragging = null;
+                touchStartPos = null;
+                drawAll();
+                return;
             }
 
-            // 長押し検出（コンテキストメニュー表示）
+            // タップ検出（コンテキストメニュー表示）
             if (touchStartPos && selectedShape) {
                 const distance = Math.sqrt(
                     Math.pow(endX - touchStartPos.x, 2) + 
@@ -6162,15 +6227,10 @@ function snapToClosestEndpoint(shape) {
                     if (selectEndpointForProgression(world.x, world.y)) {
                         if (isNeedJointConsole) console.log('Endpoint selected via touch');
                     } else {
-                        // 端点が見つからない場合、コンテキストメニュー（全画面時は≡メニュー）
-                        if (isFullscreen) {
-                            fsMenuTargetRail = selectedShape || null;
-                            fsMenuOpen = true;
-                            drawAll();
-                        } else {
-                            // 新しいshowContextMenu関数を使用
-                            showContextMenu(touch.clientX, touch.clientY, endX, endY);
-                        }
+                        // 端点が見つからない場合、放射状メニューを表示
+                        fsMenuTargetRail = selectedShape || null;
+                        fsMenuOpen = true;
+                        drawAll();
                     }
                 }
             }
@@ -6347,13 +6407,26 @@ function showContextMenu(pageX, pageY, offsetX, offsetY) {
 // 右クリックでメニュー表示（マウス）
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
-    if (isFullscreen) {
-        fsMenuTargetRail = selectedShape || null;
+    
+    // ワールド座標でレールを検出
+    const world = screenToWorld(e.offsetX, e.offsetY);
+    const checkRails = usePerformanceMode 
+        ? rails.filter(r => !r.skipDraw)
+        : rails;
+    
+    selectedShape = null;
+    checkRails.forEach(rect => {
+        if (rect.contains(world.x, world.y)) {
+            selectedShape = rect;
+        }
+    });
+    
+    if (selectedShape) {
+        // 放射状メニューを表示
+        fsMenuTargetRail = selectedShape;
         fsMenuOpen = true;
         drawAll();
-        return;
     }
-    showContextMenu(e.pageX, e.pageY, e.offsetX, e.offsetY);
 });
 
 // 長押しでメニュー表示（タッチデバイス）
@@ -6376,12 +6449,10 @@ canvas.addEventListener('touchstart', (e) => {
         
         longPressTimer = setTimeout(() => {
             // 500ms後、移動していなければメニュー表示
-            if (isFullscreen) {
-                fsMenuTargetRail = selectedShape || null;
+            if (selectedShape) {
+                fsMenuTargetRail = selectedShape;
                 fsMenuOpen = true;
                 drawAll();
-            } else {
-                showContextMenu(savedPageX, savedPageY, savedOffsetX, savedOffsetY);
             }
             longPressTimer = null;
         }, 500); // 500ms長押し
