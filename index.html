@@ -4902,7 +4902,6 @@ const FS_BTN_R = 28;     // ボタン半径(CSS px)
 const FS_BTN_OFFSET = 70; // 端点からの距離(CSS px)
 let fsMenuOpen = false;       // ≡メニュー展開状態
 let fsMenuTargetRail = null;  // メニュー対象レール（nullなら通常のLastEndpoint基準）
-let menuJustOpened = false;   // コンテキストメニュー表示直後フラグ
 
 // 対象レール取得
 function getFsTargetRail() {
@@ -6347,63 +6346,6 @@ function closeAllMenus() {
     });
 }
 
-function closeContextMenu() {
-    closeAllMenus();
-}
-
-// メニューを表示
-function showContextMenu(pageX, pageY, offsetX, offsetY) {
-    // 描画軽減: ズームアウト時はメニュー無効
-    if (usePerformanceMode && scale < 0.5) {
-        return;
-    }
-    
-    const world = screenToWorld(offsetX, offsetY);
-    
-    // 描画軽減: 画面内レールのみチェック
-    const checkRails = usePerformanceMode 
-        ? rails.filter(r => !r.skipDraw)
-        : rails;
-    
-    selectedShape = null;
-    checkRails.forEach(rect => {
-        if (rect.contains(world.x, world.y)) {
-            selectedShape = rect;
-        }
-    });
-    
-    if (selectedShape) {
-        closeAllMenus();
-        
-        let menuId;
-        
-        // メニュータイプの判定
-        if (selectedShape.hasEditLabel) {
-            menuId = 'menu-edit';
-        } else if (selectedShape.canToggleType && selectedShape.canToggleReverse) {
-            menuId = 'menu-full';
-        } else if (selectedShape.canToggleType) {
-            menuId = 'menu-type';
-        } else if (selectedShape.canToggleReverse) {
-            menuId = 'menu-reverse';
-        } else {
-            menuId = 'menu-basic';
-        }
-        
-        const menu = document.getElementById(menuId);
-        if (!menu) return;
-        
-        menu.style.left = `${pageX}px`;
-        menu.style.top = `${pageY}px`;
-        menu.style.display = 'block';
-        menu.offsetHeight;  // iOS Safari強制リフロー
-        
-        // 表示直後フラグを設定（即座閉じを防ぐ）
-        menuJustOpened = true;
-        setTimeout(() => { menuJustOpened = false; }, 100);
-    }
-}
-
 // 右クリックでメニュー表示（マウス）
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault();
@@ -6437,15 +6379,8 @@ let longPressStartY = 0;
 canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length === 1) {
         const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
         longPressStartX = touch.clientX;
         longPressStartY = touch.clientY;
-        
-        // 座標を事前にキャプチャ（グローバル変数として保存）
-        const savedPageX = touch.pageX;
-        const savedPageY = touch.pageY;
-        const savedOffsetX = touch.clientX - rect.left;
-        const savedOffsetY = touch.clientY - rect.top;
         
         longPressTimer = setTimeout(() => {
             // 500ms後、移動していなければメニュー表示
@@ -6487,11 +6422,6 @@ document.addEventListener('click', (e) => {
 });
 
 document.addEventListener('touchstart', (e) => {
-    // メニュー表示直後は無視（即座閉じを防ぐ）
-    if (menuJustOpened) {
-        menuJustOpened = false;
-        return;
-    }
     // メニューの外をタッチした場合のみ閉じる
     if (!e.target.closest('.context-menu')) {
         closeAllMenus();
