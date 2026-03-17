@@ -6346,72 +6346,112 @@ function closeAllMenus() {
     });
 }
 
-// 右クリックでメニュー表示（マウス）
-canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    
-    // ワールド座標でレールを検出
-    const world = screenToWorld(e.offsetX, e.offsetY);
-    const checkRails = usePerformanceMode 
+// ポインター入力統一: 右クリック/長押しでメニュー表示
+let longPressTimer = null;
+let longPressState = {
+    pointerId: null,
+    pointerType: null,
+    startClientX: 0,
+    startClientY: 0,
+    targetShape: null
+};
+
+function pickRailAtScreenPoint(screenX, screenY) {
+    const world = screenToWorld(screenX, screenY);
+    const checkRails = usePerformanceMode
         ? rails.filter(r => !r.skipDraw)
         : rails;
-    
-    selectedShape = null;
+
+    let hitRail = null;
     checkRails.forEach(rect => {
         if (rect.contains(world.x, world.y)) {
-            selectedShape = rect;
+            hitRail = rect;
         }
     });
-    
-    if (selectedShape) {
-        // 放射状メニューを表示
-        fsMenuTargetRail = selectedShape;
-        fsMenuOpen = true;
-        drawAll();
-    }
-});
+    return hitRail;
+}
 
-// 長押しでメニュー表示（タッチデバイス）
-let longPressTimer = null;
-let longPressStartX = 0;
-let longPressStartY = 0;
-
-canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        longPressStartX = touch.clientX;
-        longPressStartY = touch.clientY;
-        
-        longPressTimer = setTimeout(() => {
-            // 500ms後、移動していなければメニュー表示
-            if (selectedShape) {
-                fsMenuTargetRail = selectedShape;
-                fsMenuOpen = true;
-                drawAll();
-            }
-            longPressTimer = null;
-        }, 500); // 500ms長押し
-    }
-});
-
-canvas.addEventListener('touchend', () => {
+function resetLongPressState() {
     if (longPressTimer) {
         clearTimeout(longPressTimer);
         longPressTimer = null;
     }
-});
+    longPressState.pointerId = null;
+    longPressState.pointerType = null;
+    longPressState.startClientX = 0;
+    longPressState.startClientY = 0;
+    longPressState.targetShape = null;
+}
 
-canvas.addEventListener('touchmove', (e) => {
-    // 移動したら長押しキャンセル
-    if (longPressTimer) {
-        const touch = e.touches[0];
-        const moved = Math.abs(touch.clientX - longPressStartX) > 10 || 
-                     Math.abs(touch.clientY - longPressStartY) > 10;
-        if (moved) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
+function openRailContextMenu(targetRail) {
+    if (!targetRail) return;
+    selectedShape = targetRail;
+    fsMenuTargetRail = targetRail;
+    fsMenuOpen = true;
+    drawAll();
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;
+
+    longPressState.pointerId = e.pointerId;
+    longPressState.pointerType = e.pointerType;
+    longPressState.startClientX = e.clientX;
+    longPressState.startClientY = e.clientY;
+    longPressState.targetShape = pickRailAtScreenPoint(e.offsetX, e.offsetY);
+
+    if (canvas.setPointerCapture) {
+        try {
+            canvas.setPointerCapture(e.pointerId);
+        } catch (_) {
+            // iOS Safari互換: 取得できないケースは通常処理を継続
         }
     }
+
+    if (e.pointerType === 'mouse' && e.button === 2) {
+        openRailContextMenu(longPressState.targetShape);
+        resetLongPressState();
+        return;
+    }
+
+    if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        longPressTimer = setTimeout(() => {
+            if (dragging || draggingGroup || isPanning) {
+                resetLongPressState();
+                return;
+            }
+            openRailContextMenu(longPressState.targetShape);
+            resetLongPressState();
+        }, 500);
+    }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+    if (!longPressTimer || e.pointerId !== longPressState.pointerId) return;
+
+    const movedX = Math.abs(e.clientX - longPressState.startClientX);
+    const movedY = Math.abs(e.clientY - longPressState.startClientY);
+    if (movedX > 10 || movedY > 10 || dragging || draggingGroup || isPanning) {
+        resetLongPressState();
+    }
+});
+
+function handlePointerRelease(e) {
+    if (longPressState.pointerId !== null && e.pointerId === longPressState.pointerId) {
+        if (canvas.releasePointerCapture && canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+            canvas.releasePointerCapture(e.pointerId);
+        }
+    }
+    resetLongPressState();
+}
+
+canvas.addEventListener('pointerup', handlePointerRelease);
+canvas.addEventListener('pointercancel', handlePointerRelease);
+canvas.addEventListener('lostpointercapture', resetLongPressState);
+
+// モバイルのネイティブcontextmenuを抑止（表示ロジックはpointer eventsのみで処理）
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
 });
 
 // メニュー外クリック/タッチで閉じる
