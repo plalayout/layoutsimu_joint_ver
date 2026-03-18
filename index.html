@@ -2456,11 +2456,29 @@ class R13PointRail extends ComplexRail {
             slide.color = this.color;
             slide.highlightColor = this.highlightColor;
 
-            this.components.push(straight, slide);
+            if(this.direction==='right') {this.components.push(straight, slide);}
+			else{this.components.push(slide,straight);}
         }
 
         /* ===== Aタイプ：直線終点から180度反転したスライド ===== */
         else {
+			if(this.direction==='right'){
+            // スライド部（直線終点から180度反転）
+            const slide = new Slide(this.x, this.y, this.id + '-SL', slideAmount);
+            slide.angle = base;
+            slide.color = this.color;
+            slide.highlightColor = this.highlightColor;
+
+            // 直線部
+            const slideEp = slide.getEndpoints()[1];
+            const straight = new StraightRail(slideEp.x, slideEp.y, this.id + '-S');
+            straight.angle = reversedegAngle(slideEp.angle);
+            straight.color = this.color;
+            straight.highlightColor = this.highlightColor;
+
+
+            this.components.push(slide,straight);
+			}else{
             // 直線部
             const straight = new StraightRail(this.x, this.y, this.id + '-S');
             straight.angle = base;
@@ -2475,6 +2493,7 @@ class R13PointRail extends ComplexRail {
             slide.highlightColor = this.highlightColor;
 
             this.components.push(straight, slide);
+			}
         }
     }
 
@@ -2497,8 +2516,15 @@ class R13PointRail extends ComplexRail {
     ctx.fillStyle = this.color;
 
     // 直線部 枕木（元コードそのまま）
-    ctx.fillRect((1-2*type)*dir * 6, type * (L -tieW) ,    (1-2*type)*dir *(D_TRACK_WIDTH - 12),  tieW);
+	if(this.direction === 'right' && this.pointType ==='A'){
+		ctx.fillRect(  6, type * (L -tieW) ,    (D_TRACK_WIDTH - 12),  tieW);
+	}else{
+		ctx.fillRect((1-2*type)*dir * 6, type * (L -tieW) ,    (1-2*type)*dir *(D_TRACK_WIDTH - 12),  tieW);
+	}
+	
 	ctx.restore();
+	
+	
     }
 
     /* =========================
