@@ -6216,6 +6216,22 @@ function openRailContextMenu(targetRail) {
     drawAll();
 }
 
+function beginPointerInteraction(screenX, screenY) {
+    const result = handleRailSelection(screenX, screenY);
+
+    dragging = result.dragging;
+    selectedShape = result.selectedShape;
+    offsetX = result.offsetX;
+    offsetY = result.offsetY;
+    isPanning = result.isPanning;
+    startX = result.startX;
+    startY = result.startY;
+    draggingGroup = result.draggingGroup;
+    ghostOffset = result.ghostOffset;
+    ghostBaseX = result.ghostBaseX;
+    ghostBaseY = result.ghostBaseY;
+}
+
 canvas.addEventListener('pointerdown', (e) => {
     if (!e.isPrimary) return;
 
@@ -6276,21 +6292,9 @@ canvas.addEventListener('pointerdown', (e) => {
     // 2本指以上の場合はレール選択をスキップ
     if (e.pointerType === 'touch' && activeTouches.size > 1) return;
     
-    // 単一ポインター入力は共通の選択処理で開始
-    if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.pointerType === 'pen') {
-        const result = handleRailSelection(e.offsetX, e.offsetY);
-        
-        dragging = result.dragging;
-        selectedShape = result.selectedShape;
-        offsetX = result.offsetX;
-        offsetY = result.offsetY;
-        isPanning = result.isPanning;
-        startX = result.startX;
-        startY = result.startY;
-        draggingGroup = result.draggingGroup;
-        ghostOffset = result.ghostOffset;
-        ghostBaseX = result.ghostBaseX;
-        ghostBaseY = result.ghostBaseY;
+    // マウスは即座に選択処理を開始、タッチ/ペンは移動閾値超過まで保留して長押しを優先
+    if (e.pointerType === 'mouse') {
+        beginPointerInteraction(e.offsetX, e.offsetY);
     }
 });
 
@@ -6299,8 +6303,18 @@ canvas.addEventListener('pointermove', (e) => {
     if (longPressTimer && e.pointerId === longPressState.pointerId) {
         const movedX = Math.abs(e.clientX - longPressState.startClientX);
         const movedY = Math.abs(e.clientY - longPressState.startClientY);
-        if (movedX > 10 || movedY > 10 || dragging || draggingGroup || isPanning) {
+        if (movedX > 10 || movedY > 10) {
+            const interactionStartX = longPressState.startOffsetX;
+            const interactionStartY = longPressState.startOffsetY;
             resetLongPressState();
+
+            if ((e.pointerType === 'touch' || e.pointerType === 'pen') && !dragging && !draggingGroup && !isPanning) {
+                beginPointerInteraction(interactionStartX, interactionStartY);
+                if (isPanning) {
+                    startX = e.offsetX;
+                    startY = e.offsetY;
+                }
+            }
         }
     }
     
@@ -6362,6 +6376,9 @@ function handlePointerRelease(e) {
     const releaseTargetShape = longPressState.targetShape;
     const releaseOffsetX = e.offsetX;
     const releaseOffsetY = e.offsetY;
+    const releaseRect = canvas.getBoundingClientRect();
+    const releaseCssX = e.clientX - releaseRect.left;
+    const releaseCssY = e.clientY - releaseRect.top;
     const wasDragging = !!dragging;
     const wasPanning = isPanning;
 
@@ -6386,7 +6403,7 @@ function handlePointerRelease(e) {
     }
 
     if ((e.pointerType === 'touch' || e.pointerType === 'pen') && activeTouches.size === 0) {
-        const fsHit = hitTestFsArrows(releaseOffsetX, releaseOffsetY);
+        const fsHit = hitTestFsArrows(releaseCssX, releaseCssY);
         if (fsHit) {
             handleFsArrowTap(fsHit);
             drawAll();
