@@ -6076,273 +6076,97 @@ function handleDragEnd() {
     });
 
     // ========================================
-    // タッチイベントのサポート
+    // タッチイベントのサポート（pointer eventsへ統合）
     // ========================================
-    
-    function getTouchPos(canvas, touchEvent) {
-        const rect = canvas.getBoundingClientRect();
-        return {
-            x: touchEvent.touches[0].clientX - rect.left,
-            y: touchEvent.touches[0].clientY - rect.top
-        };
-    }
 
     let lastTouchTime = 0;
     let touchStartPos = null;
-    let lastTouchDistance = 0;
-    let lastPinchCenterX = 0;
-    let lastPinchCenterY = 0;
 
-    canvas.addEventListener('touchstart', (e) => {
-        // ピンチズーム開始（2本指）
-        if (e.touches.length === 2) {
-            e.preventDefault();
-            isPanning = false;
-            dragging = null;
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            lastTouchDistance = Math.sqrt(
-                Math.pow(touch2.clientX - touch1.clientX, 2) +
-                Math.pow(touch2.clientY - touch1.clientY, 2)
-            );
-            // ピンチ中心をCSS座標で記録
-            const rect = canvas.getBoundingClientRect();
-            lastPinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-            lastPinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-            return;
-        }
-        
-        // 1本指タッチ
-        if (e.touches.length === 1) {
-            e.preventDefault();
-            const touch = getTouchPos(canvas, e);
-            const world = screenToWorld(touch.x, touch.y);
-            
-            // ダブルタップ検出
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTouchTime;
-            if (tapLength < 300 && tapLength > 0) {
-                // 旗ラベル編集を優先
-                let flagEdited = false;
-                for (const rail of rails) {
-                    if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(touch.x, touch.y)) {
-                        const newLabel = prompt('ラベルを入力:', rail.label);
-                        if (newLabel !== null) {
-                            rail.label = newLabel;
-                            drawAll();
-                        }
-                        flagEdited = true;
-                        break;
-                    }
+    function handleTouchDoubleTap(screenX, screenY) {
+        const world = screenToWorld(screenX, screenY);
+
+        for (const rail of rails) {
+            if (rail instanceof ZeroLengthRailBase && rail.hitTestFlag(screenX, screenY)) {
+                const newLabel = prompt('ラベルを入力:', rail.label);
+                if (newLabel !== null) {
+                    rail.label = newLabel;
+                    drawAll();
                 }
-                if (!flagEdited) {
-                    // ダブルタップ: 削除
-                    rails.forEach((rect, index) => {
-                        if (rect.contains(world.x, world.y)) {
-                            rails.splice(index, 1);
-                            drawAll();
-                        }
-                    });
-                }
-                lastTouchTime = 0;
-                return;
+                return true;
             }
-            lastTouchTime = currentTime;
-            
-            // シングルタップ: ドラッグ開始またはパン開始
-            touchStartPos = {x: touch.x, y: touch.y};
+        }
+
+        let deleted = false;
+        rails.forEach((rect, index) => {
+            if (rect.contains(world.x, world.y)) {
+                rails.splice(index, 1);
+                deleted = true;
+            }
+        });
+        if (deleted) drawAll();
+        return deleted;
+    }
+
+    function handleTouchPointerStart(screenX, screenY) {
+        const currentTime = Date.now();
+        const tapLength = currentTime - lastTouchTime;
+        if (tapLength < 300 && tapLength > 0) {
+            lastTouchTime = 0;
+            return handleTouchDoubleTap(screenX, screenY);
+        }
+        lastTouchTime = currentTime;
+
+        touchStartPos = { x: screenX, y: screenY };
+
+        const result = handleRailSelection(screenX, screenY);
+        dragging = result.dragging;
+        selectedShape = result.selectedShape;
+        offsetX = result.offsetX;
+        offsetY = result.offsetY;
+        isPanning = result.isPanning;
+        startX = result.startX;
+        startY = result.startY;
+        draggingGroup = result.draggingGroup;
+        ghostOffset = result.ghostOffset;
+        ghostBaseX = result.ghostBaseX;
+        ghostBaseY = result.ghostBaseY;
+        return false;
+    }
+
+    function handleTouchPointerEnd(screenX, screenY) {
+        const fsHit = hitTestFsArrows(screenX, screenY);
+        if (fsHit) {
+            handleFsArrowTap(fsHit);
+            isPanning = false;
             dragging = null;
             draggingGroup = null;
             ghostOffset = null;
-            selectedShape = null;
-
-            // 旗レールの旗エリアヒットを優先チェック
-            rails.forEach(rect => {
-                if (rect instanceof ZeroLengthRailBase && rect.hitTestFlag(touch.x, touch.y)) {
-                    dragging = rect;
-                    selectedShape = rect;
-                    offsetX = world.x - rect.x;
-                    offsetY = world.y - rect.y;
-                }
-            });
-
-            rails.forEach(rect => {
-                if (!(rect instanceof ZeroLengthRailBase) && rect.contains(world.x, world.y)) {
-                    dragging = rect;
-                    selectedShape = rect;
-                    offsetX = world.x - rect.x;
-                    offsetY = world.y - rect.y;
-                    
-                    // レール移動開始時は選択端点をクリア
-                    selectedEndpoint = null;
-                    
-                    // グループ移動モードならグリップ位置に基づいて接続グループを検出
-                    if (groupMoveEnabled) {
-                        draggingGroup = findGroupByGripPosition(rect, world.x, world.y);
-                        if (draggingGroup) {
-                            ghostOffset = { dx: 0, dy: 0 };
-                            ghostBaseX = world.x - offsetX;
-                            ghostBaseY = world.y - offsetY;
-                        }
-                    }
-                }
-            });
-
-            if (!dragging) {
-                isPanning = true;
-                startX = touch.x;
-                startY = touch.y;
-            }
-        }
-    }, {passive: false});
-
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        
-        // ピンチズーム（2本指）
-        if (e.touches.length === 2) {
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            const currentDistance = Math.sqrt(
-                Math.pow(touch2.clientX - touch1.clientX, 2) +
-                Math.pow(touch2.clientY - touch1.clientY, 2)
-            );
-            
-            if (lastTouchDistance > 0) {
-                // ピンチ中心（CSS座標）
-                const rect = canvas.getBoundingClientRect();
-                const pinchCenterX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-                const pinchCenterY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
-
-                // ズーム前のピンチ中心ワールド座標
-                const worldBefore = screenToWorld(pinchCenterX, pinchCenterY);
-
-                // スケール変更（距離比率をそのまま使う）
-                scale *= currentDistance / lastTouchDistance;
-
-                // ズーム後のピンチ中心ワールド座標
-                const worldAfter = screenToWorld(pinchCenterX, pinchCenterY);
-
-                // ズレを補正してピンチ中心を固定
-                canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
-                canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
-
-                drawAll();
-            }
-            lastTouchDistance = currentDistance;
-            return;
-        }
-        
-        // 1本指ドラッグ/パン
-        if (e.touches.length === 1) {
-            const touch = getTouchPos(canvas, e);
-            
-            if (dragging) {
-                const world = screenToWorld(touch.x, touch.y);
-                const newX = world.x - offsetX;
-                const newY = world.y - offsetY;
-                
-                if (draggingGroup) {
-                    // グループ移動: ゴーストオフセットを更新（実座標は変更しない）
-                    ghostOffset.dx = newX - ghostBaseX;
-                    ghostOffset.dy = newY - ghostBaseY;
-                    drawAllWithGhost();
-                } else {
-                    // 単独移動
-                    dragging.x = newX;
-                    dragging.y = newY;
-                    if (dragging._dirty !== undefined) dragging._dirty = true;
-                    drawAll();
-                }
-            } else if (isPanning) {
-                // Canvas表示サイズと内部解像度の比率を取得
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                
-                // touchPosを内部座標に変換してから差分を計算
-                const dx = (touch.x - startX) * scaleX;
-                const dy = (touch.y - startY) * scaleY;
-                
-                canvasOffsetX += dx;
-                canvasOffsetY -= dy;
-                startX = touch.x;
-                startY = touch.y;
-                drawAll();
-            }
-        }
-    }, {passive: false});
-
-    canvas.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        
-        // ピンチズーム終了
-        if (e.touches.length < 2) {
-            lastTouchDistance = 0;
-        }
-        
-        // タッチ終了時の処理（1本指→0本指）
-        if (e.touches.length === 0) {
-            const touch = e.changedTouches[0];
-            const rect = canvas.getBoundingClientRect();
-            const endX = touch.clientX - rect.left;
-            const endY = touch.clientY - rect.top;
-
-            // 放射状メニューの当たり判定（全画面/通常モード共通）
-            const fsHit = hitTestFsArrows(endX, endY);
-            if (fsHit) {
-                handleFsArrowTap(fsHit);
-                isPanning = false;
-                dragging = null;
-                touchStartPos = null;
-                drawAll();
-                return;
-            }
-
-            // タップ検出（コンテキストメニュー表示）
-            if (touchStartPos && selectedShape) {
-                const distance = Math.sqrt(
-                    Math.pow(endX - touchStartPos.x, 2) + 
-                    Math.pow(endY - touchStartPos.y, 2)
-                );
-                
-                // ほとんど動いていない場合
-                if (distance < 10) {
-                    const world = screenToWorld(endX, endY);
-                    if (selectEndpointForProgression(world.x, world.y)) {
-                        if (isNeedJointConsole) console.log('Endpoint selected via touch');
-                    } else {
-                        // 端点が見つからない場合、放射状メニューを表示
-                        fsMenuTargetRail = selectedShape || null;
-                        fsMenuOpen = true;
-                        drawAll();
-                    }
-                }
-            }
-            
-            if (dragging) {
-                if (draggingGroup) {
-                    // ゴーストオフセット分を実際の座標に確定
-                    if (ghostOffset) {
-                        moveGroup(draggingGroup, ghostOffset.dx, ghostOffset.dy);
-                        ghostOffset = null;
-                    }
-                    // グループ移動の場合、グループ全体をスナップ
-                    snapGroupToClosestEndpoint(draggingGroup, dragging);
-                } else {
-                    // 単独移動の場合のみスナップ
-                    snapToClosestEndpoint(dragging);
-                }
-                LastselectedShape = dragging;
-                dragging = null;
-                draggingGroup = null;
-                ghostOffset = null;
-            }
-            isPanning = false;
             touchStartPos = null;
             drawAll();
+            return;
         }
-    }, {passive: false});
+
+        if (touchStartPos && selectedShape) {
+            const distance = Math.sqrt(
+                Math.pow(screenX - touchStartPos.x, 2) +
+                Math.pow(screenY - touchStartPos.y, 2)
+            );
+
+            if (distance < 10) {
+                const world = screenToWorld(screenX, screenY);
+                if (selectEndpointForProgression(world.x, world.y)) {
+                    if (isNeedJointConsole) console.log('Endpoint selected via pointer touch');
+                } else {
+                    fsMenuTargetRail = selectedShape || null;
+                    fsMenuOpen = true;
+                    drawAll();
+                }
+            }
+        }
+
+        handleDragEnd();
+        touchStartPos = null;
+    }
 
     canvas.addEventListener('dblclick', (e) => {
         const screenX = e.offsetX;
@@ -6535,9 +6359,17 @@ canvas.addEventListener('pointerdown', (e) => {
     // 2本指以上の場合はレール選択をスキップ
     if (e.pointerType === 'touch' && activeTouches.size > 1) return;
     
-    // マウスの場合のみレール選択処理を追加（タッチは既存のtouchstartで処理）
-    if (e.pointerType === 'mouse') {
-        const result = handleRailSelection(e.offsetX, e.offsetY);
+    // pointer eventへ統一した選択処理
+    if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.pointerType === 'pen') {
+        const handledByDoubleTap = (e.pointerType === 'touch')
+            ? handleTouchPointerStart(e.offsetX, e.offsetY)
+            : false;
+
+        if (handledByDoubleTap) return;
+
+        const result = e.pointerType === 'touch'
+            ? { dragging, selectedShape, offsetX, offsetY, isPanning, startX, startY, draggingGroup, ghostOffset, ghostBaseX, ghostBaseY }
+            : handleRailSelection(e.offsetX, e.offsetY);
         
         dragging = result.dragging;
         selectedShape = result.selectedShape;
@@ -6602,8 +6434,8 @@ canvas.addEventListener('pointermove', (e) => {
         return;
     }
     
-    // マウスの場合のドラッグ/パン処理を追加
-    if (e.pointerType === 'mouse') {
+    // 単一pointerでのドラッグ/パン処理
+    if (e.pointerType === 'mouse' || e.pointerType === 'touch' || e.pointerType === 'pen') {
         handleDragMove(e.offsetX, e.offsetY);
         handlePanMove(e.offsetX, e.offsetY, startX, startY);
         
@@ -6632,8 +6464,12 @@ function handlePointerRelease(e) {
         }
     }
     
-    // マウスの場合のドラッグ終了処理を追加
-    if (e.pointerType === 'mouse') {
+    // pointer release時の終了処理
+    if (e.pointerType === 'touch') {
+        if (activeTouches.size === 0) {
+            handleTouchPointerEnd(e.offsetX, e.offsetY);
+        }
+    } else if (e.pointerType === 'mouse' || e.pointerType === 'pen') {
         handleDragEnd();
     }
 }
@@ -6654,9 +6490,8 @@ document.addEventListener('click', (e) => {
     }
 });
 
-document.addEventListener('touchstart', (e) => {
-    // メニューの外をタッチした場合のみ閉じる
-    if (!e.target.closest('.context-menu')) {
+document.addEventListener('pointerdown', (e) => {
+    if ((e.pointerType === 'touch' || e.pointerType === 'pen') && !e.target.closest('.context-menu')) {
         closeAllMenus();
     }
 });
@@ -9045,7 +8880,12 @@ function buildFsLegend() {
             el.className = 'fs-legend-item';
             el.innerHTML = `<div class="fs-legend-color" style="background:${item.color}"></div><span>${item.label}</span>`;
             el.addEventListener('click', () => { item.action(); });
-            el.addEventListener('touchend', (e) => { e.preventDefault(); item.action(); });
+            el.addEventListener('pointerup', (e) => {
+                if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+                    e.preventDefault();
+                    item.action();
+                }
+            });
             container.appendChild(el);
         });
     });
