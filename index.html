@@ -885,6 +885,10 @@ const scaleFactor = 1.1;
     let isPanning = false;
     let startX, startY;
 
+    // Pointer統合用の変数
+    const activeTouches = new Map(); // pointerId -> {x, y}
+    let lastPinchDistance = 0;
+
     // ========================================
     // 描画軽減モード
     // ========================================
@@ -6051,22 +6055,6 @@ function handleDragEnd() {
     drawAll();
 }
 
-    canvas.addEventListener('mousedown', (e) => {
-        const result = handleRailSelection(e.offsetX, e.offsetY);
-        
-        dragging = result.dragging;
-        selectedShape = result.selectedShape;
-        offsetX = result.offsetX;
-        offsetY = result.offsetY;
-        isPanning = result.isPanning;
-        startX = result.startX;
-        startY = result.startY;
-        draggingGroup = result.draggingGroup;
-        ghostOffset = result.ghostOffset;
-        ghostBaseX = result.ghostBaseX;
-        ghostBaseY = result.ghostBaseY;
-    });
-
     // クリックイベント: 端点選択（レール追加の進行方向変更）
     canvas.addEventListener('click', (e) => {
         // ドラッグしていた場合はスキップ
@@ -6085,21 +6073,6 @@ function handleDragEnd() {
         if (selectEndpointForProgression(world.x, world.y)) {
             if (isNeedJointConsole) console.log('Endpoint selected for rail progression');
         }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        handleDragMove(e.offsetX, e.offsetY);
-        handlePanMove(e.offsetX, e.offsetY, startX, startY);
-        
-        // パン中は位置を更新
-        if (isPanning) {
-            startX = e.offsetX;
-            startY = e.offsetY;
-        }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-        handleDragEnd();
     });
 
     // ========================================
@@ -6537,15 +6510,107 @@ canvas.addEventListener('pointerdown', (e) => {
             resetLongPressState();
         }, 500);
     }
+    
+    // タッチの場合、タッチIDを記録
+    if (e.pointerType === 'touch') {
+        activeTouches.set(e.pointerId, {x: e.offsetX, y: e.offsetY});
+        
+        // 2本指タッチの場合、ピンチズーム開始
+        if (activeTouches.size === 2) {
+            isPanning = false;
+            dragging = null;
+            
+            const touches = Array.from(activeTouches.values());
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const dx = (touches[1].x - touches[0].x) * scaleX;
+            const dy = (touches[1].y - touches[0].y) * scaleY;
+            lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+            return;
+        }
+    }
+    
+    // 2本指以上の場合はレール選択をスキップ
+    if (e.pointerType === 'touch' && activeTouches.size > 1) return;
+    
+    // マウスの場合のみレール選択処理を追加（タッチは既存のtouchstartで処理）
+    if (e.pointerType === 'mouse') {
+        const result = handleRailSelection(e.offsetX, e.offsetY);
+        
+        dragging = result.dragging;
+        selectedShape = result.selectedShape;
+        offsetX = result.offsetX;
+        offsetY = result.offsetY;
+        isPanning = result.isPanning;
+        startX = result.startX;
+        startY = result.startY;
+        draggingGroup = result.draggingGroup;
+        ghostOffset = result.ghostOffset;
+        ghostBaseX = result.ghostBaseX;
+        ghostBaseY = result.ghostBaseY;
+    }
 });
 
 canvas.addEventListener('pointermove', (e) => {
-    if (!longPressTimer || e.pointerId !== longPressState.pointerId) return;
-
-    const movedX = Math.abs(e.clientX - longPressState.startClientX);
-    const movedY = Math.abs(e.clientY - longPressState.startClientY);
-    if (movedX > 10 || movedY > 10 || dragging || draggingGroup || isPanning) {
-        resetLongPressState();
+    // 長押しキャンセル判定
+    if (longPressTimer && e.pointerId === longPressState.pointerId) {
+        const movedX = Math.abs(e.clientX - longPressState.startClientX);
+        const movedY = Math.abs(e.clientY - longPressState.startClientY);
+        if (movedX > 10 || movedY > 10 || dragging || draggingGroup || isPanning) {
+            resetLongPressState();
+        }
+    }
+    
+    // タッチでピンチズーム処理
+    if (e.pointerType === 'touch' && activeTouches.size === 2) {
+        // タッチ位置を更新
+        const currentTouch = activeTouches.get(e.pointerId);
+        if (currentTouch) {
+            currentTouch.x = e.offsetX;
+            currentTouch.y = e.offsetY;
+        }
+        
+        const touches = Array.from(activeTouches.values());
+        if (touches.length !== 2) return;
+        
+        // 距離計算
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const dx = (touches[1].x - touches[0].x) * scaleX;
+        const dy = (touches[1].y - touches[0].y) * scaleY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (lastPinchDistance > 0) {
+            const pinchCenterX = (touches[0].x + touches[1].x) / 2;
+            const pinchCenterY = (touches[0].y + touches[1].y) / 2;
+            
+            const worldBefore = screenToWorld(pinchCenterX, pinchCenterY);
+            scale *= currentDistance / lastPinchDistance;
+            const worldAfter = screenToWorld(pinchCenterX, pinchCenterY);
+            
+            canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
+            canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
+            
+            drawAll();
+        }
+        
+        lastPinchDistance = currentDistance;
+        return;
+    }
+    
+    // マウスの場合のドラッグ/パン処理を追加
+    if (e.pointerType === 'mouse') {
+        handleDragMove(e.offsetX, e.offsetY);
+        handlePanMove(e.offsetX, e.offsetY, startX, startY);
+        
+        if (isPanning) {
+            startX = e.offsetX;
+            startY = e.offsetY;
+        }
     }
 });
 
@@ -6556,6 +6621,21 @@ function handlePointerRelease(e) {
         }
     }
     resetLongPressState();
+    
+    // タッチの場合の終了処理
+    if (e.pointerType === 'touch') {
+        activeTouches.delete(e.pointerId);
+        
+        // ピンチズーム終了
+        if (activeTouches.size < 2) {
+            lastPinchDistance = 0;
+        }
+    }
+    
+    // マウスの場合のドラッグ終了処理を追加
+    if (e.pointerType === 'mouse') {
+        handleDragEnd();
+    }
 }
 
 canvas.addEventListener('pointerup', handlePointerRelease);
