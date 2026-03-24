@@ -6057,22 +6057,30 @@ function handleDragEnd() {
     drawAll();
 }
 
+function createCanvasInput(clientX, clientY, offsetX, offsetY) {
+    const canvasCssPoint = getCanvasCssPoint(clientX, clientY);
+    return {
+        clientX,
+        clientY,
+        offsetX,
+        offsetY,
+        canvasCssPoint,
+        fsMenuHit: hitTestFsArrows(canvasCssPoint.x, canvasCssPoint.y),
+        targetShape: pickRailAtScreenPoint(offsetX, offsetY)
+    };
+}
+
 // クリック/タップ時の共通処理（放射状メニュー + 端点選択）
-function handleCanvasTap(clientX, clientY, offsetX, offsetY) {
+function handleCanvasTap(input) {
     // ドラッグしていた場合はスキップ
     if (dragging || isPanning) return false;
 
-    // 全画面モード: S/R/L/≡ 当たり判定（CSS座標で判定）
-    const fsRect = canvas.getBoundingClientRect();
-    const cssTx = clientX - fsRect.left;
-    const cssTy = clientY - fsRect.top;
-    const fsHit = hitTestFsArrows(cssTx, cssTy);
-    if (fsHit) {
-        handleFsArrowTap(fsHit);
+    if (input.fsMenuHit) {
+        handleFsArrowTap(input.fsMenuHit);
         return true; // 処理完了
     }
 
-    const world = screenToWorld(offsetX, offsetY);
+    const world = screenToWorld(input.offsetX, input.offsetY);
 
     // 端点をクリックして進行方向を変更
     if (selectEndpointForProgression(world.x, world.y)) {
@@ -6083,10 +6091,19 @@ function handleCanvasTap(clientX, clientY, offsetX, offsetY) {
     return false; // 何も処理しなかった
 }
 
-    // クリックイベント: 端点選択（レール追加の進行方向変更）
-    canvas.addEventListener('click', (e) => {
-        handleCanvasTap(e.clientX, e.clientY, e.offsetX, e.offsetY);
-    });
+function handleCanvasTapWithFallback(input, fallbackTargetShape = input.targetShape) {
+    const handled = handleCanvasTap(input);
+    if (!handled && fallbackTargetShape) {
+        openRailContextMenu(fallbackTargetShape);
+        return true;
+    }
+    return handled;
+}
+
+// クリックイベント: 端点選択（レール追加の進行方向変更）
+canvas.addEventListener('click', (e) => {
+    handleCanvasTap(createCanvasInput(e.clientX, e.clientY, e.offsetX, e.offsetY));
+});
 
     canvas.addEventListener('dblclick', (e) => {
         const screenX = e.offsetX;
@@ -6221,9 +6238,58 @@ function openRailContextMenu(targetRail) {
     drawAll();
 }
 
+function getCanvasCssPoint(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+    };
+}
+
 canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch') {
         activeTouches.set(e.pointerId, {x: e.offsetX, y: e.offsetY});
+
+        // 2本指タッチの場合、ピンチズーム開始
+        if (activeTouches.size === 2) {
+            resetLongPressState();
+            tapCandidate = null;
+            isPanning = false;
+            dragging = null;
+
+            const touches = Array.from(activeTouches.values());
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const dx = (touches[1].x - touches[0].x) * scaleX;
+            const dy = (touches[1].y - touches[0].y) * scaleY;
+            lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+            return;
+        }
+    }
+
+    if (!e.isPrimary) return;
+
+    const input = createCanvasInput(e.clientX, e.clientY, e.offsetX, e.offsetY);
+    const fsMenuHit = input.fsMenuHit;
+
+    longPressState.pointerId = e.pointerId;
+    longPressState.pointerType = e.pointerType;
+    longPressState.startClientX = e.clientX;
+    longPressState.startClientY = e.clientY;
+    longPressState.targetShape = input.targetShape;
+    longPressTriggered = false;
+    tapCandidate = {
+        pointerId: e.pointerId,
+        pointerType: e.pointerType,
+        startOffsetX: e.offsetX,
+        startOffsetY: e.offsetY,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        targetShape: input.targetShape,
+        fsMenuHit
+    };
 
         // 2本指タッチの場合、ピンチズーム開始
         if (activeTouches.size === 2) {
@@ -6273,6 +6339,13 @@ canvas.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button === 2) {
         openRailContextMenu(longPressState.targetShape);
         resetLongPressState();
+        return;
+    }
+
+    if (fsMenuOpen && fsMenuHit) {
+        dragging = null;
+        draggingGroup = null;
+        isPanning = false;
         return;
     }
 
@@ -6404,15 +6477,9 @@ function handlePointerRelease(e) {
         const movedX = Math.abs(e.clientX - releaseTapCandidate.startClientX);
         const movedY = Math.abs(e.clientY - releaseTapCandidate.startClientY);
         if (movedX < 10 && movedY < 10) {
-            const handled = handleCanvasTap(
-                e.clientX,
-                e.clientY,
-                e.offsetX,
-                e.offsetY
-            );
-            if (!handled && releaseTapCandidate.targetShape) {
-                openRailContextMenu(releaseTapCandidate.targetShape);
-            }
+            const input = createCanvasInput(e.clientX, e.clientY, e.offsetX, e.offsetY);
+            input.fsMenuHit = releaseTapCandidate.fsMenuHit ?? input.fsMenuHit;
+            handleCanvasTapWithFallback(input, releaseTapCandidate.targetShape);
         }
     }
 
