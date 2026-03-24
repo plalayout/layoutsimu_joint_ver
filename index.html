@@ -6291,6 +6291,43 @@ canvas.addEventListener('pointerdown', (e) => {
         fsMenuHit
     };
 
+        // 2本指タッチの場合、ピンチズーム開始
+        if (activeTouches.size === 2) {
+            resetLongPressState();
+            tapCandidate = null;
+            isPanning = false;
+            dragging = null;
+
+            const touches = Array.from(activeTouches.values());
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const dx = (touches[1].x - touches[0].x) * scaleX;
+            const dy = (touches[1].y - touches[0].y) * scaleY;
+            lastPinchDistance = Math.sqrt(dx * dx + dy * dy);
+            return;
+        }
+    }
+
+    if (!e.isPrimary) return;
+
+    longPressState.pointerId = e.pointerId;
+    longPressState.pointerType = e.pointerType;
+    longPressState.startClientX = e.clientX;
+    longPressState.startClientY = e.clientY;
+    longPressState.targetShape = pickRailAtScreenPoint(e.offsetX, e.offsetY);
+    longPressTriggered = false;
+    tapCandidate = {
+        pointerId: e.pointerId,
+        pointerType: e.pointerType,
+        startOffsetX: e.offsetX,
+        startOffsetY: e.offsetY,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        targetShape: longPressState.targetShape
+    };
+
     if (canvas.setPointerCapture) {
         try {
             canvas.setPointerCapture(e.pointerId);
