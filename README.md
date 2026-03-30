@@ -4,4 +4,4 @@
 
 ## Reviewメモ（このブランチ）
 
-- `changes_memo.md` の最新バージョン表記（v50.23）と、`index.html` のタイトル表記に差分があったため、タイトルを `v50.23` にそろえました。
+- event listener を　pointer に統一しました。
