@@ -4889,11 +4889,8 @@ class ConcaveJointRail extends ZeroLengthRailBase {
         ctx.restore();
 
         // 放射状メニュー描画（全画面モード時はS/R/L矢印も）
-        if (isFullscreen && rails.length > 0) {
+         if ((isFullscreen && rails.length > 0) || fsMenuOpen) {
             drawFsArrows();
-        } else if (fsMenuOpen) {
-            // 通常モード: ≡メニューのみ描画
-            drawContextRadialMenu();
         }
     }
 
@@ -4971,7 +4968,7 @@ function getFsMenuPositions(rail, keys) {
 }
 
 // 通常モード用: 放射状メニュー描画
-function drawContextRadialMenu() {
+/*function drawContextRadialMenu() {
     const rail = getFsTargetRail();
     if (!rail || !fsMenuOpen) return;
     
@@ -5028,70 +5025,32 @@ function drawContextRadialMenu() {
     });
 
     ctx.restore();
-}
+}*/
 
 function drawFsArrows() {
-    const ep = getLastEndpoint();
-    if (!ep) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
+    const R = FS_BTN_R;
 
     ctx.save();
     ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
 
-    const R = FS_BTN_R;
-
     if (fsMenuOpen) {
         // ≡メニュー展開中: 操作ボタンをレール中心に表示
         const rail = getFsTargetRail();
-        if (!rail) { fsMenuOpen = false; return; }
+        if (!rail) { fsMenuOpen = false; ctx.restore(); return; }
         
         // ボタン定義（条件付き表示）
-        const allBtns = [
-            { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
-            { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
-            { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
-            { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
-            { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
-            { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
-            { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
-        ];
-        
-        // 表示するボタンのみフィルタリング
-        const btns = allBtns.filter(btn => btn.show);
-        const keys = btns.map(btn => btn.key);
-        
+        const btns = getRadialBtnDefs(rail);
+        const keys = btns.map(b => b.key);
         const pos = getFsMenuPositions(rail, keys);
-        
-        // 中心に薄い円（ターゲット表示）
-        const eps = rail.getEndpoints();
-        const ep0 = eps[0], ep1 = eps[1] || eps[0];
-        const sc = worldToScreen((ep0.x + ep1.x) / 2, (ep0.y + ep1.y) / 2);
-        const cx = sc.x / scaleX, cy = sc.y / scaleY;
-        ctx.beginPath();
-        ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(80,80,80,0.3)';
-        ctx.fill();
-
-        btns.forEach(({ key, label, color }) => {
-            const p = pos[key];
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
-            ctx.fillStyle = color;
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.fillStyle = '#fff';
-            ctx.font = `bold ${R * 0.9}px sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, p.x, p.y);
-        });
+        drawRadialCenter(rail, scaleX, scaleY, R);
+        drawRadialBtns(btns, pos, R);
     } else {
         // 通常: S/R/L/≡（複線端点時はD-track-mode表示）
         const ep = getLastEndpoint();
+        if (!ep) { ctx.restore(); return; }
         const pos = getFsButtonPositions(ep);
         const targetRail = getFsTargetRail();
         const isDouble = isDoubleEndpoint(targetRail, ep);
@@ -5140,17 +5099,8 @@ function hitTestFsArrows(tx, ty) {
         if (!rail) return 'outside';
         
         // ボタン定義（drawFsArrowsと同じロジック）
-        const allBtns = [
-            { key: 'edit', show: rail.hasEditLabel === true },
-            { key: 'flip', show: rail.canToggleReverse === true },
-            { key: 'type', show: rail.canToggleType === true },
-            { key: 'rotL', show: true },
-            { key: 'rotR', show: true },
-            { key: 'del',  show: true },
-            { key: 'copy', show: true },
-        ];
-        const btns = allBtns.filter(btn => btn.show);
-        const keys = btns.map(btn => btn.key);
+        const btns = getRadialBtnDefs(rail);
+        const keys = btns.map(b => b.key);
         
         const pos = getFsMenuPositions(rail, keys);
         for (const key of keys) {
@@ -5173,6 +5123,51 @@ function hitTestFsArrows(tx, ty) {
     
     return null;
 }
+
+// ボタン定義（共通）
+function getRadialBtnDefs(rail) {
+    return [
+        { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
+        { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
+        { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
+        { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
+        { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
+        { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
+        { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
+    ].filter(b => b.show);
+}
+
+// ボタン群の描画（共通）
+function drawRadialBtns(btns, pos, R) {
+    btns.forEach(({ key, label, color }) => {
+        const p = pos[key];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${R * 0.9}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, p.x, p.y);
+    });
+}
+
+// 中心円の描画（共通）
+function drawRadialCenter(rail, scaleX, scaleY, R) {
+    const eps = rail.getEndpoints();
+    const ep0 = eps[0], ep1 = eps[1] || eps[0];
+    const sc = worldToScreen((ep0.x + ep1.x) / 2, (ep0.y + ep1.y) / 2);
+    const cx = sc.x / scaleX, cy = sc.y / scaleY;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(80,80,80,0.3)';
+    ctx.fill();
+}
+
 
 // ≡メニューを閉じてターゲットをリセット
 function closeFsMenu() {
@@ -6239,7 +6234,7 @@ function handlePointerup(e) {
                 cssY - touchStartPos.y
             );
             if (distance < 10) {
-                handleTap(cssX, cssY, null);
+                handleTap(cssX, cssY, selectedShape);
             }
         }
         finishDragOrPan();
