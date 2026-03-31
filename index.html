@@ -4889,7 +4889,7 @@ class ConcaveJointRail extends ZeroLengthRailBase {
         ctx.restore();
 
         // 放射状メニュー描画（全画面モード時はS/R/L矢印も）
-         if ((isFullscreen && rails.length > 0) || fsMenuOpen) {
+         if (fsMenuOpen || (isFullscreen && fsSrlVisible)) {
             drawFsArrows();
         }
     }
@@ -4902,6 +4902,7 @@ const FS_BTN_R = 28;     // ボタン半径(CSS px)
 const FS_BTN_OFFSET = 70; // 端点からの距離(CSS px)
 let fsMenuOpen = false;       // ≡メニュー展開状態
 let fsMenuTargetRail = null;  // メニュー対象レール（nullなら通常のLastEndpoint基準）
+let fsSrlVisible = false;  // SRL表示フラグ
 
 // 対象レール取得
 function getFsTargetRail() {
@@ -5108,7 +5109,7 @@ function hitTestFsArrows(tx, ty) {
             if (p && (tx-p.x)**2 + (ty-p.y)**2 <= R*R) return key;
         }
         return 'outside'; // メニュー外タップ → 閉じる
-    } else if (isFullscreen && rails.length > 0) {
+    } else if (isFullscreen && fsSrlVisible && rails.length > 0) {
         // 全画面モード: S/R/L/≡ボタン判定
         const ep = getLastEndpoint();
         if (!ep) return null;
@@ -5127,13 +5128,13 @@ function hitTestFsArrows(tx, ty) {
 // ボタン定義（共通）
 function getRadialBtnDefs(rail) {
     return [
+        { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
+        { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
         { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
         { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
         { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
-        { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
-        { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
         { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
-        { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
+        { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
     ].filter(b => b.show);
 }
 
@@ -5182,23 +5183,28 @@ function handleFsArrowTap(hit) {
         if (hit === 'outside') {
             closeFsMenu();
         } else if (rail) {
-            // menuActionsの共通処理を使用
             if (hit === 'edit') {
                 menuActions.editLabel(rail);
+                closeFsMenu();        // 編集後は閉じる
             } else if (hit === 'flip') {
                 menuActions.toggleReverse(rail);
+                // 閉じない → 連続操作可能
             } else if (hit === 'type') {
                 menuActions.toggleType(rail);
+                // 閉じない → 連続操作可能
             } else if (hit === 'rotL') {
                 menuActions.rotateLeft(rail);
+                // 閉じない → 連続回転可能
             } else if (hit === 'rotR') {
                 menuActions.rotateRight(rail);
+                // 閉じない → 連続回転可能
             } else if (hit === 'del') {
                 menuActions.delete(rail);
+                closeFsMenu();        // 削除後は閉じる
             } else if (hit === 'copy') {
                 menuActions.duplicate(rail);
+                closeFsMenu();        // 複製後は閉じる
             }
-            closeFsMenu();
         }
         return;
     }
@@ -5590,15 +5596,18 @@ function rotateGroup(group, centerX, centerY, angleDelta) {
  * @param {number} deltaAngle - 回転角度（+45=反時計回り, -45=時計回り）
  */
 function rotateRail(rail, deltaAngle) {
+    const eps = rail.getEndpoints();
+    const ep0 = eps[0], ep1 = eps[1] || eps[0];
+    const cx = (ep0.x + ep1.x) / 2;
+    const cy = (ep0.y + ep1.y) / 2;
+
     if (groupMoveEnabled) {
         // グループ移動モード: 接続されたレール全体を回転
         const group = findConnectedGroup(rail);
-        rotateGroup(group, rail.x, rail.y, deltaAngle);
+        rotateGroup(group, cx, cy, deltaAngle);
     } else {
-        // 通常モード: 選択レールのみ回転
-        rail.angle += deltaAngle;
-        
-        if (rail._dirty !== undefined) rail._dirty = true;
+        // 通常モード: 中点を中心に回転
+        rotateRailAroundPoint(rail, cx, cy, deltaAngle);
     }
     drawAll();
 }
@@ -5609,6 +5618,7 @@ function rotateRail(rail, deltaAngle) {
  */
 function deleteRail(rail) {
     const index = rails.indexOf(rail);
+    if (rails.length === 0) fsSrlVisible = false;
     if (index > -1) {
         rails.splice(index, 1);
     }
@@ -6243,24 +6253,28 @@ function handlePointerup(e) {
 }
 
 function handleTap(cssX, cssY, shape) {
-    // アイコン当たり判定
     const fsHit = hitTestFsArrows(cssX, cssY);
     if (fsHit) {
         handleFsArrowTap(fsHit);
         return;
     }
 
-    // 端点選択（進行方向変更）
     const world = screenToWorld(cssX, cssY);
     if (selectEndpointForProgression(world.x, world.y)) {
         if (isNeedJointConsole) console.log('Endpoint selected');
+        fsSrlVisible = true;  // 端点選択時はSRL表示
+        drawAll();
         return;
     }
 
-    // 端点が見つからない場合、レール上ならメニュー表示（touch/penのみ）
     if (shape) {
         fsMenuTargetRail = shape;
         fsMenuOpen = true;
+        fsSrlVisible = true;  // メニュー表示時もSRL表示
+        drawAll();
+    } else {
+        // レール外タップ → SRL表示
+        fsSrlVisible = false;
         drawAll();
     }
 }
