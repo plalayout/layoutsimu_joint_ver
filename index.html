@@ -4889,7 +4889,7 @@ class ConcaveJointRail extends ZeroLengthRailBase {
         ctx.restore();
 
         // 放射状メニュー描画（全画面モード時はS/R/L矢印も）
-         if (fsMenuOpen || (isFullscreen && fsSrlVisible)) {
+         if (fsMenuOpen || (isFullscreen && fsSrlVisible && rails.length > 0)) {
             drawFsArrows();
         }
     }
