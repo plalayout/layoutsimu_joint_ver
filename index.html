@@ -7267,13 +7267,11 @@ document.getElementById('allclear').addEventListener('click', () => {
 // ズームボタン
 function zoomCanvas(dir) {
     const rect = canvas.getBoundingClientRect();
-    const cx = rect.width / 2;
+    const cx = rect.width / 2;   // CSS座標の中心
     const cy = rect.height / 2;
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const worldBefore = screenToWorld(cx * scaleX, cy * scaleY);
+    const worldBefore = screenToWorld(cx, cy);
     scale *= dir > 0 ? scaleFactor : 1 / scaleFactor;
-    const worldAfter = screenToWorld(cx * scaleX, cy * scaleY);
+    const worldAfter = screenToWorld(cx, cy);
     canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
     canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
     drawAll();
