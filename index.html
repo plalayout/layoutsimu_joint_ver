@@ -230,6 +230,10 @@
         }
         body.fullscreen #fs-legend { display: block; height: auto; }
 
+        body.fullscreen #zoom-controls {
+            bottom: calc(8px + var(--fs-legend-height, 60px));
+        }  
+
         /* 上段: カテゴリタブ */
         #fs-legend-tabs {
             display: flex;
@@ -528,21 +532,53 @@
                 padding: 4px 6px;
             }
         }
+
+#canvas-container {
+    position: relative;
+}
+#zoom-controls {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 10;
+}
+#zoom-controls button {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    border-radius: 6px;
+    border: 1px solid #aaa;
+    background: rgba(255,255,255,0.85);
+    cursor: pointer;
+    line-height: 1;
+}
     </style>
 </head>
 <body>
     <div id="canvas-container">
         <canvas id="canvas" width="2400" height="1800"></canvas>
         <button id="btn-fullscreen" title="全画面">⛶</button>
-    </div>
+ 
+
+       <div id="zoom-controls">
+           <button id="zoom-in">＋</button>
+           <button id="zoom-out">－</button>
+       </div>
+   </div>
 
     <!-- 全画面モード オーバーレイボタン -->
     <div id="fs-overlay">
         <div id="fs-left">
-            <button class="fs-btn" id="fs-exit" title="全画面解除">⊠</button>
-            <button class="fs-btn" id="fs-save" title="保存">💾</button>
+           <button class="fs-btn" id="fs-exit" title="全画面解除">⊠</button>
+           <button class="fs-btn" id="fs-save" title="保存">💾</button>
+           <button class="fs-btn" id="fs-load" title="読込">📥</button>
+           <button class="fs-btn" id="fs-group-toggle" title="まとめ移動">
+               <span id="fs-link">🔗</span><span id="fs-scissors">✂️</span>
+           </button>
         </div>
-
     </div>
 
     <!-- 全画面モード: 凡例2層パネル -->
@@ -4894,7 +4930,21 @@ class ConcaveJointRail extends ZeroLengthRailBase {
         }
     }
 
-// ========================================
+function updateZoomControlsPosition() {
+    const zoomControls = document.getElementById('zoom-controls');
+    if (!zoomControls) return;
+    const fsLegend = document.getElementById('fs-legend');
+    if (fsLegend && document.body.classList.contains('fullscreen')) {
+        const legendHeight = fsLegend.getBoundingClientRect().height;
+        zoomControls.style.bottom = (8 + legendHeight) + 'px';
+    } else {
+        zoomControls.style.bottom = '8px';
+    }
+}
+
+
+
+    // ========================================
 // 全画面モード: S/R/L矢印描画 & 当たり判定
 // ========================================
 
@@ -7214,6 +7264,39 @@ document.getElementById('allclear').addEventListener('click', () => {
     drawAll();
 });
 
+// ズームボタン
+function zoomCanvas(dir) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const worldBefore = screenToWorld(cx * scaleX, cy * scaleY);
+    scale *= dir > 0 ? scaleFactor : 1 / scaleFactor;
+    const worldAfter = screenToWorld(cx * scaleX, cy * scaleY);
+    canvasOffsetX += (worldAfter.x - worldBefore.x) * scale;
+    canvasOffsetY += (worldAfter.y - worldBefore.y) * scale;
+    drawAll();
+}
+document.getElementById('zoom-in').addEventListener('click', () => zoomCanvas(1));
+document.getElementById('zoom-out').addEventListener('click', () => zoomCanvas(-1));
+
+// まとめ移動 ON/OFF 共通更新関数
+function updateGroupMoveUI() {
+    const btn = document.getElementById('groupMoveToggle');
+    btn.textContent = `まとめ移動: ${groupMoveEnabled ? 'ON' : 'OFF'}`;
+    btn.style.background = groupMoveEnabled ? '#cfc' : '#fff';
+    const link = document.getElementById('fs-link');
+    const scissors = document.getElementById('fs-scissors');
+    if (link && scissors) {
+        link.style.opacity = groupMoveEnabled ? '1' : '0.3';
+        link.style.filter = groupMoveEnabled ? 'none' : 'grayscale(1)';
+        scissors.style.opacity = groupMoveEnabled ? '0.3' : '1';
+        scissors.style.filter = groupMoveEnabled ? 'grayscale(1)' : 'none';
+    }
+}
+
+
 // テキストボックスの入力を処理するイベントリスナー
 
 // レイアウトをコンパクトな文字列に変換
@@ -7373,12 +7456,26 @@ window.addEventListener('DOMContentLoaded', loadFromURL);
 
 // グループ移動モードのチェックボックス
 // 接続まとめて移動ボタン
+// 既存の groupMoveToggle ハンドラーを updateGroupMoveUI を使う形に置き換え
 document.getElementById('groupMoveToggle').addEventListener('click', () => {
     groupMoveEnabled = !groupMoveEnabled;
-    const btn = document.getElementById('groupMoveToggle');
-    btn.textContent = `まとめ移動: ${groupMoveEnabled ? 'ON' : 'OFF'}`;
-    btn.style.background = groupMoveEnabled ? '#cfc' : '#fff';
+    updateGroupMoveUI();
 });
+
+// 全画面の 🔗✂️ ボタン
+document.getElementById('fs-group-toggle').addEventListener('click', () => {
+    groupMoveEnabled = !groupMoveEnabled;
+    updateGroupMoveUI();
+});
+
+// 📥 ロードボタン
+document.getElementById('fs-load').addEventListener('click', loadLayout);
+
+// 初期状態を反映
+updateGroupMoveUI();
+
+
+
 
 // 初期レール生成
 function initializeRails() {
@@ -7438,13 +7535,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (buttonId) {
                 const button = document.getElementById(buttonId);
                 if (button) {
+                    // セクションが閉じていれば展開する
+                    const sectionContent = button.closest('.section-content');
+                    if (sectionContent && sectionContent.classList.contains('collapsed')) {
+                        const sectionId = sectionContent.id.replace('section-', '');
+                        const title = document.querySelector(`.section-title[data-section="${sectionId}"]`);
+                        if (title) {
+                            title.classList.remove('collapsed');
+                            sectionContent.classList.remove('collapsed');
+                            const states = loadSectionStates();
+                            states[sectionId] = true;
+                            saveSectionStates(states);
+                        }
+                    }           
+
                     // ボタンまでスクロール
-                    button.scrollIntoView({ 
-                        behavior: 'smooth', 
+                    button.scrollIntoView({
+                        behavior: 'smooth',
                         block: 'nearest',
                         inline: 'center'
-                    });
-                    
+                    });         
+
                     // ボタンをハイライト（0.8秒）
                     button.style.backgroundColor = '#ffd700';
                     button.style.transition = 'background-color 0.3s';
@@ -8530,6 +8641,18 @@ function handleResize() {
 window.addEventListener('resize', handleResize);
 window.addEventListener('orientationchange', handleResize);
 
+function zoomIn() {
+    scale *= scaleFactor;
+    drawAll();
+}
+function zoomOut() {
+    scale /= scaleFactor;
+    drawAll();
+}
+
+
+
+
 // ==========================================
 // 全画面モード
 // ==========================================
@@ -8539,6 +8662,7 @@ function toggleFullscreen() {
     isFullscreen = !isFullscreen;
     document.body.classList.toggle('fullscreen', isFullscreen);
     document.getElementById('btn-fullscreen').textContent = isFullscreen ? '⊡' : '⛶';
+    updateZoomControlsPosition();
     drawAll();
 }
 
@@ -8555,6 +8679,8 @@ document.getElementById('fs-save').addEventListener('click', () => {
     const saveBtn = document.getElementById('saveSlot1');
     if (saveBtn) saveBtn.click();
 });
+// 全画面時の読み込みボタンは既存機能に接続
+document.getElementById('fs-load').addEventListener('click', loadLayout);
 
 // ========================================
 // v50.23: セクション折りたたみ機能
