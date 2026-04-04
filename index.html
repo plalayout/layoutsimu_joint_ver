@@ -299,7 +299,81 @@
             margin: 2px 2px;
             flex-shrink: 0;
         }
-        
+
+        s-slot-panel {
+             position: fixed;
+             bottom: 60px;
+             left: 50%;
+             transform: translateX(-50%);
+             background: rgba(240,240,240,0.97);
+             border: 1px solid #aaa;
+             border-radius: 8px;
+             padding: 10px 14px;
+             z-index: 400;
+             display: flex;
+             flex-direction: column;
+             gap: 8px;
+             align-items: center;
+        }
+        s-slot-btns {
+            display: flex;
+            gap: 6px;
+        }
+        s-slot-btns button {
+            width: 44px;
+            height: 44px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #aaa;
+            background: #fff;
+            cursor: pointer;
+        }
+        s-slot-cancel {
+            font-size: 13px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+            background: #eee;
+            cursor: pointer;
+        }
+
+        #fs-slot-panel {
+            position: fixed;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(240,240,240,0.97);
+            border: 1px solid #aaa;
+            border-radius: 8px;
+            padding: 10px 14px;
+            z-index: 400;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+        #fs-slot-btns {
+            display: flex;
+            gap: 6px;
+        }
+        #fs-slot-btns button {
+            width: 44px;
+            height: 44px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: 1px solid #aaa;
+            background: #fff;
+            cursor: pointer;
+        }
+        #fs-slot-cancel {
+            font-size: 13px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            border: 1px solid #aaa;
+            background: #eee;
+            cursor: pointer;
+        }     
+
+
         canvas {
             display: block;
             touch-action: none;
@@ -580,6 +654,14 @@
            </button>
         </div>
     </div>
+
+    <!-- 全画面スロット選択パネル -->
+    <div id="fs-slot-panel" style="display:none;">
+        <div id="fs-slot-label"></div>
+        <div id="fs-slot-btns"></div>
+        <button id="fs-slot-cancel">キャンセル</button>
+    </div>
+
 
     <!-- 全画面モード: 凡例2層パネル -->
     <div id="fs-legend">
@@ -7467,7 +7549,7 @@ document.getElementById('fs-group-toggle').addEventListener('click', () => {
 });
 
 // 📥 ロードボタン
-document.getElementById('fs-load').addEventListener('click', loadLayout);
+//document.getElementById('fs-load').addEventListener('click', loadLayout);
 
 // 初期状態を反映
 updateGroupMoveUI();
@@ -8671,14 +8753,53 @@ function applyFullscreenCanvasSize() {
 document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
 document.getElementById('fs-exit').addEventListener('click', toggleFullscreen);
 
+function showFsSlotPanel(mode) {
+    const panel = document.getElementById('fs-slot-panel');
+    const label = document.getElementById('fs-slot-label');
+    const btns = document.getElementById('fs-slot-btns');
+
+    label.textContent = mode === 'save' ? '💾 スロットを選択' : '📥 スロットを選択';
+    btns.innerHTML = '';
+
+    for (let i = 1; i <= 5; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        // スロットにデータがあるか表示
+        const hasData = !!localStorage.getItem(`plarail_layout_slot${i}`);
+        btn.style.background = hasData ? '#cfc' : '#fff';
+        btn.title = hasData ? `スロット${i}（保存済み）` : `スロット${i}（空）`;
+        btn.addEventListener('click', () => {
+            if (mode === 'save') {
+                saveToSlot(i);
+            } else {
+                loadFromSlot(i);
+            }
+            panel.style.display = 'none';
+        });
+        btns.appendChild(btn);
+    }
+    panel.style.display = 'flex';
+}
+
+document.getElementById('fs-slot-cancel').addEventListener('click', () => {
+    document.getElementById('fs-slot-panel').style.display = 'none';
+});
+
+// 既存のハンドラーを置き換え
+// fs-save
+document.getElementById('fs-save').addEventListener('click', () => showFsSlotPanel('save'));
+document.getElementById('fs-load').addEventListener('click', () => showFsSlotPanel('load'));
+
+
+
 // 全画面時の保存・戻るボタンは既存機能に接続
-document.getElementById('fs-save').addEventListener('click', () => {
+/*document.getElementById('fs-save').addEventListener('click', () => {
     // 既存の保存処理を呼び出し（保存ボタンと同じ）
     const saveBtn = document.getElementById('saveSlot1');
     if (saveBtn) saveBtn.click();
-});
+});*/
 // 全画面時の読み込みボタンは既存機能に接続
-document.getElementById('fs-load').addEventListener('click', loadLayout);
+//document.getElementById('fs-load').addEventListener('click', loadLayout);
 
 // ========================================
 // v50.23: セクション折りたたみ機能
