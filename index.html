@@ -629,6 +629,11 @@
     cursor: pointer;
     line-height: 1;
 }
+
+#toggleProjection.active {
+    background: rgba(100,180,255,0.90);
+    color: #fff;
+}
     </style>
 </head>
 <body>
@@ -638,8 +643,12 @@
  
 
        <div id="zoom-controls">
-           <button id="zoom-in">＋</button>
-           <button id="zoom-out">－</button>
+            <button id="layer-up">▲</button>
+            <button id="layer-display">全</button>
+            <button id="layer-down">▼</button>
+            <button id="toggleProjection" title="3D表示切替">3D</button>
+            <button id="zoom-in">＋</button>
+            <button id="zoom-out">－</button>
        </div>
    </div>
 
@@ -865,6 +874,15 @@
 		<div class="button-group">
             <button id="addSlide" data-rail="slide" data-reversed="false">S字</button>
             <button id="addRSlide" data-rail="slide" data-reversed="true">S字(R)</button>
+        </div>
+        <div class="button-group">
+            <button id="addSlopeStr" data-rail="slopeStr" data-reversed="false">ニュー坂</button>
+            <button id="addSlopeStrR" data-rail="slopeStr" data-reversed="true">ニュー坂(裏)</button>
+            <button id="addSlopeCurveB" data-rail="slopeCurve" data-type="B">坂曲B(上)</button>
+            <button id="addSlopeCurveA" data-rail="slopeCurve" data-type="A">坂曲A(下)</button>
+        </div>
+
+        <div class="button-group">
             <button id="addFlagNote" data-rail="flag" data-breakgroup="false">N メモ</button>
             <button id="addFlagBreak" data-rail="flag" data-breakgroup="true">Nb 境界</button>
             <button id="addConcaveJoint" data-rail="concavejoint">Na 凸凸J</button>
@@ -982,7 +1000,7 @@
         <div data-action="delete">削除</div>
     </div>
     
-    <script>
+<script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 	let canvH = canvas.height;
@@ -1033,6 +1051,14 @@ const scaleFactor = 1.1;
         const JOINT_WIDTH = 4;
         const JOINT_LENGTH = 4;
         let useDetailedEndpoints = true; // 詳細端点表示の切替（初期値: true = 詳細）
+
+        // 3D投影設定    
+        const LAYER_HEIGHT = Math.round(RAIL_LENGTH * 66 / 216);
+        const ISO_ANGLE = Math.PI / 6;
+        const ISO_X = LAYER_HEIGHT * Math.cos(ISO_ANGLE);
+        const ISO_Y = LAYER_HEIGHT * Math.sin(ISO_ANGLE);
+        let projection3D = false; 
+        let activeLayer = -1;  // -1=全体、0=0階、1=1階...       
 
         // デバッグログ設定
         let isNeedJointConsole = false; // ジョイント/端点関連のコンソールログ（初期値: false = オフ）
@@ -1390,6 +1416,7 @@ class RailBase {
         // ========== 位置情報（全レール共通） ==========
         this.x = x;
         this.y = y;
+        this.z = options.z !== undefined ? options.z : 0;
         this.id = id;
         this.angle = options.angle !== undefined ? options.angle : 0;
         
@@ -1858,6 +1885,33 @@ class StraightRail extends SimpleRail {
             }
 			
 }
+// ========== ニュー坂レール ==========
+class SlopeStraightRail extends StraightRail {
+    constructor(x, y, id, options = {}) {
+        super(x, y, id, RAIL_LENGTH * 2, {
+            ...options,
+            color: options.color || '#FF8C00',
+            highlightColor: options.highlightColor || '#FFA500',
+            railType: 'slopeStr'
+        });
+        this.railType = 'slopeStr';
+        this.reversed = options.reversed || false;
+        this.slopeDelta = this.reversed ? -1.0 : 1.0;
+        this.canToggleReverse = true;
+    }
+
+    getEndpoints() {
+        const eps = super.getEndpoints();
+        eps[0].z = this.z;
+        eps[1].z = this.z + this.slopeDelta;
+        return eps;
+    }
+
+    toShortcut() {
+        return this.reversed ? 'GSv' : 'GS.';
+    }
+}
+
 
 class Slide extends SimpleRail {
             constructor(x, y, id, slide, length = RAIL_LENGTH) {
@@ -2197,6 +2251,33 @@ class Curve extends SimpleRail {
     }
 	
 }
+
+// ========== 坂曲線レール ==========
+class SlopeCurveRail extends Curve {
+    constructor(x, y, id, type = 'B', options = {}) {
+        super(x, y, id, 'left', RAIL_LENGTH, 45, {
+            ...options,
+            color: options.color || '#20B2AA',
+            highlightColor: options.highlightColor || '#48D1CC',
+        });
+        this.railType = 'slopeCurve';
+        this.slopeType = type;  // 'A'=下り -0.25, 'B'=上り +0.25
+        this.slopeDelta = (type === 'A') ? -0.25 : 0.25;
+        this.canToggleType = true;
+    }
+
+    getEndpoints() {
+        const eps = super.getEndpoints();
+        eps[0].z = this.z;
+        eps[1].z = this.z + this.slopeDelta;
+        return eps;
+    }
+
+    toShortcut() {
+        return this.slopeType === 'A' ? 'GCA' : 'GCB';
+    }
+}
+
 
 class TurnoutRail extends ComplexRail {
     constructor(x, y, id, turnoutType = 'R', direction = 'left') {
@@ -4868,7 +4949,7 @@ class ConcaveJointRail extends ZeroLengthRailBase {
         });
     }
 
-    function drawAll() {
+function drawAll() {
 
 	// ========================================
 	// 描画軽減: 実行時間測定開始
@@ -4877,18 +4958,12 @@ class ConcaveJointRail extends ZeroLengthRailBase {
 
 	ctx.restore();ctx.save();
 	ctx.setTransform(1,0,0,1,0,0);
-//        ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
 	ctx.translate(0,canvas.height);
 	ctx.translate(canvasOffsetX,- canvasOffsetY);
-	//ctx.scale(1,-1);
 
 	ctx.scale(scale,-scale);
       	
-        ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
-
-       // ctx.save(); ctx.setTransform(scale, 0, 0, scale, canvasOffsetX, canvasOffsetY);
-        
-	//    
+    ctx.clearRect(-canvasOffsetX/scale, -canvasOffsetY/scale, canvas.width/scale, canvas.height/scale);
 
 	// ========================================
 	// 描画軽減: 画面外判定フラグ設定（条件付き）
@@ -4931,17 +5006,33 @@ class ConcaveJointRail extends ZeroLengthRailBase {
 	// レールとジョイントの描画（描画順序修正版）
 	if (useDetailedEndpoints) {
 		// 詳細モード: レール描画直後にそのジョイントを描画
-		rails.forEach(rail => {
-			if (!rail.skipDraw) {  // 画面外はスキップ
-				rail.draw();
-				drawRailEndpoints(rail);
-			}
-		});
+        const sortedRails = [...rails].sort((a, b) => a.z - b.z);// Z値でソートして奥から描画
+		sortedRails.forEach(rail => {
+            if (!rail.skipDraw) {
+            const railLayer = Math.floor(rail.z);
+            const isActive = activeLayer === -1 || railLayer === activeLayer;
+            ctx.save();
+            ctx.globalAlpha = isActive ? 1.0 : 0.25;
+            if (projection3D && rail.z !== 0 &&
+                rail.railType !== 'slopeStr' &&
+                rail.railType !== 'slopeCurve') {
+                ctx.translate(rail.z * ISO_X, rail.z * ISO_Y);
+            }
+            rail.draw();
+            drawRailEndpoints(rail);
+            ctx.restore();
+            }
+        });
 	} else {
 		// シンプルモード: 従来の方式
 		rails.forEach(rail => {
 			if (!rail.skipDraw) {  // 画面外はスキップ
-				rail.draw();
+            ctx.save();
+            if (projection3D && rail.z !== 0) {
+                ctx.translate(rail.z * ISO_X, rail.z * ISO_Y);
+            }
+            rail.draw();
+            ctx.restore();
 			}
 		});
 		drawSimpleEndpoints();
@@ -5010,7 +5101,7 @@ class ConcaveJointRail extends ZeroLengthRailBase {
          if (fsMenuOpen || (isFullscreen && fsSrlVisible && rails.length > 0)) {
             drawFsArrows();
         }
-    }
+}
 
 function updateZoomControlsPosition() {
     const zoomControls = document.getElementById('zoom-controls');
@@ -5100,66 +5191,6 @@ function getFsMenuPositions(rail, keys) {
     return positions;
 }
 
-// 通常モード用: 放射状メニュー描画
-/*function drawContextRadialMenu() {
-    const rail = getFsTargetRail();
-    if (!rail || !fsMenuOpen) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    ctx.save();
-    ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
-
-    const R = FS_BTN_R;
-    
-    // ボタン定義（条件付き表示）
-    const allBtns = [
-        { key: 'edit', label: '🖊️', color: 'rgba(100,150,220,0.88)', show: rail.hasEditLabel === true },
-        { key: 'flip', label: '🔄', color: 'rgba(100,60,200,0.88)', show: rail.canToggleReverse === true },
-        { key: 'type', label: '🔀', color: 'rgba(200,120,0,0.88)', show: rail.canToggleType === true },
-        { key: 'rotL', label: '↪',  color: 'rgba(0,140,160,0.88)', show: true },
-        { key: 'rotR', label: '↩',  color: 'rgba(0,140,160,0.88)', show: true },
-        { key: 'del',  label: '🗑️', color: 'rgba(200,30,30,0.88)', show: true },
-        { key: 'copy', label: '🔂', color: 'rgba(60,140,60,0.88)', show: true },
-    ];
-    
-    // 表示するボタンのみフィルタリング
-    const btns = allBtns.filter(btn => btn.show);
-    const keys = btns.map(btn => btn.key);
-    
-    const pos = getFsMenuPositions(rail, keys);
-    
-    // 中心に薄い円（ターゲット表示）
-    const eps = rail.getEndpoints();
-    const ep0 = eps[0], ep1 = eps[1] || eps[0];
-    const sc = worldToScreen((ep0.x + ep1.x) / 2, (ep0.y + ep1.y) / 2);
-    const cx = sc.x / scaleX, cy = sc.y / scaleY;
-    ctx.beginPath();
-    ctx.arc(cx, cy, R * 0.6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(80,80,80,0.3)';
-    ctx.fill();
-
-    btns.forEach(({ key, label, color }) => {
-        const p = pos[key];
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${R * 0.9}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, p.x, p.y);
-    });
-
-    ctx.restore();
-}*/
-
 function drawFsArrows() {
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -5180,6 +5211,11 @@ function drawFsArrows() {
         const pos = getFsMenuPositions(rail, keys);
         drawRadialCenter(rail, scaleX, scaleY, R);
         drawRadialBtns(btns, pos, R);
+
+        // デバッグ: 対象レールと端点のZ座標をコンソールに表示
+        rails.forEach(r => { const e = r.getEndpoints(); console.log(r.id, r.railType, 'z:', r.z, 'ep0:', e[0]?.z, 'ep1:', e[1]?.z); });
+
+
     } else {
         // 通常: S/R/L/≡（複線端点時はD-track-mode表示）
         const ep = getLastEndpoint();
@@ -5443,11 +5479,18 @@ function canSnapEndpoints(ep1, ep2) {
                       (ep1Type === 'convex' && ep2Type === 'concave');
     if (!validPair) return false;
     
+   // z値チェック：異なる階層間はスナップ不可
+    // 坂レールの端点（z≠0）は接続可能、平面レール同士は同一z値のみ
+    const z1 = ep1.z ?? 0;
+    const z2 = ep2.z ?? 0;
+    if (Math.abs(z1 - z2) > 0.01) return false;
+
     // 角度差を計算
     let angleDiff = Math.abs(ep1.angle - ep2.angle);
     angleDiff = angleDiff % 360;
     if (angleDiff > 180) angleDiff = 360 - angleDiff;
     
+
     // -90度～+90度以内（90度未満）ならスナップ可能
     const validAngle = angleDiff < 90;
     return validAngle;
@@ -5928,6 +5971,43 @@ function rotateRailAroundPoint(rail, centerX, centerY, angleDelta) {
         if (rail._dirty !== undefined) rail._dirty = true;
 }
 
+function propagateZ(startRail) {
+    const visited = new Set();
+    const queue = [startRail];
+    visited.add(startRail.id);
+
+    while (queue.length > 0) {
+        const current = queue.shift();
+        const currentEps = current.getEndpoints();
+
+        rails.forEach(other => {
+            if (visited.has(other.id)) return;
+            if (other instanceof FlagRail && other.breakGroup) return;
+
+            const otherEps = other.getEndpoints();
+
+            for (const ep1 of currentEps) {
+                for (const ep2 of otherEps) {
+                    if (!areEndpointsConnected(ep1, ep2)) continue;
+
+                    const matchedZ = ep1.z ?? current.z ?? 0;
+                    const localZ = ep2.z ?? other.z ?? 0;
+                    const newZ = matchedZ - (localZ - other.z);
+
+                    if (Math.abs(newZ - other.z) > 0.001) {
+                        other.z = newZ;
+                    }
+
+                    visited.add(other.id);
+                    queue.push(other);
+                    break;
+                }
+                if (visited.has(other.id)) break;
+            }
+        });
+    }
+}
+
 function snapToClosestEndpoint(shape) {
     // 描画軽減: 縮尺が小さい時はスナップ無効
     if (usePerformanceMode && scale < 0.5) {
@@ -5981,7 +6061,14 @@ function snapToClosestEndpoint(shape) {
         shape.x += dx;
         shape.y += dy;
         if (shape._dirty !== undefined) shape._dirty = true;
-    }
+
+        // 接続先端点のz値から自レールのzを逆算して設定
+        // snapToClosestEndpoint の z伝播部分を修正
+        const matchedZ = closestEndpoint.endpoint.z ?? closestEndpoint.shape.z ?? 0;
+        const localZ = newEndpoint.z ?? shape.z ?? 0;
+        shape.z = matchedZ - (localZ - shape.z);
+        propagateZ(shape);
+  }
 }
 
    
@@ -6582,7 +6669,8 @@ function getLastEndpoint() {
             angle: endpoint.angle,  // eps[0]の角度をそのまま使用
             id: endpoint.id,
             type: endpoint.type,
-            placeFromEnd: true
+            placeFromEnd: true,
+            z: endpoint.z ?? targetRail.z ?? 0 
         };
     }
     
@@ -6593,7 +6681,8 @@ function getLastEndpoint() {
         angle: endpoint.angle,
         id: endpoint.id,
         type: endpoint.type,
-        placeFromEnd: false
+        placeFromEnd: false,
+        z: endpoint.z ?? targetRail.z ?? 0 
     };
 }
 
@@ -6828,10 +6917,17 @@ function addRailCommon(rail, lastEndpoint, options = {}) {
     const { setAngle = true } = options;
     if (setAngle) {
         rail.angle = lastEndpoint.angle;
-
         if (rail._dirty !== undefined) rail._dirty = true;
     }
     adjustRailPlacement(rail, lastEndpoint);
+   
+    // z伝播：接続先端点のz値から新レールのzを設定
+    const matchedZ = lastEndpoint.z ?? (railProgression.rail?.z ?? 0);
+    const newEps = rail.getEndpoints();
+    const connectingEp = lastEndpoint.placeFromEnd ? newEps[1] : newEps[0];
+    const localZ = connectingEp?.z ?? rail.z ?? 0;
+    rail.z = matchedZ - (localZ - rail.z);
+    propagateZ(rail);
     
     // 配置前の状態を保存
     const prevRail = railProgression.rail;
@@ -7072,6 +7168,16 @@ function addRailByType(railType, options = {}) {
             rail = new ConcaveJointRail(lastEndpoint.x, lastEndpoint.y, id, options);
             break;
 
+        // ===== スロープ =====    
+        case 'slopeStr':
+            rail = new SlopeStraightRail(lastEndpoint.x, lastEndpoint.y, id, options);
+            break;
+
+        case 'slopeCurve':
+            const slopeCurveType = options.type || 'B';
+            rail = new SlopeCurveRail(lastEndpoint.x, lastEndpoint.y, id, slopeCurveType, options);
+            break;
+
         case 'slide':
             const slideOffset = options.reversed ? -D_TRACK_WIDTH : D_TRACK_WIDTH;
             rail = new Slide(lastEndpoint.x, lastEndpoint.y, id, slideOffset);
@@ -7240,6 +7346,7 @@ function addRailByType(railType, options = {}) {
         if (isPositionMode) {
             // 座標指定モード: 直接角度を設定
             rail.angle = options.angle;
+            rail.z = options.z ?? 0; 
 
             if (rail._dirty !== undefined) rail._dirty = true;
             
@@ -7336,13 +7443,19 @@ document.getElementById('performanceToggle').addEventListener('click', function(
     drawAll();
 });
 
-// リセット　イベントリスナー
+// リセット　イベントリスナー 3d描画のリセットもここで行う
 document.getElementById('allclear').addEventListener('click', () => {
-    scale = 1.0;  // 初期スケールに戻す
+    scale = 1.0;
     canvasOffsetX = canvW/2;
     canvasOffsetY = canvH/2;
     rails.length = 0;
-    railPlacementHistory = []; // 配置履歴もクリア
+    railPlacementHistory = [];
+    railProgression.rail = null;
+    railProgression.endpointIndex = 1;
+    railProgression.isReversed = false;
+    LastselectedShape = null;
+    activeLayer = -1;        // 階層表示もリセット
+    updateLayerUI();
     drawAll();
 });
 
@@ -7397,7 +7510,11 @@ function loadLayout() {
     
     rails.length = 0;
     railPlacementHistory = [];
-    
+    railProgression.rail = null;
+    railProgression.endpointIndex = 1;
+    railProgression.isReversed = false;
+    LastselectedShape = null;
+    activeLayer = -1;
     // ショートカット形式で読み込み
     executeShortcutBuffer(layoutData);
 }
@@ -7917,6 +8034,13 @@ const railShortcuts = {
     'BS': { type: 'doubleStraight' },
     'Br': { type: 'doubleLengthCurve', options: { direction: 'right' } },
     'Bl': { type: 'doubleLengthCurve', options: { direction: 'left' } },
+
+    //坂レール
+    'GS.': { type: 'slopeStr',   options: { reversed: false } },
+    'GSv': { type: 'slopeStr',   options: { reversed: true  } },
+    'GCA': { type: 'slopeCurve', options: { type: 'A' } },
+    'GCB': { type: 'slopeCurve', options: { type: 'B' } },
+
     
     // 1/4レール（凸凸と凹凹を区別）
     'Q.': { type: 'quarterStraight' },
@@ -8076,7 +8200,13 @@ function executeShortcutBuffer(input) {
             const x = parseFloat(coords[0]);
             const y = parseFloat(coords[1]);
             const angle = parseFloat(coords[2]);
-            
+            // z値（省略時は0）
+            let startZ = 0;
+            for (let pi = 3; pi < coords.length; pi++) {
+                if (coords[pi].startsWith('z')) {
+                    startZ = parseFloat(coords[pi].slice(1));
+                }
+            }
             i = colonIndex + 1;
             
             // 最初のショートカットのみ座標指定で配置
@@ -8115,6 +8245,7 @@ function executeShortcutBuffer(input) {
                                 x: x,
                                 y: y,
                                 angle: angle,
+                                z: startZ,         // z値をオプションに追加
                                 isReversed: isReversed,
                                 ...(customLabel !== null ? { label: customLabel } : {})
                             };
@@ -8582,8 +8713,8 @@ function serializeOneSegment(cluster) {
     const angle = startRail.angle.toFixed(0);
     const vFlag = isReversed ? 'v' : '';
     const shortcut = startRail.toShortcut();
-    
-    let result = `@${x},${y},${angle}${vFlag}:${shortcut}`;
+    const z = startRail.z !== 0 ? `,z${startRail.z.toFixed(2)}` : '';
+    let result = `@${x},${y},${angle}${vFlag}${z}:${shortcut}`;
     console.log(`    開始: ${startRail.id}[${startEpsIndex}から] → ${result}`);
     
     const startIndex = cluster.findIndex(r => r.id === startRail.id);
@@ -8936,9 +9067,14 @@ const FS_LEGEND_CATS = {
         { label: '複T.O.', color: 'lightseagreen',  action: () => addRailByType('doubleTurnout', { direction: 'left', reversed: false }) },
     ],
     other: [
-        { label: 'N メモ',  color: '#aaaaaa', action: () => addRailByType('flag', { breakGroup: false }) },
-        { label: 'Nb 境界', color: '#888888', action: () => addRailByType('flag', { breakGroup: true  }) },
-        { label: 'Na 凹接', color: '#bbbbbb', action: () => addRailByType('concavejoint') },
+        { label: 'N メモ',   color: '#aaaaaa', action: () => addRailByType('flag', { breakGroup: false }) },
+        { label: 'Nb 境界',  color: '#888888', action: () => addRailByType('flag', { breakGroup: true  }) },
+        { label: 'Na 凹接',  color: '#bbbbbb', action: () => addRailByType('concavejoint') },
+        { sep: true },
+        { label: 'ニュー坂', color: '#FF8C00', action: () => addRailByType('slopeStr', { reversed: false }) },
+        { label: '坂(裏)',   color: '#FF8C00', action: () => addRailByType('slopeStr', { reversed: true  }) },
+        { label: '坂曲B(上)',color: '#20B2AA', action: () => addRailByType('slopeCurve', { type: 'B' }) },
+        { label: '坂曲A(下)',color: '#20B2AA', action: () => addRailByType('slopeCurve', { type: 'A' }) },
     ],
 };
 
@@ -8986,6 +9122,50 @@ document.querySelectorAll('.fs-tab').forEach(tab => {
         fsLegendScrollTo(tab.dataset.cat);
     });
 });
+
+// 投影切替
+document.getElementById('toggleProjection').addEventListener('click', () => {
+    projection3D = !projection3D;
+    const btn = document.getElementById('toggleProjection');
+    btn.classList.toggle('active', projection3D);
+    drawAll();
+});
+
+//  レイヤー管理
+function getMaxLayer() {
+    if (rails.length === 0) return 0;
+    return Math.max(...rails.map(r => Math.floor(r.z)));
+}
+
+// レイヤー表示の更新
+function updateLayerUI() {
+    const maxLayer = getMaxLayer();
+    const display = document.getElementById('layer-display');
+    const btnUp = document.getElementById('layer-up');
+    const btnDown = document.getElementById('layer-down');
+
+    display.textContent = activeLayer === -1 ? '全' : `${activeLayer}階`;
+    btnUp.style.opacity = (activeLayer < maxLayer) ? '1' : '0.3';
+    btnDown.style.opacity = (activeLayer >= 0) ? '1' : '0.3';
+}
+
+// レイヤー切替
+document.getElementById('layer-up').addEventListener('click', () => {
+    const maxLayer = getMaxLayer();
+    if (activeLayer < maxLayer) {
+        activeLayer++;
+        updateLayerUI();
+        drawAll();
+    }
+});
+document.getElementById('layer-down').addEventListener('click', () => {
+    if (activeLayer >= 0) {
+        activeLayer--;
+        updateLayerUI();
+        drawAll();
+    }
+});
+
 
 // 初期構築
 buildFsLegend();
