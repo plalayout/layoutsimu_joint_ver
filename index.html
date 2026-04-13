@@ -6066,9 +6066,13 @@ function snapToClosestEndpoint(shape) {
         // snapToClosestEndpoint の z伝播部分を修正
         const matchedZ = closestEndpoint.endpoint.z ?? closestEndpoint.shape.z ?? 0;
         const localZ = newEndpoint.z ?? shape.z ?? 0;
-        shape.z = matchedZ - (localZ - shape.z);
-        propagateZ(shape);
-  }
+        const newZ = matchedZ - (localZ - shape.z);
+
+        // マイナスになるならスナップキャンセル
+        if (newZ < 0) return;
+
+        shape.z = newZ;
+    }
 }
 
    
@@ -6926,8 +6930,8 @@ function addRailCommon(rail, lastEndpoint, options = {}) {
     const newEps = rail.getEndpoints();
     const connectingEp = lastEndpoint.placeFromEnd ? newEps[1] : newEps[0];
     const localZ = connectingEp?.z ?? rail.z ?? 0;
-    rail.z = matchedZ - (localZ - rail.z);
-    propagateZ(rail);
+    const newZ = matchedZ - (localZ - rail.z);
+    rail.z = Math.max(0, newZ);
     
     // 配置前の状態を保存
     const prevRail = railProgression.rail;
